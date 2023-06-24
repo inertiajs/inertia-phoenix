@@ -6,6 +6,7 @@ defmodule Inertia.MixProject do
       app: :inertia,
       version: "0.1.0",
       elixir: "~> 1.14",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -21,9 +22,16 @@ defmodule Inertia.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:phoenix, "~> 1.7.6"},
+      {:phoenix_html, "~> 3.3"},
       {:plug, "~> 1.14"},
-      {:plug_cowboy, "~> 2.1", only: [:test]},
-      {:jason, "~> 1.2", only: [:test]}
+      {:jason, "~> 1.2"},
+      {:plug_cowboy, "~> 2.1", only: :test},
+      {:phoenix_live_view, "~> 0.19.0", only: :test},
+      {:floki, ">= 0.30.0", only: :test}
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 end

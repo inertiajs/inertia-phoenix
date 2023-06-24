@@ -1,4 +1,4 @@
-# Interia for Elixir
+# Inertia.js Phoenix Adapter
 
 **TODO: Add description**
 
