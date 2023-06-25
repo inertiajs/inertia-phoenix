@@ -16,6 +16,8 @@ defmodule Inertia.ControllerTest do
              "url" => "/",
              "version" => 1
            } = json_response(conn, 200)
+
+    assert get_resp_header(conn, "x-inertia") == ["true"]
   end
 
   test "renders HTML without x-inertia", %{conn: conn} do

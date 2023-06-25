@@ -20,6 +20,7 @@ defmodule Inertia.Controller do
   defp send_json_response(conn) do
     conn
     |> put_status(200)
+    |> put_resp_header("x-inertia", "true")
     |> json(inertia_payload(conn))
   end
 
