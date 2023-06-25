@@ -28,7 +28,7 @@ defmodule Inertia.ControllerTest do
     body = html_response(conn, 200) |> String.trim()
 
     assert body =~ """
-           <main><div id=\"app\" data-page=\"{&quot;component&quot;:&quot;Home&quot;,&quot;props&quot;:{&quot;text&quot;:&quot;Hello World&quot;}}\"></div></main>
+           <main><div id=\"app\" data-page=\"{&quot;component&quot;:&quot;Home&quot;,&quot;props&quot;:{&quot;text&quot;:&quot;Hello World&quot;},&quot;url&quot;:&quot;/&quot;,&quot;version&quot;:1}\"></div></main>
            """
   end
 end
