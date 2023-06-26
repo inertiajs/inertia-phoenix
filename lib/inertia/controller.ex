@@ -4,7 +4,7 @@ defmodule Inertia.Controller do
 
   def render_inertia(conn, component, props) do
     conn
-    |> put_private(:inertia, %{component: component, props: props})
+    |> put_private(:inertia_page, %{component: component, props: props})
     |> send_response()
   end
 
@@ -25,10 +25,10 @@ defmodule Inertia.Controller do
 
   defp inertia_payload(conn) do
     %{
-      component: conn.private.inertia.component,
-      props: conn.private.inertia.props,
+      component: conn.private.inertia_page.component,
+      props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: 1
+      version: conn.private.inertia_version
     }
   end
 

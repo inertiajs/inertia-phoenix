@@ -10,6 +10,11 @@ config :inertia, MyAppWeb.Endpoint,
   pubsub_server: MyApp.PubSub,
   live_view: [signing_salt: "+r1ZDDS5"]
 
+config :inertia,
+  endpoint: MyAppWeb.Endpoint,
+  static_paths: ["/assets/app.js"],
+  default_version: "1"
+
 config :phoenix, :json_library, Jason
 
 if Mix.env() == :test do
