@@ -35,7 +35,7 @@ defmodule Inertia.Plug do
   end
 
   defp check_version(%{private: %{inertia_version: current_version}} = conn) do
-    if get_req_header(conn, "x-inertia-version") != [current_version] do
+    if conn.method == "GET" && get_req_header(conn, "x-inertia-version") != [current_version] do
       force_refresh(conn)
     else
       conn
