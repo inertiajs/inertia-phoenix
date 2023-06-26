@@ -19,7 +19,7 @@ defmodule Inertia.Controller do
 
   defp send_response(conn) do
     conn
-    |> put_view(html: Inertia.HTML)
+    |> put_view(Inertia.HTML)
     |> render(:page, inertia_payload(conn))
   end
 
