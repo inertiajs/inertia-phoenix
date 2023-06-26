@@ -24,7 +24,7 @@ defmodule Inertia.MixProject do
     [
       {:phoenix, "~> 1.7.6"},
       {:phoenix_html, "~> 3.3"},
-      {:phoenix_live_view, "~> 0.19.0"},
+      {:phoenix_live_view, "~> 0.18"},
       {:plug, "~> 1.14"},
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.1", only: :test},
