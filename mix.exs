@@ -22,10 +22,10 @@ defmodule Inertia.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:phoenix, "~> 1.7.6"},
-      {:phoenix_html, "~> 3.3"},
+      {:phoenix, "~> 1.7"},
+      {:phoenix_html, ">= 3.0.0"},
       {:phoenix_live_view, "~> 0.18"},
-      {:plug, "~> 1.14"},
+      {:plug, ">= 1.5.0 and < 2.0.0"},
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.1", only: :test},
       {:floki, ">= 0.30.0", only: :test}
