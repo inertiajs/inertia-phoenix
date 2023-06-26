@@ -2,6 +2,7 @@ import Config
 
 config :inertia, MyAppWeb.Endpoint,
   url: [host: "localhost"],
+  cache_static_manifest: "priv/static/cache_manifest.json",
   render_errors: [
     formats: [html: MyAppWeb.ErrorHTML, json: MyAppWeb.ErrorJSON],
     layout: false

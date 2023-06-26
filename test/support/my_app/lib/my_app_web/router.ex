@@ -8,11 +8,15 @@ defmodule MyAppWeb.Router do
     plug :put_root_layout, html: {MyAppWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug Inertia.Plug
   end
 
   scope "/", MyAppWeb do
     pipe_through(:browser)
 
-    get "/", PageController, :home
+    get "/", PageController, :index
+    put "/", PageController, :update
+    patch "/", PageController, :patch
+    delete "/", PageController, :delete
   end
 end

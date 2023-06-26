@@ -10,21 +10,14 @@ defmodule Inertia.Controller do
 
   # Private helpers
 
-  defp send_response(conn) do
-    case get_req_header(conn, "x-inertia") do
-      ["true"] -> send_json_response(conn)
-      _ -> send_html_response(conn)
-    end
-  end
-
-  defp send_json_response(conn) do
+  defp send_response(%{private: %{inertia_request: true}} = conn) do
     conn
     |> put_status(200)
     |> put_resp_header("x-inertia", "true")
     |> json(inertia_payload(conn))
   end
 
-  defp send_html_response(conn) do
+  defp send_response(conn) do
     conn
     |> put_view(html: Inertia.HTML)
     |> render(:page, inertia_payload(conn))
