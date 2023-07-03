@@ -7,7 +7,7 @@ defmodule Inertia.Controller do
   """
   @spec assign_shared(Plug.Conn.t(), atom(), any()) :: Plug.Conn.t()
   def assign_shared(conn, key, value) do
-    shared = conn.assigns[:inertia_shared] || %{}
+    shared = conn.private[:inertia_shared] || %{}
     put_private(conn, :inertia_shared, Map.put(shared, key, value))
   end
 
@@ -18,7 +18,6 @@ defmodule Inertia.Controller do
   def render_inertia(conn, component, props) do
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
-    |> assign(:is_inertia, true)
     |> send_response()
   end
 
