@@ -8,19 +8,12 @@ defmodule Inertia.HTML do
   )
 
   attr(:suffix, :string, default: nil, doc: "A suffix added after the content of `inner_block`.")
-  attr(:is_inertia, :boolean, default: false, doc: "Whether to include the `inertia` property.")
   slot(:inner_block, required: true, doc: "Content rendered inside the `title` tag.")
 
   def inertia_title(assigns) do
-    if assigns[:is_inertia] do
-      ~H"""
-      <title data-prefix={@prefix} data-suffix={@suffix} inertia><%= @prefix %><%= render_slot(@inner_block) %><%= @suffix %></title>
-      """
-    else
-      ~H"""
-      <.live_title><%= render_slot(@inner_block) %></.live_title>
-      """
-    end
+    ~H"""
+    <title data-prefix={@prefix} data-suffix={@suffix} inertia><%= @prefix %><%= render_slot(@inner_block) %><%= @suffix %></title>
+    """
   end
 
   @doc type: :component
