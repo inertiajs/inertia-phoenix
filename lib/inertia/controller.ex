@@ -5,6 +5,7 @@ defmodule Inertia.Controller do
   def render_inertia(conn, component, props) do
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
+    |> assign(:is_inertia, true)
     |> send_response()
   end
 
@@ -14,16 +15,16 @@ defmodule Inertia.Controller do
     conn
     |> put_status(200)
     |> put_resp_header("x-inertia", "true")
-    |> json(inertia_payload(conn))
+    |> json(inertia_assigns(conn))
   end
 
   defp send_response(conn) do
     conn
     |> put_view(Inertia.HTML)
-    |> render(:page, inertia_payload(conn))
+    |> render(:inertia_page, inertia_assigns(conn))
   end
 
-  defp inertia_payload(conn) do
+  defp inertia_assigns(conn) do
     %{
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
