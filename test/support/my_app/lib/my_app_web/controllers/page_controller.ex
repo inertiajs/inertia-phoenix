@@ -6,6 +6,13 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", %{text: "Hello World"})
   end
 
+  def shared(conn, _params) do
+    conn
+    |> assign_shared(:text, "I should be overriden")
+    |> assign_shared(:page_title, "Home")
+    |> render_inertia("Home", %{text: "Hello World"})
+  end
+
   def update(conn, _params) do
     conn
     |> redirect(to: "/")

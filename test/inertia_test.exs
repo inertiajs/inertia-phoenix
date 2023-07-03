@@ -23,6 +23,21 @@ defmodule InertiaTest do
     assert get_resp_header(conn, "x-inertia") == ["true"]
   end
 
+  test "merges shared data", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/shared")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"text" => "Hello World", "page_title" => "Home"},
+             "url" => "/shared",
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
   test "renders HTML without x-inertia", %{conn: conn} do
     conn =
       conn

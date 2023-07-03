@@ -2,6 +2,19 @@ defmodule Inertia.Controller do
   import Phoenix.Controller
   import Plug.Conn
 
+  @doc """
+  Assigns shared data to a conn that will be automatically merged with Inertia page props.
+  """
+  @spec assign_shared(Plug.Conn.t(), atom(), any()) :: Plug.Conn.t()
+  def assign_shared(conn, key, value) do
+    shared = conn.assigns[:inertia_shared] || %{}
+    assign(conn, :inertia_shared, Map.put(shared, key, value))
+  end
+
+  @doc """
+  Renders an Inertia response.
+  """
+  @spec render_inertia(Plug.Conn.t(), String.t(), map()) :: Plug.Conn.t()
   def render_inertia(conn, component, props) do
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
@@ -25,9 +38,11 @@ defmodule Inertia.Controller do
   end
 
   defp inertia_assigns(conn) do
+    shared = conn.assigns[:inertia_shared] || %{}
+
     %{
       component: conn.private.inertia_page.component,
-      props: conn.private.inertia_page.props,
+      props: Map.merge(shared, conn.private.inertia_page.props),
       url: request_path(conn),
       version: conn.private.inertia_version
     }

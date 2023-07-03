@@ -15,6 +15,7 @@ defmodule MyAppWeb.Router do
     pipe_through(:browser)
 
     get "/", PageController, :index
+    get "/shared", PageController, :shared
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete
