@@ -88,7 +88,7 @@ defmodule InertiaTest do
       |> get(~p"/")
 
     assert html_response(conn, 409)
-    assert get_resp_header(conn, "x-inertia") == ["true"]
+    refute get_resp_header(conn, "x-inertia") == ["true"]
     assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
   end
 end

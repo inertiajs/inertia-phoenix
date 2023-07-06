@@ -59,7 +59,6 @@ defmodule Inertia.Plug do
 
   defp force_refresh(conn) do
     conn
-    |> put_resp_header("x-inertia", "true")
     |> put_resp_header("x-inertia-location", request_url(conn))
     |> put_resp_content_type("text/html")
     |> send_resp(:conflict, "")
