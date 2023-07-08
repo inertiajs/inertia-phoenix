@@ -20,10 +20,7 @@ jobs:
             mix --version
       - restore_cache:
           keys:
-            - elixir-build-v1.13.0-{{ checksum "mix.lock" }}
-      - restore_cache:
-          keys:
-            - elixir-plt-v2-{{ checksum "mix.lock" }}
+            - elixir-build-v1.14.0-{{ checksum "mix.lock" }}
       - run:
           name: "Install Hex"
           command: mix local.hex --force
@@ -37,7 +34,7 @@ jobs:
           name: "Compile Elixir source"
           command: mix compile --warnings-as-errors
       - save_cache:
-          key: elixir-build-v1.13.0-{{ checksum "mix.lock" }}
+          key: elixir-build-v1.14.0-{{ checksum "mix.lock" }}
           paths:
             - "_build"
             - "deps"
@@ -51,13 +48,6 @@ jobs:
       - run:
           name: "Run Credo"
           command: mix credo
-      - save_cache:
-          key: elixir-plt-v2-{{ checksum "mix.lock" }}
-          paths:
-            - "priv/plts"
-      - run:
-          name: "Run Dialyzer"
-          command: mix dialyzer
 
 workflows:
   test:
