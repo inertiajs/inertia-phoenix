@@ -43,11 +43,12 @@ defmodule InertiaTest do
       conn
       |> get(~p"/")
 
-    body = html_response(conn, 200) |> String.trim()
+    body = html_response(conn, 200) |> String.trim() |> String.replace("\n", "")
 
-    assert body =~ """
-           <main><div id=\"app\" data-page=\"{&quot;component&quot;:&quot;Home&quot;,&quot;props&quot;:{&quot;text&quot;:&quot;Hello World&quot;},&quot;url&quot;:&quot;/&quot;,&quot;version&quot;:&quot;#{@current_version}&quot;}\"></div></main>
-           """
+    assert body =~
+             String.trim("""
+             <main><div id=\"app\" data-page=\"{&quot;component&quot;:&quot;Home&quot;,&quot;props&quot;:{&quot;text&quot;:&quot;Hello World&quot;},&quot;url&quot;:&quot;/&quot;,&quot;version&quot;:&quot;#{@current_version}&quot;}\"></div></main>
+             """)
   end
 
   test "converts PUT redirects to 303", %{conn: conn} do
