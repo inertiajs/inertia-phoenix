@@ -40,8 +40,6 @@ defmodule Inertia.Controller do
   end
 
   defp inertia_assigns(conn) do
-    shared = conn.private[:inertia_shared] || %{}
-
     %{
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
