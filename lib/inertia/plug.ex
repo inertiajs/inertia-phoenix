@@ -52,8 +52,7 @@ defmodule Inertia.Plug do
 
   defp hash_static_paths(endpoint, paths) do
     paths
-    |> Enum.map(&endpoint.static_path(&1))
-    |> Enum.join()
+    |> Enum.map_join(&endpoint.static_path(&1))
     |> then(&Base.encode16(:crypto.hash(:md5, &1), case: :lower))
   end
 
