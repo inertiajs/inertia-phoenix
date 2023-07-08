@@ -8,8 +8,8 @@ defmodule MyAppWeb.PageController do
 
   def shared(conn, _params) do
     conn
-    |> assign_shared(:text, "I should be overriden")
-    |> assign_shared(:page_title, "Home")
+    |> assign_prop(:text, "I should be overriden")
+    |> assign_prop(:page_title, "Home")
     |> render_inertia("Home", %{text: "Hello World"})
   end
 

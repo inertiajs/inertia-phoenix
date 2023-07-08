@@ -3,10 +3,10 @@ defmodule Inertia.Controller do
   import Plug.Conn
 
   @doc """
-  Assigns shared data to a conn that will be automatically merged with Inertia page props.
+  Assigns a prop value to the Inertia page data.
   """
-  @spec assign_shared(Plug.Conn.t(), atom(), any()) :: Plug.Conn.t()
-  def assign_shared(conn, key, value) do
+  @spec assign_prop(Plug.Conn.t(), atom(), any()) :: Plug.Conn.t()
+  def assign_prop(conn, key, value) do
     shared = conn.private[:inertia_shared] || %{}
     put_private(conn, :inertia_shared, Map.put(shared, key, value))
   end
@@ -15,7 +15,10 @@ defmodule Inertia.Controller do
   Renders an Inertia response.
   """
   @spec render_inertia(Plug.Conn.t(), String.t(), map()) :: Plug.Conn.t()
-  def render_inertia(conn, component, props) do
+  def render_inertia(conn, component, props \\ %{}) do
+    shared = conn.private[:inertia_shared] || %{}
+    props = Map.merge(shared, props)
+
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
     |> send_response()
@@ -41,7 +44,7 @@ defmodule Inertia.Controller do
 
     %{
       component: conn.private.inertia_page.component,
-      props: Map.merge(shared, conn.private.inertia_page.props),
+      props: conn.private.inertia_page.props,
       url: request_path(conn),
       version: conn.private.inertia_version
     }
