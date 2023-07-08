@@ -51,6 +51,16 @@ defmodule InertiaTest do
              """)
   end
 
+  test "tags the <title> tag with inertia", %{conn: conn} do
+    conn =
+      conn
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+
+    assert body =~ "<title data-suffix=\" · Phoenix Framework\" inertia>"
+  end
+
   test "converts PUT redirects to 303", %{conn: conn} do
     conn =
       conn

@@ -1,4 +1,8 @@
 defmodule Inertia.Plug do
+  @moduledoc """
+  The plug module for detecting Inertia.js requests.
+  """
+
   import Plug.Conn
 
   def init(opts) do

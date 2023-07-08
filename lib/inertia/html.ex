@@ -1,4 +1,8 @@
 defmodule Inertia.HTML do
+  @moduledoc """
+  HTML components for Inertia views.
+  """
+
   use Phoenix.Component
 
   @doc type: :component

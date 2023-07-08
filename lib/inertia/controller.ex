@@ -1,4 +1,8 @@
 defmodule Inertia.Controller do
+  @moduledoc """
+  Controller functions for rendering Inertia.js responses.
+  """
+
   import Phoenix.Controller
   import Plug.Conn
 
