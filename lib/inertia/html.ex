@@ -12,7 +12,9 @@ defmodule Inertia.HTML do
 
   def inertia_title(assigns) do
     ~H"""
-    <title data-prefix={@prefix} data-suffix={@suffix} inertia><%= @prefix %><%= render_slot(@inner_block) %><%= @suffix %></title>
+    <title data-prefix={@prefix} data-suffix={@suffix} inertia>
+      <%= @prefix %><%= render_slot(@inner_block) %><%= @suffix %>
+    </title>
     """
   end
 
@@ -24,7 +26,13 @@ defmodule Inertia.HTML do
 
   def inertia_page(assigns) do
     ~H"""
-    <div id="app" data-page={json_library().encode!(%{component: @component, props: @props, url: @url, version: @version})}></div>
+    <div
+      id="app"
+      data-page={
+        json_library().encode!(%{component: @component, props: @props, url: @url, version: @version})
+      }
+    >
+    </div>
     """
   end
 
