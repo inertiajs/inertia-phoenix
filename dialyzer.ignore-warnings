@@ -1,0 +1,2 @@
+test/support/my_app/test/support/conn_case.ex:1: Unknown function 'Elixir.ExUnit.Callbacks':'__merge__'/3
+test/support/my_app/test/support/conn_case.ex:20: Unknown function 'Elixir.ExUnit.CaseTemplate':'__proxy__'/2

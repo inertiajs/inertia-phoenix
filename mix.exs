@@ -16,7 +16,8 @@ defmodule Inertia.MixProject do
       deps: deps(),
       docs: docs(),
       description: description(),
-      package: package()
+      package: package(),
+      dialyzer: [ignore_warnings: "dialyzer.ignore-warnings"]
     ]
   end
 
