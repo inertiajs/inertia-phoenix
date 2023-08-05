@@ -34,6 +34,7 @@ defmodule Inertia.Controller do
     conn
     |> put_status(200)
     |> put_resp_header("x-inertia", "true")
+    |> put_resp_header("vary", "Accept")
     |> json(inertia_assigns(conn))
   end
 
