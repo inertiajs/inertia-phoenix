@@ -109,4 +109,10 @@ defmodule MyAppWeb.ProfileController do
 end
 ```
 
-The `assign_prop` function allows you defined props that should be passed in to the component. The `render_inertia` function accepts the conn, the name of the component to render (in this case, `"ProfilePage"`), and an optional map containing more initial props to pass to the page component.
+The `assign_prop` function allows you defined props that should be passed in to the component. The `render_inertia` function accepts the conn, the name of the component to render, and an optional map containing more initial props to pass to the page component.
+
+This action will render an HTML page containing a `<div>` element with the name of the component and the initial props, following Inertia.js conventions. On subsequent requests dispatched by the Inertia.js client library, this action will return a JSON response with the data necessary for rendering the page.
+
+---
+
+Maintained by the team at [SavvyCal](https://savvycal.com)
