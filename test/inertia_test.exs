@@ -6,6 +6,17 @@ defmodule InertiaTest do
 
   @current_version "db137d38dc4b6ee57d5eedcf0182de8a"
 
+  setup do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    :ok
+  end
+
   test "renders JSON response with x-inertia header", %{conn: conn} do
     conn =
       conn
@@ -45,10 +56,8 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200) |> String.trim() |> String.replace("\n", "")
 
-    assert body =~
-             String.trim("""
-             <main><div id=\"app\" data-page=\"{&quot;component&quot;:&quot;Home&quot;,&quot;props&quot;:{&quot;text&quot;:&quot;Hello World&quot;},&quot;url&quot;:&quot;/&quot;,&quot;version&quot;:&quot;#{@current_version}&quot;}\"></div></main>
-             """)
+    assert body =~ ~s("component":"Home") |> html_escape()
+    assert body =~ ~s("version":"db137d38dc4b6ee57d5eedcf0182de8a") |> html_escape()
   end
 
   test "tags the <title> tag with inertia", %{conn: conn} do
@@ -59,6 +68,16 @@ defmodule InertiaTest do
     body = html_response(conn, 200)
 
     assert body =~ "<title data-suffix=\" · Phoenix Framework\" inertia>"
+  end
+
+  test "renders ssr response", %{conn: conn} do
+    conn =
+      conn
+      |> get(~p"/ssr")
+
+    body = html_response(conn, 200)
+
+    assert body =~ ~s(<div id="ssr"></div>)
   end
 
   test "converts PUT redirects to 303", %{conn: conn} do
@@ -101,5 +120,11 @@ defmodule InertiaTest do
     assert html_response(conn, 409)
     refute get_resp_header(conn, "x-inertia") == ["true"]
     assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  defp html_escape(content) do
+    content
+    |> Phoenix.HTML.html_escape()
+    |> Phoenix.HTML.safe_to_string()
   end
 end

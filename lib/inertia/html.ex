@@ -40,6 +40,15 @@ defmodule Inertia.HTML do
     """
   end
 
+  @doc type: :component
+  attr(:body, :string, required: true, doc: "The server-rendered body")
+
+  def inertia_ssr(assigns) do
+    ~H"""
+    <%= Phoenix.HTML.raw(@body) %>
+    """
+  end
+
   defp json_library do
     Phoenix.json_library()
   end

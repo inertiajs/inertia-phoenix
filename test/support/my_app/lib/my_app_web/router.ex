@@ -16,6 +16,7 @@ defmodule MyAppWeb.Router do
 
     get "/", PageController, :index
     get "/shared", PageController, :shared
+    get "/ssr", PageController, :ssr
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete
