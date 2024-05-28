@@ -25,15 +25,7 @@ defmodule Inertia.Controller do
   Renders an Inertia response.
   """
   @spec render_inertia(Plug.Conn.t(), component :: String.t()) :: Plug.Conn.t()
-  @spec render_inertia(Plug.Conn.t(), component :: String.t(), opts :: render_opts()) ::
-          Plug.Conn.t()
   @spec render_inertia(Plug.Conn.t(), component :: String.t(), props :: map()) :: Plug.Conn.t()
-  @spec render_inertia(
-          Plug.Conn.t(),
-          component :: String.t(),
-          props :: map(),
-          opts :: render_opts()
-        ) :: Plug.Conn.t()
 
   def render_inertia(conn, component) do
     props = conn.private[:inertia_shared] || %{}
@@ -54,25 +46,6 @@ defmodule Inertia.Controller do
     |> send_response()
   end
 
-  def render_inertia(conn, component, opts) when is_list(opts) do
-    props = conn.private[:inertia_shared] || %{}
-
-    conn
-    |> put_private(:inertia_page, %{component: component, props: props})
-    |> put_private(:inertia_ssr, !!opts[:ssr])
-    |> send_response()
-  end
-
-  def render_inertia(conn, component, props, opts) when is_map(props) and is_list(opts) do
-    shared = conn.private[:inertia_shared] || %{}
-    props = Map.merge(shared, props)
-
-    conn
-    |> put_private(:inertia_page, %{component: component, props: props})
-    |> put_private(:inertia_ssr, !!opts[:ssr])
-    |> send_response()
-  end
-
   # Private helpers
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
@@ -83,18 +56,18 @@ defmodule Inertia.Controller do
     |> json(inertia_assigns(conn))
   end
 
-  defp send_response(%{private: %{inertia_ssr: true}} = conn) do
-    %{"body" => body} = SSR.call!(inertia_assigns(conn), [])
-
-    conn
-    |> put_view(Inertia.HTML)
-    |> render(:inertia_ssr, %{body: body})
-  end
-
   defp send_response(conn) do
-    conn
-    |> put_view(Inertia.HTML)
-    |> render(:inertia_page, inertia_assigns(conn))
+    if ssr_enabled?() do
+      %{"body" => body} = SSR.call!(inertia_assigns(conn), [])
+
+      conn
+      |> put_view(Inertia.HTML)
+      |> render(:inertia_ssr, %{body: body})
+    else
+      conn
+      |> put_view(Inertia.HTML)
+      |> render(:inertia_page, inertia_assigns(conn))
+    end
   end
 
   defp inertia_assigns(conn) do
@@ -112,4 +85,8 @@ defmodule Inertia.Controller do
 
   defp request_url_qs(""), do: ""
   defp request_url_qs(qs), do: [??, qs]
+
+  defp ssr_enabled? do
+    Application.get_env(:inertia, :ssr, false)
+  end
 end

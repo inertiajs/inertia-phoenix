@@ -6,11 +6,6 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", %{text: "Hello World"})
   end
 
-  def ssr(conn, _params) do
-    conn
-    |> render_inertia("Home", %{text: "Hello World"}, ssr: true)
-  end
-
   def shared(conn, _params) do
     conn
     |> assign_prop(:text, "I should be overriden")

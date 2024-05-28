@@ -14,6 +14,9 @@ defmodule InertiaTest do
 
     start_supervised({Inertia.SSR, path: path})
 
+    # Disable SSR by default, selectively enable it when testing
+    Application.put_env(:inertia, :ssr, false)
+
     :ok
   end
 
@@ -71,9 +74,11 @@ defmodule InertiaTest do
   end
 
   test "renders ssr response", %{conn: conn} do
+    Application.put_env(:inertia, :ssr, true)
+
     conn =
       conn
-      |> get(~p"/ssr")
+      |> get(~p"/")
 
     body = html_response(conn, 200)
 
