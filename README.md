@@ -169,7 +169,9 @@ export async function render(page) {
 }
 ```
 
-Then, let's configure esbuild to compile the `ssr.js` bundle.
+This is similar to the server entry-point [documented here](https://inertiajs.com/server-side-rendering#add-server-entry-point), except we are simply exporting a render function instead of creating a Node.js server process.
+
+Next, configure esbuild to compile the `ssr.js` bundle.
 
 ```diff
 # config/config.exs
@@ -225,7 +227,7 @@ Add the `ssr` build step to the asset build and deploy scripts.
   end
 ```
 
-As configured, this will place the generated `ssr.js` bundle in the `priv` directory. Since it's generated code, add it to your `.gitignore` file.
+As configured, this will place the generated `ssr.js` bundle into the `priv` directory. Since it's generated code, add it to your `.gitignore` file.
 
 ```diff
 # .gitignore
@@ -257,6 +259,7 @@ First, you'll need to add the `Inertia.SSR` module to your application supervisi
         # Start a worker by calling: MyApp.Worker.start_link(arg)
         # {MyApp.Worker, arg},
 +       # Start the SSR process pool
++       # You must specify a `path` option to locate the directory where the `ssr.js` file lives.
 +       {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"])}
         # Start to serve requests, typically the last entry
         MyAppWeb.Endpoint,
