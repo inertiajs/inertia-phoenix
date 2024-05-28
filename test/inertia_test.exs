@@ -7,16 +7,8 @@ defmodule InertiaTest do
   @current_version "db137d38dc4b6ee57d5eedcf0182de8a"
 
   setup do
-    path =
-      __ENV__.file
-      |> Path.dirname()
-      |> Path.join("js")
-
-    start_supervised({Inertia.SSR, path: path})
-
     # Disable SSR by default, selectively enable it when testing
     Application.put_env(:inertia, :ssr, false)
-
     :ok
   end
 
@@ -57,7 +49,7 @@ defmodule InertiaTest do
       conn
       |> get(~p"/")
 
-    body = html_response(conn, 200) |> String.trim() |> String.replace("\n", "")
+    body = html_response(conn, 200)
 
     assert body =~ ~s("component":"Home") |> html_escape()
     assert body =~ ~s("version":"db137d38dc4b6ee57d5eedcf0182de8a") |> html_escape()
@@ -74,6 +66,13 @@ defmodule InertiaTest do
   end
 
   test "renders ssr response", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
     Application.put_env(:inertia, :ssr, true)
 
     conn =
@@ -83,6 +82,24 @@ defmodule InertiaTest do
     body = html_response(conn, 200)
 
     assert body =~ ~s(<div id="ssr"></div>)
+  end
+
+  test "falls back to CSR if SSR fails", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path, module: "ssr-failure"})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    conn =
+      conn
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+    assert body =~ ~s("component":"Home") |> html_escape()
   end
 
   test "converts PUT redirects to 303", %{conn: conn} do

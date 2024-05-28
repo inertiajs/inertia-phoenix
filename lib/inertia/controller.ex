@@ -10,8 +10,6 @@ defmodule Inertia.Controller do
   import Phoenix.Controller
   import Plug.Conn
 
-  @type render_opts :: [{:ssr, boolean()}]
-
   @doc """
   Assigns a prop value to the Inertia page data.
   """
@@ -27,22 +25,12 @@ defmodule Inertia.Controller do
   @spec render_inertia(Plug.Conn.t(), component :: String.t()) :: Plug.Conn.t()
   @spec render_inertia(Plug.Conn.t(), component :: String.t(), props :: map()) :: Plug.Conn.t()
 
-  def render_inertia(conn, component) do
-    props = conn.private[:inertia_shared] || %{}
-
-    conn
-    |> put_private(:inertia_page, %{component: component, props: props})
-    |> put_private(:inertia_ssr, false)
-    |> send_response()
-  end
-
-  def render_inertia(conn, component, props) when is_map(props) do
+  def render_inertia(conn, component, props \\ %{}) do
     shared = conn.private[:inertia_shared] || %{}
     props = Map.merge(shared, props)
 
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
-    |> put_private(:inertia_ssr, false)
     |> send_response()
   end
 
@@ -58,16 +46,25 @@ defmodule Inertia.Controller do
 
   defp send_response(conn) do
     if ssr_enabled?() do
-      %{"body" => body} = SSR.call!(inertia_assigns(conn), [])
-
-      conn
-      |> put_view(Inertia.HTML)
-      |> render(:inertia_ssr, %{body: body})
+      case SSR.call(inertia_assigns(conn)) do
+        {:ok, %{"body" => body}} -> send_ssr_response(conn, body)
+        _err -> send_csr_response(conn)
+      end
     else
-      conn
-      |> put_view(Inertia.HTML)
-      |> render(:inertia_page, inertia_assigns(conn))
+      send_csr_response(conn)
     end
+  end
+
+  defp send_ssr_response(conn, body) do
+    conn
+    |> put_view(Inertia.HTML)
+    |> render(:inertia_ssr, %{body: body})
+  end
+
+  defp send_csr_response(conn) do
+    conn
+    |> put_view(Inertia.HTML)
+    |> render(:inertia_page, inertia_assigns(conn))
   end
 
   defp inertia_assigns(conn) do
