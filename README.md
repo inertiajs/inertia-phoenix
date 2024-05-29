@@ -123,7 +123,7 @@ This action will render an HTML page containing a `<div>` element with the name 
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
 
 > [!NOTE]
-> The steps for enabling SSR in Phoenix is similar to other backend frameworks, but instead of running a separate Node.js server process to render HTML, this library spins up a pool of Node.js process workers to handle SSR calls. We'll highlight those differences below.
+> The steps for enabling SSR in Phoenix are similar to other backend frameworks, but instead of running a separate Node.js server process to render HTML, this library spins up a pool of Node.js process workers to handle SSR calls. We'll highlight those differences below.
 
 ### Add a server-side rendering module
 
