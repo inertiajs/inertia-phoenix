@@ -41,9 +41,9 @@ config :inertia,
 
 This library includes a few modules to help render Inertia responses:
 
-- [`Inertia.Plug`](https://github.com/svycal/inertia-phoenix/blob/main/lib/inertia/plug.ex): a plug for detecting Inertia.js requests and preparing the connection accordingly.
-- [`Inertia.Controller`](https://github.com/svycal/inertia-phoenix/blob/main/lib/inertia/controller.ex): controller functions for rendering Inertia.js-compatible responses.
-- [`Inertia.HTML`](https://github.com/svycal/inertia-phoenix/blob/main/lib/inertia/html.ex): HTML components for Inertia-powered views.
+- [`Inertia.Plug`](https://hexdocs.pm/inertia/Inertia.Plug.html): a plug for detecting Inertia.js requests and preparing the connection accordingly.
+- [`Inertia.Controller`](https://hexdocs.pm/inertia/Inertia.Controller.html): controller functions for rendering Inertia.js-compatible responses.
+- [`Inertia.HTML`](https://hexdocs.pm/inertia/Inertia.HTML.html): HTML components for Inertia-powered views.
 
 To get started, import `Inertia.Controller` in your controller helper and `Inertia.HTML` in your html helper:
 
