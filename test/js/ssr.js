@@ -3,7 +3,7 @@ module.exports = {
   render: (_page) => {
     return {
       head: [
-        `<title>New title</title>`,
+        `<title inertia>New title</title>`,
         `<meta name="description" content="Head stuff" />`,
       ],
       body: `<div id="ssr"></div>`,

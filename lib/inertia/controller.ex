@@ -10,6 +10,8 @@ defmodule Inertia.Controller do
   import Phoenix.Controller
   import Plug.Conn
 
+  @title_regex ~r/<title inertia>(.*?)<\/title>/
+
   @doc """
   Assigns a prop value to the Inertia page data.
   """
@@ -48,11 +50,10 @@ defmodule Inertia.Controller do
     if ssr_enabled?() do
       case SSR.call(inertia_assigns(conn)) do
         {:ok, %{"head" => head, "body" => body}} ->
-          # TODO: remove this
-          Logger.debug("head #{inspect(head)}")
           send_ssr_response(conn, head, body)
 
         _err ->
+          Logger.warning("SSR failed, falling back to CSR")
           send_csr_response(conn)
       end
     else
@@ -60,9 +61,20 @@ defmodule Inertia.Controller do
     end
   end
 
-  defp compile_head(%{assigns: %{inertia_head: current_head}} = conn, head) do
-    assign(conn, :inertia_head, current_head ++ head)
+  defp compile_head(%{assigns: %{inertia_head: current_head}} = conn, incoming_head) do
+    {titles, other_tags} = Enum.split_with(current_head ++ incoming_head, &(&1 =~ @title_regex))
+
+    conn
+    |> assign(:inertia_head, other_tags)
+    |> update_page_title(Enum.reverse(titles))
   end
+
+  defp update_page_title(conn, [title_tag | _]) do
+    [_, page_title] = Regex.run(@title_regex, title_tag)
+    assign(conn, :page_title, page_title)
+  end
+
+  defp update_page_title(conn, _), do: conn
 
   defp send_ssr_response(conn, head, body) do
     conn

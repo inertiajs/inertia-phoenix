@@ -81,11 +81,12 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    # assert body =~ ~s(`<title inertia>New title</title>`)
+    assert body =~ ~r/<title inertia>(\s*)New title(\s*)<\/title>/
     assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr"></div>)
   end
 
+  @tag :capture_log
   test "falls back to CSR if SSR fails", %{conn: conn} do
     path =
       __ENV__.file
