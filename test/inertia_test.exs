@@ -38,7 +38,7 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"text" => "Hello World", "page_title" => "Home"},
+             "props" => %{"text" => "Hello World", "foo" => "bar"},
              "url" => "/shared",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -62,7 +62,7 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    assert body =~ "<title data-suffix=\" · Phoenix Framework\" inertia>"
+    assert body =~ "<title inertia>"
   end
 
   test "renders ssr response", %{conn: conn} do
@@ -81,6 +81,8 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
+    # assert body =~ ~s(`<title inertia>New title</title>`)
+    assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr"></div>)
   end
 

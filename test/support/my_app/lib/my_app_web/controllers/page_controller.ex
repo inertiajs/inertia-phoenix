@@ -3,13 +3,15 @@ defmodule MyAppWeb.PageController do
 
   def index(conn, _params) do
     conn
+    |> assign(:page_title, "Home")
     |> render_inertia("Home", %{text: "Hello World"})
   end
 
   def shared(conn, _params) do
     conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:foo, "bar")
     |> assign_prop(:text, "I should be overriden")
-    |> assign_prop(:page_title, "Home")
     |> render_inertia("Home", %{text: "Hello World"})
   end
 

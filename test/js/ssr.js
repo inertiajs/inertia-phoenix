@@ -2,7 +2,10 @@
 module.exports = {
   render: (_page) => {
     return {
-      head: [],
+      head: [
+        `<title>New title</title>`,
+        `<meta name="description" content="Head stuff" />`,
+      ],
       body: `<div id="ssr"></div>`,
     };
   },

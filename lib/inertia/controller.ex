@@ -47,18 +47,29 @@ defmodule Inertia.Controller do
   defp send_response(conn) do
     if ssr_enabled?() do
       case SSR.call(inertia_assigns(conn)) do
-        {:ok, %{"body" => body}} -> send_ssr_response(conn, body)
-        _err -> send_csr_response(conn)
+        {:ok, %{"head" => head, "body" => body}} ->
+          # TODO: remove this
+          Logger.debug("head #{inspect(head)}")
+          send_ssr_response(conn, head, body)
+
+        _err ->
+          send_csr_response(conn)
       end
     else
       send_csr_response(conn)
     end
   end
 
-  defp send_ssr_response(conn, body) do
+  defp compile_head(%{assigns: %{inertia_head: current_head}} = conn, head) do
+    assign(conn, :inertia_head, current_head ++ head)
+  end
+
+  defp send_ssr_response(conn, head, body) do
     conn
     |> put_view(Inertia.HTML)
-    |> render(:inertia_ssr, %{body: body})
+    |> compile_head(head)
+    |> assign(:body, body)
+    |> render(:inertia_ssr)
   end
 
   defp send_csr_response(conn) do

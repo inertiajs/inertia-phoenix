@@ -83,7 +83,7 @@ Then, install the plug in your browser pipeline:
   end
 ```
 
-Next, replace the title tag in your layout with the `<.inertia_title>` component, so that the client-side library will keep the title in sync:
+Next, replace the title tag in your layout with the `<.inertia_title>` component, so that the client-side library will keep the title in sync, and add the `<.inertia_head>` component:
 
 ```diff
   # lib/my_app_web/components/layouts/root.html.heex
@@ -91,7 +91,8 @@ Next, replace the title tag in your layout with the `<.inertia_title>` component
   <html lang="en" class="[scrollbar-gutter:stable]">
     <head>
 -     <.live_title><%= assigns[:page_title] %></.live_title>
-+     <.inertia_title><%= assigns[:page_title] %></.inertia_title>
++     <.inertia_title><%= @page_title %></.inertia_title>
++     <.inertia_head content={@inertia_head} />
     </head>
 ```
 

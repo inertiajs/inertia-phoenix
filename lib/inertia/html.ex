@@ -23,6 +23,15 @@ defmodule Inertia.HTML do
   end
 
   @doc type: :component
+  attr(:content, :list, required: true, doc: "The list of tags to inject into the `head` tag.")
+
+  def inertia_head(assigns) do
+    ~H"""
+    <%= Phoenix.HTML.raw(Enum.join(@content, "\n")) %>
+    """
+  end
+
+  @doc type: :component
   attr(:component, :string, required: true, doc: "The name of the JavaScript page component.")
   attr(:props, :map, required: true, doc: "The page props (data).")
   attr(:url, :string, required: true, doc: "The page URL.")
