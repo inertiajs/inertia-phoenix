@@ -36,11 +36,14 @@ defmodule Inertia.MixProject do
       {:phoenix_live_view, "~> 0.18"},
       {:plug, ">= 1.5.0 and < 2.0.0"},
       {:jason, "~> 1.2"},
+      {:bandit, "~> 1.2", only: :test},
+      {:phoenix_view, "~> 2.0", only: :test},
       {:plug_cowboy, "~> 2.1", only: :test},
       {:floki, ">= 0.30.0", only: :test},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:nodejs, "~> 3.0"}
     ]
   end
 

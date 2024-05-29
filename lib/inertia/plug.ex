@@ -12,6 +12,7 @@ defmodule Inertia.Plug do
   def call(conn, _opts) do
     conn
     |> put_private(:inertia_version, compute_version())
+    |> assign(:inertia_head, [])
     |> detect_inertia()
   end
 

@@ -3,8 +3,14 @@ defmodule Inertia.Controller do
   Controller functions for rendering Inertia.js responses.
   """
 
+  require Logger
+
+  alias Inertia.SSR
+
   import Phoenix.Controller
   import Plug.Conn
+
+  @title_regex ~r/<title inertia>(.*?)<\/title>/
 
   @doc """
   Assigns a prop value to the Inertia page data.
@@ -18,7 +24,9 @@ defmodule Inertia.Controller do
   @doc """
   Renders an Inertia response.
   """
-  @spec render_inertia(Plug.Conn.t(), String.t(), map()) :: Plug.Conn.t()
+  @spec render_inertia(Plug.Conn.t(), component :: String.t()) :: Plug.Conn.t()
+  @spec render_inertia(Plug.Conn.t(), component :: String.t(), props :: map()) :: Plug.Conn.t()
+
   def render_inertia(conn, component, props \\ %{}) do
     shared = conn.private[:inertia_shared] || %{}
     props = Map.merge(shared, props)
@@ -39,6 +47,44 @@ defmodule Inertia.Controller do
   end
 
   defp send_response(conn) do
+    if ssr_enabled?() do
+      case SSR.call(inertia_assigns(conn)) do
+        {:ok, %{"head" => head, "body" => body}} ->
+          send_ssr_response(conn, head, body)
+
+        _err ->
+          Logger.warning("SSR failed, falling back to CSR")
+          send_csr_response(conn)
+      end
+    else
+      send_csr_response(conn)
+    end
+  end
+
+  defp compile_head(%{assigns: %{inertia_head: current_head}} = conn, incoming_head) do
+    {titles, other_tags} = Enum.split_with(current_head ++ incoming_head, &(&1 =~ @title_regex))
+
+    conn
+    |> assign(:inertia_head, other_tags)
+    |> update_page_title(Enum.reverse(titles))
+  end
+
+  defp update_page_title(conn, [title_tag | _]) do
+    [_, page_title] = Regex.run(@title_regex, title_tag)
+    assign(conn, :page_title, page_title)
+  end
+
+  defp update_page_title(conn, _), do: conn
+
+  defp send_ssr_response(conn, head, body) do
+    conn
+    |> put_view(Inertia.HTML)
+    |> compile_head(head)
+    |> assign(:body, body)
+    |> render(:inertia_ssr)
+  end
+
+  defp send_csr_response(conn) do
     conn
     |> put_view(Inertia.HTML)
     |> render(:inertia_page, inertia_assigns(conn))
@@ -59,4 +105,8 @@ defmodule Inertia.Controller do
 
   defp request_url_qs(""), do: ""
   defp request_url_qs(qs), do: [??, qs]
+
+  defp ssr_enabled? do
+    Application.get_env(:inertia, :ssr, false)
+  end
 end
