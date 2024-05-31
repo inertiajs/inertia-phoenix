@@ -147,19 +147,18 @@ createInertiaApp({
 });
 ```
 
-Let's create a second JavaScript file alongside your `app.js` called `ssr.js` with an exported `render` function.
+Create a second JavaScript file alongside your `app.js` called `ssr.js` with an exported `render` function.
 
 ```js
 // assets/js/ssr.js
 
 import React from "react";
-import { Page } from "@inertiajs/core";
 import { createInertiaApp } from "@inertiajs/react";
 import ReactDOMServer from "react-dom/server";
 import { pages } from "./pages";
 
-export async function render(page) {
-  return await createInertiaApp({
+export function render(page) {
+  return createInertiaApp({
     page,
     render: ReactDOMServer.renderToString,
     resolve: (name) => {
@@ -175,7 +174,7 @@ This is similar to the server entry-point [documented here](https://inertiajs.co
 Next, configure esbuild to compile the `ssr.js` bundle.
 
 ```diff
-# config/config.exs
+  # config/config.exs
 
   config :esbuild,
     version: "0.21.4",
@@ -207,7 +206,7 @@ Next, configure esbuild to compile the `ssr.js` bundle.
 Add the `ssr` build step to the asset build and deploy scripts.
 
 ```diff
-# mix.exs
+  # mix.exs
 
   defp aliases do
     [
@@ -231,7 +230,7 @@ Add the `ssr` build step to the asset build and deploy scripts.
 As configured, this will place the generated `ssr.js` bundle into the `priv` directory. Since it's generated code, add it to your `.gitignore` file.
 
 ```diff
-# .gitignore
+  # .gitignore
 
 + /priv/ssr.js
 ```
@@ -243,7 +242,7 @@ Now that you have a Node.js module capable of server-rendering your pages, let's
 First, you'll need to add the `Inertia.SSR` module to your application supervision tree.
 
 ```diff
-# lib/my_app/application.ex
+  # lib/my_app/application.ex
 
   defmodule MyApp.Application do
     use Application
@@ -259,9 +258,11 @@ First, you'll need to add the `Inertia.SSR` module to your application supervisi
         {Finch, name: MyApp.Finch},
         # Start a worker by calling: MyApp.Worker.start_link(arg)
         # {MyApp.Worker, arg},
+
 +       # Start the SSR process pool
 +       # You must specify a `path` option to locate the directory where the `ssr.js` file lives.
 +       {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"])}
+
         # Start to serve requests, typically the last entry
         MyAppWeb.Endpoint,
       ]
@@ -270,7 +271,7 @@ First, you'll need to add the `Inertia.SSR` module to your application supervisi
 Then, update your Inertia Elixir configuration to enable SSR.
 
 ```diff
-# config/config.exs
+  # config/config.exs
 
   config :inertia,
     # The Phoenix Endpoint module for your application. This is used for building
