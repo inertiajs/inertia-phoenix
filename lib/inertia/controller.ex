@@ -5,6 +5,7 @@ defmodule Inertia.Controller do
 
   require Logger
 
+  alias Inertia.SSR.RenderError
   alias Inertia.SSR
 
   import Phoenix.Controller
@@ -52,9 +53,13 @@ defmodule Inertia.Controller do
         {:ok, %{"head" => head, "body" => body}} ->
           send_ssr_response(conn, head, body)
 
-        _err ->
-          Logger.warning("SSR failed, falling back to CSR")
-          send_csr_response(conn)
+        {:error, message} ->
+          if on_ssr_failure() == :raise do
+            raise RenderError, message: message
+          else
+            Logger.error("SSR failed, falling back to CSR\n\n#{message}")
+            send_csr_response(conn)
+          end
       end
     else
       send_csr_response(conn)
@@ -108,5 +113,9 @@ defmodule Inertia.Controller do
 
   defp ssr_enabled? do
     Application.get_env(:inertia, :ssr, false)
+  end
+
+  defp on_ssr_failure do
+    Application.get_env(:inertia, :on_ssr_failure, :raise)
   end
 end

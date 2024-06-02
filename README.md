@@ -36,7 +36,10 @@ config :inertia,
 
   # Enable server-side rendering for page responses (requires some additional setup,
   # see instructions below). Defaults to `false`.
-  ssr: false
+  ssr: false,
+
+  # Behavior when SSR fails. Either `:raise` or `:csr`, defaults to `:raise`.
+  on_ssr_failure: :raise
 ```
 
 This library includes a few modules to help render Inertia responses:

@@ -87,7 +87,7 @@ defmodule InertiaTest do
   end
 
   @tag :capture_log
-  test "falls back to CSR if SSR fails", %{conn: conn} do
+  test "falls back to CSR if SSR fails and failure mode set to csr", %{conn: conn} do
     path =
       __ENV__.file
       |> Path.dirname()
@@ -96,6 +96,7 @@ defmodule InertiaTest do
     start_supervised({Inertia.SSR, path: path, module: "ssr-failure"})
 
     Application.put_env(:inertia, :ssr, true)
+    Application.put_env(:inertia, :on_ssr_failure, :csr)
 
     conn =
       conn
@@ -103,6 +104,23 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
     assert body =~ ~s("component":"Home") |> html_escape()
+  end
+
+  test "raises on SSR failure when failure mode is set to raise", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path, module: "ssr-failure"})
+
+    Application.put_env(:inertia, :ssr, true)
+    Application.put_env(:inertia, :on_ssr_failure, :raise)
+
+    assert_raise(Inertia.SSR.RenderError, fn ->
+      conn
+      |> get(~p"/")
+    end)
   end
 
   test "converts PUT redirects to 303", %{conn: conn} do
