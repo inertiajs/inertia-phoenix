@@ -96,7 +96,7 @@ defmodule InertiaTest do
     start_supervised({Inertia.SSR, path: path, module: "ssr-failure"})
 
     Application.put_env(:inertia, :ssr, true)
-    Application.put_env(:inertia, :on_ssr_failure, :csr)
+    Application.put_env(:inertia, :raise_on_ssr_failure, false)
 
     conn =
       conn
@@ -115,7 +115,7 @@ defmodule InertiaTest do
     start_supervised({Inertia.SSR, path: path, module: "ssr-failure"})
 
     Application.put_env(:inertia, :ssr, true)
-    Application.put_env(:inertia, :on_ssr_failure, :raise)
+    Application.put_env(:inertia, :raise_on_ssr_failure, true)
 
     assert_raise(Inertia.SSR.RenderError, fn ->
       conn
