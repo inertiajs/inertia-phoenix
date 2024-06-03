@@ -161,8 +161,8 @@ Create a second JavaScript file alongside your `app.js` called `ssr.js` with an 
 // assets/js/ssr.js
 
 import React from "react";
-import { createInertiaApp } from "@inertiajs/react";
 import ReactDOMServer from "react-dom/server";
+import { createInertiaApp } from "@inertiajs/react";
 import { pages } from "./pages";
 
 export function render(page) {
@@ -300,6 +300,14 @@ Then, update your Inertia Elixir configuration to enable SSR.
     # see instructions below). Defaults to `false`.
 -   ssr: false
 +   ssr: true
+
+    # Whether to raise an exception when server-side rendering fails (only applies
+    # when SSR is enabled). Defaults to `true`.
+    #
+    # Recommended: enable in non-production environments and disable in production,
+    # so that SSR failures will not cause 500 errors (but instead will fallback to
+    # CSR).
+    raise_on_ssr_failure: true
 ```
 
 ### Client side hydration
