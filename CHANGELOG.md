@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- Add `raise_on_ssr_failure` configuration
+
 ## 0.2.0
 
 - Add SSR support
