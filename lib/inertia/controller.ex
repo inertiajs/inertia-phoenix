@@ -54,7 +54,7 @@ defmodule Inertia.Controller do
           send_ssr_response(conn, head, body)
 
         {:error, message} ->
-          if on_ssr_failure() == :raise do
+          if raise_on_ssr_failure() do
             raise RenderError, message: message
           else
             Logger.error("SSR failed, falling back to CSR\n\n#{message}")
@@ -115,7 +115,7 @@ defmodule Inertia.Controller do
     Application.get_env(:inertia, :ssr, false)
   end
 
-  defp on_ssr_failure do
-    Application.get_env(:inertia, :on_ssr_failure, :raise)
+  defp raise_on_ssr_failure do
+    Application.get_env(:inertia, :raise_on_ssr_failure, true)
   end
 end

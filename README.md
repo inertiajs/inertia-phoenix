@@ -38,8 +38,13 @@ config :inertia,
   # see instructions below). Defaults to `false`.
   ssr: false,
 
-  # Behavior when SSR fails. Either `:raise` or `:csr`, defaults to `:raise`.
-  on_ssr_failure: :raise
+  # Whether to raise an exception when server-side rendering fails (only applies
+  # when SSR is enabled). Defaults to `true`.
+  #
+  # Recommended: enable in non-production environments and disable in production,
+  # so that SSR failures will not cause 500 errors (but instead will fallback to
+  # CSR).
+  raise_on_ssr_failure: true
 ```
 
 This library includes a few modules to help render Inertia responses:
