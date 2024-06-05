@@ -126,6 +126,30 @@ The `assign_prop` function allows you defined props that should be passed in to 
 
 This action will render an HTML page containing a `<div>` element with the name of the component and the initial props, following Inertia.js conventions. On subsequent requests dispatched by the Inertia.js client library, this action will return a JSON response with the data necessary for rendering the page.
 
+## Shared data
+
+To share data on every request, you can use the `Inertia.Controller.assign_prop/2` function inside of a `Plug.Conn` plug. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user. Your plug might look something like this:
+
+```elixir
+defmodule MyApp.UserAuth do
+  import Inertia.Controller
+  import Phoenix.Controller
+  import Plug.Conn
+
+  def authenticate_user(conn, _opts) do
+    user = get_user_from_session(conn)
+
+    conn
+    |> assign(:user, user)
+    |> assign_prop(:user, serialize_user(user))
+  end
+
+  # ...
+end
+```
+
+Anywhere this plug is used, the serialized `user` prop will be passed to the Inertia component.
+
 ## Server-side rendering (Experimental)
 
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
