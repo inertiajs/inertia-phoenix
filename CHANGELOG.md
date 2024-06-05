@@ -1,5 +1,9 @@
 # Changelog
 
+## Unpublished
+
+- Support lazy data evaluation ([#7](https://github.com/svycal/inertia-phoenix/issues/7))
+
 ## 0.3.0
 
 - Add `raise_on_ssr_failure` configuration

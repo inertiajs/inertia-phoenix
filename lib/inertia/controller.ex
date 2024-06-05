@@ -30,7 +30,11 @@ defmodule Inertia.Controller do
 
   def render_inertia(conn, component, props \\ %{}) do
     shared = conn.private[:inertia_shared] || %{}
-    props = Map.merge(shared, props)
+
+    props =
+      shared
+      |> Map.merge(props)
+      |> resolve_lazy_props()
 
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
@@ -38,6 +42,16 @@ defmodule Inertia.Controller do
   end
 
   # Private helpers
+
+  defp resolve_lazy_props(map) when is_map(map) do
+    map
+    |> Map.to_list()
+    |> Enum.map(fn {key, value} -> {key, resolve_lazy_props(value)} end)
+    |> Map.new()
+  end
+
+  defp resolve_lazy_props(fun) when is_function(fun, 0), do: fun.()
+  defp resolve_lazy_props(value), do: value
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
     conn

@@ -126,6 +126,17 @@ The `assign_prop` function allows you defined props that should be passed in to 
 
 This action will render an HTML page containing a `<div>` element with the name of the component and the initial props, following Inertia.js conventions. On subsequent requests dispatched by the Inertia.js client library, this action will return a JSON response with the data necessary for rendering the page.
 
+## Lazy data evaluation
+
+If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either anonymous function or named function.
+
+```elixir
+conn
+|> assign_prop(:cheap_thing, cheap_thing())
+|> assign_prop(:expensive_thing, fn -> calculate_thing() end)
+|> assign_prop(:another_expensive_thing, &calculate_another_thing/0)
+```
+
 ## Shared data
 
 To share data on every request, you can use the `Inertia.Controller.assign_prop/2` function inside of a `Plug.Conn` plug. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user. Your plug might look something like this:

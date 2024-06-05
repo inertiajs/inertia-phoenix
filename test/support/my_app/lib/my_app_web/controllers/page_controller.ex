@@ -15,6 +15,14 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", %{text: "Hello World"})
   end
 
+  def lazy(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:lazy_1, fn -> "lazy_1" end)
+    |> assign_prop(:nested, %{lazy_2: fn -> "lazy_2" end})
+    |> render_inertia("Home", %{lazy_3: &lazy_3/0})
+  end
+
   def update(conn, _params) do
     conn
     |> redirect(to: "/")
@@ -28,5 +36,9 @@ defmodule MyAppWeb.PageController do
   def delete(conn, _params) do
     conn
     |> redirect(to: "/")
+  end
+
+  defp lazy_3 do
+    "lazy_3"
   end
 end

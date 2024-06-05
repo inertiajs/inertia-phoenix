@@ -165,6 +165,25 @@ defmodule InertiaTest do
     assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
   end
 
+  test "evaluates lazy props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/lazy")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{
+               "lazy_1" => "lazy_1",
+               "lazy_3" => "lazy_3",
+               "nested" => %{"lazy_2" => "lazy_2"}
+             },
+             "url" => "/lazy",
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()
