@@ -18,6 +18,8 @@ defmodule MyAppWeb.Router do
     get "/shared", PageController, :shared
     get "/lazy", PageController, :lazy
     get "/nested", PageController, :nested
+    get "/keep", PageController, :keep
+    get "/tagged_lazy", PageController, :tagged_lazy
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

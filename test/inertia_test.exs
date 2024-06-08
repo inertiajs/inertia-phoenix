@@ -218,6 +218,23 @@ defmodule InertiaTest do
            }
   end
 
+  test "includes 'keep' props in partial reloads", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "a")
+      |> get(~p"/keep")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{"a" => "a", "errors" => []},
+             "url" => "/keep",
+             "version" => @current_version
+           }
+  end
+
   test "ignores partial reload when component doesn't match", %{conn: conn} do
     conn =
       conn
@@ -233,6 +250,38 @@ defmodule InertiaTest do
                "a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f", "g" => "g"}, "d" => "d"}}
              },
              "url" => "/nested",
+             "version" => @current_version
+           }
+  end
+
+  test "ignores tagged lazy props on initial page loads", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/tagged_lazy")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{"b" => "b"},
+             "url" => "/tagged_lazy",
+             "version" => @current_version
+           }
+  end
+
+  test "includes lazy props when explicitly requested", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "a")
+      |> get(~p"/tagged_lazy")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{"a" => "a"},
+             "url" => "/tagged_lazy",
              "version" => @current_version
            }
   end

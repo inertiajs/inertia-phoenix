@@ -30,6 +30,23 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def keep(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, "a")
+    |> assign_prop(:b, "b")
+    |> assign_prop(:errors, {:keep, []})
+    |> render_inertia("Home")
+  end
+
+  def tagged_lazy(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, inertia_lazy(fn -> "a" end))
+    |> assign_prop(:b, "b")
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> redirect(to: "/")

@@ -13,6 +13,19 @@ defmodule Inertia.Controller do
 
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
+  @type lazy() :: {:lazy, fun()}
+
+  @doc """
+  Marks a prop value as lazy, which means it will only get evaluated if
+  explicitly requested in a partial reload.
+  """
+  @spec inertia_lazy(fun :: fun()) :: lazy()
+  def inertia_lazy(fun) when is_function(fun), do: {:lazy, fun}
+
+  def inertia_lazy(_) do
+    raise ArgumentError, message: "inertia_lazy/1 only accepts a function argument"
+  end
+
   @doc """
   Assigns a prop value to the Inertia page data.
   """
@@ -68,6 +81,14 @@ defmodule Inertia.Controller do
       {nil, key_values} -> Map.new(key_values)
       {_, [_ | _]} -> Map.new(key_values)
       {_, _} -> :skip
+    end
+  end
+
+  defp resolve_props({:lazy, value}, opts) do
+    if Enum.member?(opts[:only], opts[:path]) do
+      resolve_props(value, opts)
+    else
+      :skip
     end
   end
 
