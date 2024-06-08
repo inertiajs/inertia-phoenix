@@ -184,6 +184,59 @@ defmodule InertiaTest do
            } = json_response(conn, 200)
   end
 
+  test "partial 'only' reloads", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "a.b.c,a.b.e.f")
+      |> get(~p"/nested")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{"a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f"}}}},
+             "url" => "/nested",
+             "version" => @current_version
+           }
+  end
+
+  test "partial 'except' reloads", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-except", "a.b.d,a.b.e.f,a.b.e.g")
+      |> get(~p"/nested")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{"a" => %{"b" => %{"c" => "c"}}},
+             "url" => "/nested",
+             "version" => @current_version
+           }
+  end
+
+  test "ignores partial reload when component doesn't match", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "NonMatchingComponent")
+      |> put_req_header("x-inertia-partial-data", "a.b.c")
+      |> get(~p"/nested")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{
+               "a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f", "g" => "g"}, "d" => "d"}}
+             },
+             "url" => "/nested",
+             "version" => @current_version
+           }
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

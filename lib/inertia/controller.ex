@@ -31,10 +31,15 @@ defmodule Inertia.Controller do
   def render_inertia(conn, component, props \\ %{}) do
     shared = conn.private[:inertia_shared] || %{}
 
+    # Only render partial props if the partial component matches the current page
+    is_partial = conn.private[:inertia_partial_component] == component
+    only = if is_partial, do: conn.private[:inertia_partial_only], else: []
+    except = if is_partial, do: conn.private[:inertia_partial_except], else: []
+
     props =
       shared
       |> Map.merge(props)
-      |> resolve_lazy_props()
+      |> resolve_props(only: only, except: except)
 
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
@@ -43,15 +48,63 @@ defmodule Inertia.Controller do
 
   # Private helpers
 
-  defp resolve_lazy_props(map) when is_map(map) do
-    map
-    |> Map.to_list()
-    |> Enum.map(fn {key, value} -> {key, resolve_lazy_props(value)} end)
-    |> Map.new()
+  defp resolve_props(map, opts) when is_map(map) do
+    key_values =
+      map
+      |> Map.to_list()
+      |> Enum.reduce([], fn {key, value}, acc ->
+        path = if opts[:path], do: "#{opts[:path]}.#{key}", else: to_string(key)
+        opts = Keyword.put(opts, :path, path)
+        resolved_value = resolve_props(value, opts)
+
+        if resolved_value == :skip do
+          acc
+        else
+          [{key, resolved_value} | acc]
+        end
+      end)
+
+    case {opts[:path], key_values} do
+      {nil, key_values} -> Map.new(key_values)
+      {_, [_ | _]} -> Map.new(key_values)
+      {_, _} -> :skip
+    end
   end
 
-  defp resolve_lazy_props(fun) when is_function(fun, 0), do: fun.()
-  defp resolve_lazy_props(value), do: value
+  defp resolve_props({:keep, value}, opts) do
+    opts = Keyword.put(opts, :keep, true)
+    resolve_props(value, opts)
+  end
+
+  defp resolve_props(fun, opts) when is_function(fun, 0) do
+    if skip?(opts) do
+      :skip
+    else
+      fun.()
+    end
+  end
+
+  defp resolve_props(value, opts) do
+    if skip?(opts) do
+      :skip
+    else
+      value
+    end
+  end
+
+  defp skip?(opts) do
+    path = opts[:path]
+    only = opts[:only]
+    except = opts[:except]
+    keep = opts[:keep]
+
+    cond do
+      keep -> false
+      length(only) > 0 && !Enum.member?(only, path) -> true
+      length(except) > 0 && Enum.member?(except, path) -> true
+      true -> false
+    end
+  end
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
     conn

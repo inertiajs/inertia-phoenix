@@ -23,6 +23,13 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", %{lazy_3: &lazy_3/0})
   end
 
+  def nested(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, %{b: %{c: "c", d: "d", e: %{f: "f", g: "g"}}})
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> redirect(to: "/")

@@ -21,11 +21,45 @@ defmodule Inertia.Plug do
       ["true"] ->
         conn
         |> put_private(:inertia_request, true)
+        |> detect_partial_reload()
         |> convert_redirects()
         |> check_version()
 
       _ ->
         conn
+    end
+  end
+
+  defp detect_partial_reload(conn) do
+    case get_req_header(conn, "x-inertia-partial-component") do
+      [component] when is_binary(component) ->
+        conn
+        |> put_private(:inertia_partial_component, component)
+        |> put_private(:inertia_partial_only, get_partial_only(conn))
+        |> put_private(:inertia_partial_except, get_partial_except(conn))
+
+      _ ->
+        conn
+    end
+  end
+
+  defp get_partial_only(conn) do
+    case get_req_header(conn, "x-inertia-partial-data") do
+      [stringified_list] when is_binary(stringified_list) ->
+        String.split(stringified_list, ",")
+
+      _ ->
+        []
+    end
+  end
+
+  defp get_partial_except(conn) do
+    case get_req_header(conn, "x-inertia-partial-except") do
+      [stringified_list] when is_binary(stringified_list) ->
+        String.split(stringified_list, ",")
+
+      _ ->
+        []
     end
   end
 
