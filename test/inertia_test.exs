@@ -218,19 +218,19 @@ defmodule InertiaTest do
            }
   end
 
-  test "includes 'keep' props in partial reloads", %{conn: conn} do
+  test "includes 'always' props in partial reloads", %{conn: conn} do
     conn =
       conn
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
       |> put_req_header("x-inertia-partial-component", "Home")
       |> put_req_header("x-inertia-partial-data", "a")
-      |> get(~p"/keep")
+      |> get(~p"/always")
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => []},
-             "url" => "/keep",
+             "url" => "/always",
              "version" => @current_version
            }
   end

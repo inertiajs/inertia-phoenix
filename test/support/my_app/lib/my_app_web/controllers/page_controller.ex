@@ -30,12 +30,12 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
-  def keep(conn, _params) do
+  def always(conn, _params) do
     conn
     |> assign(:page_title, "Home")
     |> assign_prop(:a, "a")
     |> assign_prop(:b, "b")
-    |> assign_prop(:errors, {:keep, []})
+    |> assign_prop(:errors, inertia_always([]))
     |> render_inertia("Home")
   end
 

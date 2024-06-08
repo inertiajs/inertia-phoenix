@@ -14,6 +14,7 @@ defmodule Inertia.Controller do
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
   @type lazy() :: {:lazy, fun()}
+  @type always() :: {:keep, fun()}
 
   @doc """
   Marks a prop value as lazy, which means it will only get evaluated if
@@ -25,6 +26,13 @@ defmodule Inertia.Controller do
   def inertia_lazy(_) do
     raise ArgumentError, message: "inertia_lazy/1 only accepts a function argument"
   end
+
+  @doc """
+  Marks a prop value as "always", which means it will always be included in the
+  props on initial and partial loads.
+  """
+  @spec inertia_always(value :: any()) :: always()
+  def inertia_always(value), do: {:keep, value}
 
   @doc """
   Assigns a prop value to the Inertia page data.
