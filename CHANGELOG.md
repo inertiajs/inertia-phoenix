@@ -2,6 +2,7 @@
 
 ## Unpublished
 
+- Support for partial reloads ([#6](https://github.com/svycal/inertia-phoenix/issues/6))
 - Support lazy data evaluation ([#7](https://github.com/svycal/inertia-phoenix/issues/7))
 
 ## 0.3.0
