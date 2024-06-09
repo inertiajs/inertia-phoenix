@@ -131,10 +131,10 @@ This action will render an HTML page containing a `<div>` element with the name 
 If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either anonymous function (or named function reference), or the `inertia_lazy/1` function.
 
 > [!NOTE]
-> The `inertia_lazy/1` function will _only_ include the prop when specified in a
-> partial reload. If you want to include the prop on first visit, you'll want to
-> use a bare anonymous function or named function reference instead. See below
-> for examples of how prop assignment behaves.
+> Lazy props will _only_ be included the when explicitly requested in a partial
+> reload. If you want to include the prop on first visit, you'll want to use a
+> bare anonymous function or named function reference instead. See below for
+> examples of how prop assignment behaves.
 
 ```elixir
 conn

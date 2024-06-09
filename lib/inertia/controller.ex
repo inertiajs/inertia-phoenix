@@ -19,6 +19,29 @@ defmodule Inertia.Controller do
   @doc """
   Marks a prop value as lazy, which means it will only get evaluated if
   explicitly requested in a partial reload.
+
+  Lazy props will _only_ be included the when explicitly requested in a partial
+  reload. If you want to include the prop on first visit, you'll want to use a
+  bare anonymous function or named function reference instead.
+
+  ```elixir
+  conn
+  # ALWAYS included on first visit...
+  # OPTIONALLY included on partial reloads...
+  # ALWAYS evaluated...
+  |> assign_prop(:cheap_thing, cheap_thing())
+
+  # ALWAYS included on first visit...
+  # OPTIONALLY included on partial reloads...
+  # ONLY evaluated when needed...
+  |> assign_prop(:expensive_thing, fn -> calculate_thing() end)
+  |> assign_prop(:another_expensive_thing, &calculate_another_thing/0)
+
+  # NEVER included on first visit...
+  # OPTIONALLY included on partial reloads...
+  # ONLY evaluated when needed...
+  |> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
+  ```
   """
   @spec inertia_lazy(fun :: fun()) :: lazy()
   def inertia_lazy(fun) when is_function(fun), do: {:lazy, fun}
@@ -28,8 +51,9 @@ defmodule Inertia.Controller do
   end
 
   @doc """
-  Marks a prop value as "always", which means it will always be included in the
-  props on initial and partial loads.
+  Marks a prop value as "always included", which means it will be included in
+  the props on initial page load and subsequent partial loads (even when it's
+  not explicitly requested).
   """
   @spec inertia_always(value :: any()) :: always()
   def inertia_always(value), do: {:keep, value}
