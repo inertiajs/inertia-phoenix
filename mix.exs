@@ -7,7 +7,7 @@ defmodule Inertia.MixProject do
     [
       app: :inertia,
       version: @version,
-      elixir: "~> 1.16",
+      elixir: ">= 1.14.0",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       name: "Inertia",
