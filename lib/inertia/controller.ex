@@ -13,6 +13,51 @@ defmodule Inertia.Controller do
 
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
+  @type lazy() :: {:lazy, fun()}
+  @type always() :: {:keep, fun()}
+
+  @doc """
+  Marks a prop value as lazy, which means it will only get evaluated if
+  explicitly requested in a partial reload.
+
+  Lazy props will _only_ be included the when explicitly requested in a partial
+  reload. If you want to include the prop on first visit, you'll want to use a
+  bare anonymous function or named function reference instead.
+
+  ```elixir
+  conn
+  # ALWAYS included on first visit...
+  # OPTIONALLY included on partial reloads...
+  # ALWAYS evaluated...
+  |> assign_prop(:cheap_thing, cheap_thing())
+
+  # ALWAYS included on first visit...
+  # OPTIONALLY included on partial reloads...
+  # ONLY evaluated when needed...
+  |> assign_prop(:expensive_thing, fn -> calculate_thing() end)
+  |> assign_prop(:another_expensive_thing, &calculate_another_thing/0)
+
+  # NEVER included on first visit...
+  # OPTIONALLY included on partial reloads...
+  # ONLY evaluated when needed...
+  |> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
+  ```
+  """
+  @spec inertia_lazy(fun :: fun()) :: lazy()
+  def inertia_lazy(fun) when is_function(fun), do: {:lazy, fun}
+
+  def inertia_lazy(_) do
+    raise ArgumentError, message: "inertia_lazy/1 only accepts a function argument"
+  end
+
+  @doc """
+  Marks a prop value as "always included", which means it will be included in
+  the props on initial page load and subsequent partial loads (even when it's
+  not explicitly requested).
+  """
+  @spec inertia_always(value :: any()) :: always()
+  def inertia_always(value), do: {:keep, value}
+
   @doc """
   Assigns a prop value to the Inertia page data.
   """
@@ -31,10 +76,15 @@ defmodule Inertia.Controller do
   def render_inertia(conn, component, props \\ %{}) do
     shared = conn.private[:inertia_shared] || %{}
 
+    # Only render partial props if the partial component matches the current page
+    is_partial = conn.private[:inertia_partial_component] == component
+    only = if is_partial, do: conn.private[:inertia_partial_only], else: []
+    except = if is_partial, do: conn.private[:inertia_partial_except], else: []
+
     props =
       shared
       |> Map.merge(props)
-      |> resolve_lazy_props()
+      |> resolve_props(only: only, except: except)
 
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
@@ -43,15 +93,71 @@ defmodule Inertia.Controller do
 
   # Private helpers
 
-  defp resolve_lazy_props(map) when is_map(map) do
-    map
-    |> Map.to_list()
-    |> Enum.map(fn {key, value} -> {key, resolve_lazy_props(value)} end)
-    |> Map.new()
+  defp resolve_props(map, opts) when is_map(map) do
+    key_values =
+      map
+      |> Map.to_list()
+      |> Enum.reduce([], fn {key, value}, acc ->
+        path = if opts[:path], do: "#{opts[:path]}.#{key}", else: to_string(key)
+        opts = Keyword.put(opts, :path, path)
+        resolved_value = resolve_props(value, opts)
+
+        if resolved_value == :skip do
+          acc
+        else
+          [{key, resolved_value} | acc]
+        end
+      end)
+
+    case {opts[:path], key_values} do
+      {nil, key_values} -> Map.new(key_values)
+      {_, [_ | _]} -> Map.new(key_values)
+      {_, _} -> :skip
+    end
   end
 
-  defp resolve_lazy_props(fun) when is_function(fun, 0), do: fun.()
-  defp resolve_lazy_props(value), do: value
+  defp resolve_props({:lazy, value}, opts) do
+    if Enum.member?(opts[:only], opts[:path]) do
+      resolve_props(value, opts)
+    else
+      :skip
+    end
+  end
+
+  defp resolve_props({:keep, value}, opts) do
+    opts = Keyword.put(opts, :keep, true)
+    resolve_props(value, opts)
+  end
+
+  defp resolve_props(fun, opts) when is_function(fun, 0) do
+    if skip?(opts) do
+      :skip
+    else
+      fun.()
+    end
+  end
+
+  defp resolve_props(value, opts) do
+    if skip?(opts) do
+      :skip
+    else
+      value
+    end
+  end
+
+  defp skip?(opts) do
+    path = opts[:path]
+    only = opts[:only]
+    except = opts[:except]
+    keep = opts[:keep]
+
+    cond do
+      keep -> false
+      length(only) > 0 && !Enum.member?(only, path) -> true
+      length(except) > 0 && Enum.member?(except, path) -> true
+      true -> false
+    end
+  end
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
     conn
