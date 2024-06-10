@@ -20,6 +20,7 @@ defmodule MyAppWeb.Router do
     get "/nested", PageController, :nested
     get "/always", PageController, :always
     get "/tagged_lazy", PageController, :tagged_lazy
+    get "/changeset_errors", PageController, :changeset_errors
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

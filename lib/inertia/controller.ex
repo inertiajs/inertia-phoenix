@@ -5,6 +5,7 @@ defmodule Inertia.Controller do
 
   require Logger
 
+  alias Inertia.Errors
   alias Inertia.SSR.RenderError
   alias Inertia.SSR
 
@@ -65,6 +66,36 @@ defmodule Inertia.Controller do
   def assign_prop(conn, key, value) do
     shared = conn.private[:inertia_shared] || %{}
     put_private(conn, :inertia_shared, Map.put(shared, key, value))
+  end
+
+  @doc """
+  Assigns errors to the Inertia page data. Thie helper accepts an
+  `Ecto.Changeset` (and automatically serializes its errors into a shape
+  compatible with Inertia), or a bare map of errors.
+
+  If you are serializing your own errors, they should take the following shape:
+
+  ```elixir
+  %{
+    "name" => "Name is required",
+    "password" => "Password must be at least 5 characters",
+    "team.name" => "Team name is required",
+  }
+  ```
+  """
+  @spec assign_errors(Plug.Conn.t(), data :: Ecto.Changeset.t() | map()) :: Plug.Conn.t()
+  @spec assign_errors(Plug.Conn.t(), data :: Ecto.Changeset.t(), msg_func :: function()) ::
+          Plug.Conn.t()
+  def assign_errors(conn, %Ecto.Changeset{} = changeset) do
+    assign_prop(conn, :errors, inertia_always(Errors.compile_errors(changeset)))
+  end
+
+  def assign_errors(conn, value) do
+    assign_prop(conn, :errors, inertia_always(value))
+  end
+
+  def assign_errors(conn, %Ecto.Changeset{} = changeset, msg_func) do
+    assign_prop(conn, :errors, inertia_always(Errors.compile_errors(changeset, msg_func)))
   end
 
   @doc """

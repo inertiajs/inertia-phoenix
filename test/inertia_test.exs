@@ -288,6 +288,23 @@ defmodule InertiaTest do
            }
   end
 
+  test "includes changeset-driven errors", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/changeset_errors")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{
+               "errors" => %{"settings.theme" => "can't be blank", "name" => "can't be blank"}
+             },
+             "url" => "/changeset_errors",
+             "version" => @current_version
+           }
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()
