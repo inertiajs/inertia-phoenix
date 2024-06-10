@@ -109,10 +109,11 @@ defmodule Inertia.Controller do
         end
       end)
 
-    case {opts[:path], key_values} do
-      {nil, key_values} -> Map.new(key_values)
-      {_, [_ | _]} -> Map.new(key_values)
-      {_, _} -> :skip
+    case {opts[:path], opts[:keep], key_values} do
+      {nil, _, _} -> Map.new(key_values)
+      {_, _, [_ | _]} -> Map.new(key_values)
+      {_, true, key_values} -> Map.new(key_values)
+      {_, _, _} -> :skip
     end
   end
 

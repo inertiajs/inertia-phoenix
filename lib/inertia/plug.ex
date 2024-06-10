@@ -3,6 +3,7 @@ defmodule Inertia.Plug do
   The plug module for detecting Inertia.js requests.
   """
 
+  import Inertia.Controller, only: [inertia_always: 1]
   import Plug.Conn
 
   def init(opts) do
@@ -12,6 +13,7 @@ defmodule Inertia.Plug do
   def call(conn, _opts) do
     conn
     |> put_private(:inertia_version, compute_version())
+    |> put_private(:inertia_shared, %{errors: inertia_always(%{})})
     |> assign(:inertia_head, [])
     |> detect_inertia()
   end
@@ -20,6 +22,7 @@ defmodule Inertia.Plug do
     case get_req_header(conn, "x-inertia") do
       ["true"] ->
         conn
+        |> put_private(:inertia_version, compute_version())
         |> put_private(:inertia_request, true)
         |> detect_partial_reload()
         |> convert_redirects()

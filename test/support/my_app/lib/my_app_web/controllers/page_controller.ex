@@ -35,7 +35,7 @@ defmodule MyAppWeb.PageController do
     |> assign(:page_title, "Home")
     |> assign_prop(:a, "a")
     |> assign_prop(:b, "b")
-    |> assign_prop(:errors, inertia_always([]))
+    |> assign_prop(:important, inertia_always("stuff"))
     |> render_inertia("Home")
   end
 
