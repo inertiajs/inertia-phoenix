@@ -125,7 +125,7 @@ defmodule Inertia.Controller do
   # Private helpers
 
   defp resolve_props(map, opts) when is_map(map) do
-    key_values =
+    values =
       map
       |> Map.to_list()
       |> Enum.reduce([], fn {key, value}, acc ->
@@ -140,11 +140,10 @@ defmodule Inertia.Controller do
         end
       end)
 
-    case {opts[:path], opts[:keep], key_values} do
-      {nil, _, _} -> Map.new(key_values)
-      {_, _, [_ | _]} -> Map.new(key_values)
-      {_, true, key_values} -> Map.new(key_values)
-      {_, _, _} -> :skip
+    if keep?(opts, values) do
+      Map.new(values)
+    else
+      :skip
     end
   end
 
@@ -174,6 +173,15 @@ defmodule Inertia.Controller do
       :skip
     else
       value
+    end
+  end
+
+  defp keep?(opts, values) do
+    case {opts[:keep], opts[:path], values} do
+      {true, _, _} -> true
+      {_, nil, _} -> true
+      {_, _, [_ | _]} -> true
+      {_, _, _} -> false
     end
   end
 
