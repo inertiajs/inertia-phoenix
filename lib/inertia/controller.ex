@@ -25,24 +25,22 @@ defmodule Inertia.Controller do
   reload. If you want to include the prop on first visit, you'll want to use a
   bare anonymous function or named function reference instead.
 
-  ```elixir
-  conn
-  # ALWAYS included on first visit...
-  # OPTIONALLY included on partial reloads...
-  # ALWAYS evaluated...
-  |> assign_prop(:cheap_thing, cheap_thing())
+      conn
+      # ALWAYS included on first visit...
+      # OPTIONALLY included on partial reloads...
+      # ALWAYS evaluated...
+      |> assign_prop(:cheap_thing, cheap_thing())
 
-  # ALWAYS included on first visit...
-  # OPTIONALLY included on partial reloads...
-  # ONLY evaluated when needed...
-  |> assign_prop(:expensive_thing, fn -> calculate_thing() end)
-  |> assign_prop(:another_expensive_thing, &calculate_another_thing/0)
+      # ALWAYS included on first visit...
+      # OPTIONALLY included on partial reloads...
+      # ONLY evaluated when needed...
+      |> assign_prop(:expensive_thing, fn -> calculate_thing() end)
+      |> assign_prop(:another_expensive_thing, &calculate_another_thing/0)
 
-  # NEVER included on first visit...
-  # OPTIONALLY included on partial reloads...
-  # ONLY evaluated when needed...
-  |> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
-  ```
+      # NEVER included on first visit...
+      # OPTIONALLY included on partial reloads...
+      # ONLY evaluated when needed...
+      |> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
   """
   @spec inertia_lazy(fun :: fun()) :: lazy()
   def inertia_lazy(fun) when is_function(fun), do: {:lazy, fun}
@@ -69,40 +67,56 @@ defmodule Inertia.Controller do
   end
 
   @doc """
-  Assigns errors to the Inertia page data. Thie helper accepts an
+  Assigns errors to the Inertia page data. This helper accepts an
   `Ecto.Changeset` (and automatically serializes its errors into a shape
   compatible with Inertia), or a bare map of errors.
 
   If you are serializing your own errors, they should take the following shape:
 
-  ```elixir
-  %{
-    "name" => "Name is required",
-    "password" => "Password must be at least 5 characters",
-    "team.name" => "Team name is required",
-  }
-  ```
+      %{
+        "name" => "Name is required",
+        "password" => "Password must be at least 5 characters",
+        "team.name" => "Team name is required",
+      }
+
+  When assigning a changeset, you may optionally pass a message-generating function
+  to use when traversing errors. See [`Ecto.Changeset.traverse_errors/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#traverse_errors/2)
+  for more information about the message function.
+
+      defp default_msg_func({msg, opts}) do
+        Enum.reduce(opts, msg, fn {key, value}, acc ->
+          String.replace(acc, "%{\#{key}}", fn _ -> to_string(value) end)
+        end)
+      end
+
+  This default implementation performs a simple string replacement for error
+  message containing variables, like `count`. For example, given the following
+  error:
+
+      {"should be at least %{count} characters", [count: 3, validation: :length, min: 3]}
+
+  The generated description would be "should be at least 3 characters". If you would
+  prefer to use the `Gettext` module for pluralizing and localizing error messages, you
+  can override the message function:
+
+      conn
+      |> assign_errors(changeset, fn {msg, opts} ->
+        if count = opts[:count] do
+          Gettext.dngettext(MyAppWeb.Gettext, "errors", msg, msg, count, opts)
+        else
+          Gettext.dgettext(MyAppWeb.Gettext, "errors", msg, opts)
+        end
+      end)
   """
   @spec assign_errors(Plug.Conn.t(), data :: Ecto.Changeset.t() | map()) :: Plug.Conn.t()
   @spec assign_errors(Plug.Conn.t(), data :: Ecto.Changeset.t(), msg_func :: function()) ::
           Plug.Conn.t()
-  def assign_errors(conn, %Ecto.Changeset{} = changeset) do
-    assign_errors(conn, Errors.compile_errors(changeset))
-  end
-
-  def assign_errors(conn, value) do
-    errors =
-      if error_bag = conn.private[:inertia_error_bag] do
-        %{error_bag => value}
-      else
-        value
-      end
-
-    assign_prop(conn, :errors, inertia_always(errors))
+  def assign_errors(conn, map_or_changeset) do
+    assign_prop(conn, :errors, Errors.compile_errors!(conn, map_or_changeset))
   end
 
   def assign_errors(conn, %Ecto.Changeset{} = changeset, msg_func) do
-    assign_prop(conn, :errors, inertia_always(Errors.compile_errors(changeset, msg_func)))
+    assign_prop(conn, :errors, Errors.compile_errors!(conn, changeset, msg_func))
   end
 
   @doc """
