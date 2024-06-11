@@ -15,7 +15,7 @@ defmodule Inertia.Controller do
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
   @type lazy() :: {:lazy, fun()}
-  @type always() :: {:keep, fun()}
+  @type always() :: {:keep, any()}
 
   @doc """
   Marks a prop value as lazy, which means it will only get evaluated if

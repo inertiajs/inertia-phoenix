@@ -3,12 +3,15 @@ defmodule Inertia.Errors do
 
   import Inertia.Controller, only: [inertia_always: 1]
 
+  alias Inertia.Controller
+
   @doc """
   Compiles errors for into a format compatible with Inertia.js.
   """
-  @spec compile_errors!(Plug.Conn.t(), map() | Ecto.Changeset.t()) :: map() | no_return()
+  @spec compile_errors!(Plug.Conn.t(), map() | Ecto.Changeset.t()) ::
+          Controller.always() | no_return()
   @spec compile_errors!(Plug.Conn.t(), Ecto.Changeset.t(), msg_func :: function()) ::
-          map() | no_return()
+          {:keep, map()} | no_return()
   def compile_errors!(conn, %Ecto.Changeset{} = changeset) do
     compile_errors!(conn, changeset, &default_msg_func/1)
   end
@@ -28,6 +31,15 @@ defmodule Inertia.Errors do
     |> inertia_always()
   end
 
+  @doc """
+  Process a map of errors after calling `Ecto.Changeset.traverse_errors/2`.
+
+  Note: This function is not part of the official public API, but is public for
+  ease of unit testing.
+  """
+  @spec process_changeset_errors(value :: map(), path :: String.t() | nil) :: [
+          {String.t(), String.t()}
+        ]
   def process_changeset_errors(value, path \\ nil)
 
   def process_changeset_errors(%{} = map, path) do
