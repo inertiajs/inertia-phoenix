@@ -43,7 +43,8 @@ defmodule Inertia.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:nodejs, "~> 3.0"}
+      {:nodejs, "~> 3.0"},
+      {:ecto, ">= 3.0.0"}
     ]
   end
 

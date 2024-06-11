@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Support for propagating errors via an `assign_errors` helper
+- Preservation of assigned errors across redirects
+
 ## 0.4.0
 
 - Support for partial reloads ([#6](https://github.com/svycal/inertia-phoenix/issues/6))

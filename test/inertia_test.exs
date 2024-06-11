@@ -21,7 +21,7 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"text" => "Hello World"},
+             "props" => %{"text" => "Hello World", "errors" => %{}},
              "url" => "/",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -38,7 +38,7 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"text" => "Hello World", "foo" => "bar"},
+             "props" => %{"text" => "Hello World", "foo" => "bar", "errors" => %{}},
              "url" => "/shared",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -177,7 +177,8 @@ defmodule InertiaTest do
              "props" => %{
                "lazy_1" => "lazy_1",
                "lazy_3" => "lazy_3",
-               "nested" => %{"lazy_2" => "lazy_2"}
+               "nested" => %{"lazy_2" => "lazy_2"},
+               "errors" => %{}
              },
              "url" => "/lazy",
              "version" => @current_version
@@ -195,7 +196,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f"}}}},
+             "props" => %{"a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f"}}}, "errors" => %{}},
              "url" => "/nested",
              "version" => @current_version
            }
@@ -212,7 +213,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => %{"b" => %{"c" => "c"}}},
+             "props" => %{"a" => %{"b" => %{"c" => "c"}}, "errors" => %{}},
              "url" => "/nested",
              "version" => @current_version
            }
@@ -229,7 +230,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => "a", "errors" => []},
+             "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}},
              "url" => "/always",
              "version" => @current_version
            }
@@ -247,7 +248,8 @@ defmodule InertiaTest do
     assert json_response(conn, 200) == %{
              "component" => "Home",
              "props" => %{
-               "a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f", "g" => "g"}, "d" => "d"}}
+               "a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f", "g" => "g"}, "d" => "d"}},
+               "errors" => %{}
              },
              "url" => "/nested",
              "version" => @current_version
@@ -263,7 +265,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"b" => "b"},
+             "props" => %{"b" => "b", "errors" => %{}},
              "url" => "/tagged_lazy",
              "version" => @current_version
            }
@@ -280,10 +282,75 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => "a"},
+             "props" => %{"a" => "a", "errors" => %{}},
              "url" => "/tagged_lazy",
              "version" => @current_version
            }
+  end
+
+  test "includes changeset-driven errors", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/changeset_errors")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{
+               "errors" => %{"settings.theme" => "can't be blank", "name" => "can't be blank"}
+             },
+             "url" => "/changeset_errors",
+             "version" => @current_version
+           }
+  end
+
+  test "wraps errors in bag", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-error-bag", "groceries")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/changeset_errors")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{
+               "errors" => %{
+                 "groceries" => %{
+                   "settings.theme" => "can't be blank",
+                   "name" => "can't be blank"
+                 }
+               }
+             },
+             "url" => "/changeset_errors",
+             "version" => @current_version
+           }
+  end
+
+  test "carries errors over when full-page redirecting", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-error-bag", "groceries")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/redirect_on_error")
+
+    assert redirected_to(conn) == ~p"/"
+
+    # The next request should have the errors carried over
+    conn = get(conn, ~p"/")
+    assert html_response(conn, 200) =~ ~s("errors":{"groceries") |> html_escape()
+
+    # Subsequent requests should now have the errors
+    conn = get(conn, ~p"/")
+    assert html_response(conn, 200) =~ ~s("errors":{}) |> html_escape()
+  end
+
+  test "validates error maps", %{conn: conn} do
+    assert_raise ArgumentError, ~s(expected string value for name, got ["is required"]), fn ->
+      get(conn, ~p"/bad_error_map")
+    end
   end
 
   defp html_escape(content) do

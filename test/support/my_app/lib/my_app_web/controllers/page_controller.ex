@@ -35,7 +35,7 @@ defmodule MyAppWeb.PageController do
     |> assign(:page_title, "Home")
     |> assign_prop(:a, "a")
     |> assign_prop(:b, "b")
-    |> assign_prop(:errors, inertia_always([]))
+    |> assign_prop(:important, inertia_always("stuff"))
     |> render_inertia("Home")
   end
 
@@ -44,6 +44,28 @@ defmodule MyAppWeb.PageController do
     |> assign(:page_title, "Home")
     |> assign_prop(:a, inertia_lazy(fn -> "a" end))
     |> assign_prop(:b, "b")
+    |> render_inertia("Home")
+  end
+
+  def changeset_errors(conn, _params) do
+    changeset = MyApp.User.changeset(%MyApp.User{}, %{settings: %{}})
+
+    conn
+    |> assign_errors(changeset)
+    |> render_inertia("Home")
+  end
+
+  def redirect_on_error(conn, _params) do
+    changeset = MyApp.User.changeset(%MyApp.User{}, %{settings: %{}})
+
+    conn
+    |> assign_errors(changeset)
+    |> redirect(to: ~p"/")
+  end
+
+  def bad_error_map(conn, _params) do
+    conn
+    |> assign_errors(%{user: %{name: ["is required"]}})
     |> render_inertia("Home")
   end
 
