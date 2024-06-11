@@ -63,6 +63,12 @@ defmodule MyAppWeb.PageController do
     |> redirect(to: ~p"/")
   end
 
+  def bad_error_map(conn, _params) do
+    conn
+    |> assign_errors(%{user: %{name: ["is required"]}})
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> redirect(to: "/")

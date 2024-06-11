@@ -18,6 +18,7 @@ defmodule Inertia.Errors do
 
   def compile_errors!(conn, map) when is_map(map) do
     map
+    |> tap(&validate_error_map!/1)
     |> bag_errors(conn)
     |> inertia_always()
   end
@@ -29,6 +30,29 @@ defmodule Inertia.Errors do
     |> Map.new()
     |> bag_errors(conn)
     |> inertia_always()
+  end
+
+  defp validate_error_map!(map) do
+    values = Map.values(map)
+
+    # Check to see if these are "bagged" errors
+    # e.g. `%{"updateCompany" => %{"name" => "is invalid"}}`.
+    # If we are dealing with bagged errors, then validate the bags.
+    # Otherwise, validate the map as an unbagged collection of errors.
+    if Enum.all?(values, &is_map/1) do
+      Enum.each(values, &validate_error_map!/1)
+    else
+      Enum.map(map, fn {key, value} ->
+        if !is_atom(key) && !is_binary(key) do
+          raise ArgumentError, message: "expected atom or string key, got #{inspect(key)}"
+        end
+
+        if !is_binary(value) do
+          raise ArgumentError,
+            message: "expected string value for #{to_string(key)}, got #{inspect(value)}"
+        end
+      end)
+    end
   end
 
   @doc """

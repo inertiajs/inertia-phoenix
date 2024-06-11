@@ -347,6 +347,12 @@ defmodule InertiaTest do
     assert html_response(conn, 200) =~ ~s("errors":{}) |> html_escape()
   end
 
+  test "validates error maps", %{conn: conn} do
+    assert_raise ArgumentError, ~s(expected string value for name, got ["is required"]), fn ->
+      get(conn, ~p"/bad_error_map")
+    end
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

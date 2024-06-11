@@ -203,13 +203,13 @@ end
 
 The `assign_errors` function will automatically convert the changeset errors into a shape compatible with the client-side adapter. Errors are preserved in the session across redirects, so you can safely respond with a redirect back to page where the form lives.
 
-If you need to construct your own map of errors, be sure it's a flat mapping of string keys to string values like this:
+If you need to construct your own map of errors, be sure it's a flat mapping of atom (or string) keys to string values like this:
 
 ```elixir
 conn
 |> assign_errors(%{
-  "name" => "Name can't be blank",
-  "password" => "Password must be at least 5 characters"
+  name: "Name can't be blank",
+  password: "Password must be at least 5 characters"
 })
 ```
 
