@@ -179,6 +179,40 @@ end
 
 Anywhere this plug is used, the serialized `user` prop will be passed to the Inertia component.
 
+## Validations
+
+Validation errors have some specific conventions to make wiring up with Inertia's form helpers smooth. The `errors` prop is specially managed by this library and is always included in the props object for Inertia components.
+
+You can either pass an `Ecto.Changeset` struct or a bare map to the `assign_errors` function.
+
+```elixir
+def update(conn, params)
+  case MyApp.Settings.update(params) do
+    {:ok, settings} ->
+      conn
+      |> put_flash(:info, "Settings updated")
+      |> redirect(to: ~p"/settings")
+
+    {:error, changeset} ->
+      conn
+      |> assign_errors(changeset)
+      |> redirect(to: ~p"/settings")
+  end
+end
+```
+
+The `assign_errors` function will automatically convert the changeset errors into a shape compatible with the client-side adapter. Errors are preserved in the session across redirects, so you can safely respond with a redirect back to page where the form lives.
+
+If you need to construct your own map of errors, be sure it's a flat mapping of string keys to string values like this:
+
+```elixir
+conn
+|> assign_errors(%{
+  "name" => "Name can't be blank",
+  "password" => "Password must be at least 5 characters"
+})
+```
+
 ## Server-side rendering (Experimental)
 
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
