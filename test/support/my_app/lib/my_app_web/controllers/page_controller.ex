@@ -69,6 +69,10 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def external_redirect(conn, _params) do
+    redirect(conn, external: "http://www.example.com/")
+  end
+
   def update(conn, _params) do
     conn
     |> redirect(to: "/")

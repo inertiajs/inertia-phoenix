@@ -99,14 +99,33 @@ defmodule Inertia.Plug do
 
   defp convert_redirects(conn) do
     register_before_send(conn, fn %{method: method, status: status} = conn ->
-      if method in ["PUT", "PATCH", "DELETE"] and status in [301, 302] do
-        put_status(conn, 303)
-      else
-        conn
+      cond do
+        # see: https://inertiajs.com/redirects#303-response-code
+        method in ["PUT", "PATCH", "DELETE"] and status in [301, 302] ->
+          put_status(conn, 303)
+
+        # see: https://inertiajs.com/redirects#external-redirects
+        external_redirect?(conn) ->
+          [location] = get_resp_header(conn, "location")
+
+          conn
+          |> put_status(409)
+          |> put_resp_header("x-inertia-location", location)
+
+        true ->
+          conn
       end
     end)
   end
 
+  defp external_redirect?(%{status: status} = conn) when status in 300..308 do
+    [location] = get_resp_header(conn, "location")
+    !String.starts_with?(location, "/")
+  end
+
+  defp external_redirect?(_conn), do: false
+
+  # see: https://inertiajs.com/the-protocol#asset-versioning
   defp check_version(%{private: %{inertia_version: current_version}} = conn) do
     if conn.method == "GET" && get_req_header(conn, "x-inertia-version") != [current_version] do
       force_refresh(conn)

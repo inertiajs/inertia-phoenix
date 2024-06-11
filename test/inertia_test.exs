@@ -353,6 +353,18 @@ defmodule InertiaTest do
     end
   end
 
+  test "converts external redirects to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/external_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()
