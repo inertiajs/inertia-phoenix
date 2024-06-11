@@ -186,9 +186,9 @@ Validation errors have some specific conventions to make wiring up with Inertia'
 You can either pass an `Ecto.Changeset` struct or a bare map to the `assign_errors` function.
 
 ```elixir
-def update(conn, params)
+def update(conn, params) do
   case MyApp.Settings.update(params) do
-    {:ok, settings} ->
+    {:ok, _settings} ->
       conn
       |> put_flash(:info, "Settings updated")
       |> redirect(to: ~p"/settings")
