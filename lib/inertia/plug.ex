@@ -13,6 +13,7 @@ defmodule Inertia.Plug do
   def call(conn, _opts) do
     conn
     |> put_private(:inertia_version, compute_version())
+    |> put_private(:inertia_error_bag, get_error_bag(conn))
     |> put_private(:inertia_shared, %{errors: inertia_always(%{})})
     |> assign(:inertia_head, [])
     |> detect_inertia()
@@ -63,6 +64,13 @@ defmodule Inertia.Plug do
 
       _ ->
         []
+    end
+  end
+
+  defp get_error_bag(conn) do
+    case get_req_header(conn, "x-inertia-error-bag") do
+      [error_bag] when is_binary(error_bag) -> error_bag
+      _ -> nil
     end
   end
 
