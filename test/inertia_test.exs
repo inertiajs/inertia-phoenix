@@ -328,6 +328,25 @@ defmodule InertiaTest do
            }
   end
 
+  test "carries errors over when full-page redirecting", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-error-bag", "groceries")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/redirect_on_error")
+
+    assert redirected_to(conn) == ~p"/"
+
+    # The next request should have the errors carried over
+    conn = get(conn, ~p"/")
+    assert html_response(conn, 200) =~ ~s("errors":{"groceries") |> html_escape()
+
+    # Subsequent requests should now have the errors
+    conn = get(conn, ~p"/")
+    assert html_response(conn, 200) =~ ~s("errors":{}) |> html_escape()
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

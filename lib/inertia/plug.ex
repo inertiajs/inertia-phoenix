@@ -3,7 +3,7 @@ defmodule Inertia.Plug do
   The plug module for detecting Inertia.js requests.
   """
 
-  import Inertia.Controller, only: [inertia_always: 1]
+  import Inertia.Controller, only: [assign_errors: 2]
   import Plug.Conn
 
   def init(opts) do
@@ -12,11 +12,34 @@ defmodule Inertia.Plug do
 
   def call(conn, _opts) do
     conn
+    |> assign(:inertia_head, [])
     |> put_private(:inertia_version, compute_version())
     |> put_private(:inertia_error_bag, get_error_bag(conn))
-    |> put_private(:inertia_shared, %{errors: inertia_always(%{})})
-    |> assign(:inertia_head, [])
+    |> fetch_inertia_errors()
     |> detect_inertia()
+  end
+
+  defp fetch_inertia_errors(conn) do
+    errors = get_session(conn, "inertia_errors") || %{}
+    conn = assign_errors(conn, errors)
+
+    register_before_send(conn, fn %{status: status} = conn ->
+      props = conn.private[:inertia_shared] || %{}
+
+      errors =
+        case props[:errors] do
+          {:keep, data} -> data
+          _ -> %{}
+        end
+
+      # Keep errors if we are responding with a traditional redirect (301..308)
+      # or a force refresh (409) and there are some errors set
+      if (status in 300..308 or status == 409) and map_size(errors) > 0 do
+        put_session(conn, "inertia_errors", errors)
+      else
+        delete_session(conn, "inertia_errors")
+      end
+    end)
   end
 
   defp detect_inertia(conn) do

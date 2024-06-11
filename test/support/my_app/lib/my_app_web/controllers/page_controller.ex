@@ -55,6 +55,14 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def redirect_on_error(conn, _params) do
+    changeset = MyApp.User.changeset(%MyApp.User{}, %{settings: %{}})
+
+    conn
+    |> assign_errors(changeset)
+    |> redirect(to: ~p"/")
+  end
+
   def update(conn, _params) do
     conn
     |> redirect(to: "/")
