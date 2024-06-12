@@ -1,6 +1,6 @@
-# Inertia.js Phoenix Adapter [![Hex Docs](https://img.shields.io/hexpm/v/inertia)](https://hexdocs.pm/inertia/readme.html)
+# Inertia.js Phoenix Adapter [![Hex Package](https://img.shields.io/hexpm/v/inertia)](https://hex.pm/packages/inertia) [![Hex Docs](https://img.shields.io/badge/docs-green)](https://hexdocs.pm/inertia/readme.html)
 
-An Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
+The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 
 ## Installation
 
