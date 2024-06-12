@@ -1,12 +1,30 @@
 version: 2.1
+
+executors:
+  elixir-1.15:
+    docker:
+      - image: cimg/elixir:1.15-node
+
+  elixir-1.16:
+    docker:
+      - image: cimg/elixir:1.16-node
+
+  elixir-1.17:
+    docker:
+      - image: cimg/elixir:1.17-node
+
 jobs:
-  build:
+  test:
+    parameters:
+      executor:
+        type: executor
+
     # The resource_class feature allows configuring CPU and RAM resources for each job. 
     # Different resource classes are available for different executors. 
     # https://circleci.com/docs/2.0/configuration-reference/#resourceclass
     resource_class: "large"
-    docker:
-      - image: cimg/elixir:1.15.4-node
+
+    executor: << parameters.executor >>
 
     environment:
       MIX_ENV: test
@@ -60,6 +78,9 @@ jobs:
           command: mix dialyzer
 
 workflows:
-  test:
+  all-tests:
     jobs:
-      - build
+      - test:
+          matrix:
+            parameters:
+              executor: [elixir-1.15, elixir-1.16, elixir-1.17]
