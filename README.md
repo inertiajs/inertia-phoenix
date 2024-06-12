@@ -213,6 +213,55 @@ conn
 })
 ```
 
+## Flash messages
+
+This library automatically includes Phoenix flash data in Inertia props.
+
+For example, given the following controller action:
+
+```elixir
+def update(conn, params) do
+  case MyApp.Settings.update(params) do
+    {:ok, _settings} ->
+      conn
+      |> put_flash(:info, "Settings updated")
+      |> redirect(to: ~p"/settings")
+
+    {:error, changeset} ->
+      conn
+      |> assign_errors(changeset)
+      |> redirect(to: ~p"/settings")
+  end
+end
+```
+
+When Inertia (or the browser) redirects to the `/settings` page, the Inertia component will receive the flash props:
+
+```javascript
+{
+  "component": "...",
+  "props": {
+    "flash": {
+      "info": "Settings updated"
+    },
+    // ...
+  }
+}
+```
+
+## CSRF protection
+
+This library automatically sets the `XSRF-TOKEN` cookie for use by the Axios client on the front-end. Since Phoenix expects to receive the CSRF token via the `x-csrf-token` header, you'll need to configure Axios in your front-end JavaScript to use that header name:
+
+```javascript
+// assets/js/app.js
+
+import axios from "axios";
+axios.defaults.xsrfHeaderName = "x-csrf-token";
+
+// the rest of your Inertia client code...
+```
+
 ## Server-side rendering (Experimental)
 
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).

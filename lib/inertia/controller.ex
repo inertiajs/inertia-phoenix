@@ -141,6 +141,7 @@ defmodule Inertia.Controller do
 
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
+    |> put_csrf_cookie()
     |> send_response()
   end
 
@@ -297,6 +298,10 @@ defmodule Inertia.Controller do
 
   defp request_url_qs(""), do: ""
   defp request_url_qs(qs), do: [??, qs]
+
+  defp put_csrf_cookie(conn) do
+    put_resp_cookie(conn, "XSRF-TOKEN", get_csrf_token(), http_only: false)
+  end
 
   defp ssr_enabled? do
     Application.get_env(:inertia, :ssr, false)

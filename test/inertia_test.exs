@@ -428,6 +428,15 @@ defmodule InertiaTest do
     assert html_response(conn, 200) =~ ~s("flash":{"info":"Patched") |> html_escape()
   end
 
+  test "includes XSRF-TOKEN cookie", %{conn: conn} do
+    conn =
+      conn
+      |> get(~p"/")
+
+    assert html_response(conn, 200)
+    assert %{"XSRF-TOKEN" => %{value: "" <> _, http_only: false}} = conn.resp_cookies
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()
