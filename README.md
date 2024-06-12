@@ -128,10 +128,10 @@ This action will render an HTML page containing a `<div>` element with the name 
 
 ## Lazy data evaluation
 
-If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either anonymous function (or named function reference), or the `inertia_lazy/1` function.
+If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either anonymous function (or named function reference), or the `Inertia.Controller.inertia_lazy/1` function.
 
 > [!NOTE]
-> Lazy props will _only_ be included the when explicitly requested in a partial
+> `inertia_lazy` props will _only_ be included the when explicitly requested in a partial
 > reload. If you want to include the prop on first visit, you'll want to use a
 > bare anonymous function or named function reference instead. See below for
 > examples of how prop assignment behaves.
@@ -201,7 +201,21 @@ def update(conn, params) do
 end
 ```
 
-The `assign_errors` function will automatically convert the changeset errors into a shape compatible with the client-side adapter. Errors are preserved in the session across redirects, so you can safely respond with a redirect back to page where the form lives.
+The `assign_errors` function will automatically convert the changeset errors into a shape compatible with the client-side adapter.
+
+```javascript
+{
+  "name" => "can't be blank",
+
+  // Nested errors keys are flattened with a dot seperator (`.`) 
+  "team.name" => "must be at least 3 characters long",
+
+  // Nested arrays are zero-based and indexed using bracket notation (`[0]`)
+  "items[1].price" => "must be greater than 0"
+}
+```
+
+Errors are preserved in the session across redirects, so you can safely respond with a redirect back to page where the form lives.
 
 If you need to construct your own map of errors, be sure it's a flat mapping of atom (or string) keys to string values like this:
 

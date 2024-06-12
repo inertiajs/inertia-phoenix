@@ -1,35 +1,25 @@
 defmodule Inertia.Errors do
   @moduledoc false
 
-  import Inertia.Controller, only: [inertia_always: 1]
-
-  alias Inertia.Controller
-
   @doc """
   Compiles errors for into a format compatible with Inertia.js.
   """
-  @spec compile_errors!(Plug.Conn.t(), map() | Ecto.Changeset.t()) ::
-          Controller.always() | no_return()
-  @spec compile_errors!(Plug.Conn.t(), Ecto.Changeset.t(), msg_func :: function()) ::
-          {:keep, map()} | no_return()
-  def compile_errors!(conn, %Ecto.Changeset{} = changeset) do
-    compile_errors!(conn, changeset, &default_msg_func/1)
+  @spec compile_errors!(map() | Ecto.Changeset.t()) :: map() | no_return()
+  @spec compile_errors!(Ecto.Changeset.t(), msg_func :: function()) ::
+          map() | no_return()
+  def compile_errors!(%Ecto.Changeset{} = changeset) do
+    compile_errors!(changeset, &default_msg_func/1)
   end
 
-  def compile_errors!(conn, map) when is_map(map) do
-    map
-    |> tap(&validate_error_map!/1)
-    |> bag_errors(conn)
-    |> inertia_always()
+  def compile_errors!(map) when is_map(map) do
+    validate_error_map!(map)
   end
 
-  def compile_errors!(conn, %Ecto.Changeset{} = changeset, msg_func) do
+  def compile_errors!(%Ecto.Changeset{} = changeset, msg_func) do
     changeset
     |> Ecto.Changeset.traverse_errors(msg_func)
     |> process_changeset_errors()
     |> Map.new()
-    |> bag_errors(conn)
-    |> inertia_always()
   end
 
   defp validate_error_map!(map) do
@@ -42,7 +32,7 @@ defmodule Inertia.Errors do
     if Enum.all?(values, &is_map/1) do
       Enum.each(values, &validate_error_map!/1)
     else
-      Enum.map(map, fn {key, value} ->
+      Enum.each(map, fn {key, value} ->
         if !is_atom(key) && !is_binary(key) do
           raise ArgumentError, message: "expected atom or string key, got #{inspect(key)}"
         end
@@ -53,6 +43,8 @@ defmodule Inertia.Errors do
         end
       end)
     end
+
+    map
   end
 
   @doc """
@@ -80,7 +72,7 @@ defmodule Inertia.Errors do
     maps
     |> Enum.with_index()
     |> Enum.map(fn {map, idx} ->
-      path = "#{path}.#{idx}"
+      path = "#{path}[#{idx}]"
       process_changeset_errors(map, path)
     end)
     |> List.flatten()
@@ -94,8 +86,7 @@ defmodule Inertia.Errors do
     messages
     |> Enum.with_index()
     |> Enum.map(fn {message, idx} ->
-      path = "#{path}.#{idx}"
-      {path, message}
+      {"#{path}[#{idx}]", message}
     end)
   end
 
@@ -104,13 +95,5 @@ defmodule Inertia.Errors do
     Enum.reduce(opts, msg, fn {key, value}, acc ->
       String.replace(acc, "%{#{key}}", fn _ -> to_string(value) end)
     end)
-  end
-
-  defp bag_errors(errors, conn) do
-    if error_bag = conn.private[:inertia_error_bag] do
-      %{error_bag => errors}
-    else
-      errors
-    end
   end
 end

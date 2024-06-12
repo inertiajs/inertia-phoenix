@@ -12,8 +12,8 @@ defmodule Inertia.ErrorsTest do
 
     test "multiple errors for one key" do
       assert process_changeset_errors(%{"name" => ["is required", "must be real"]}) == %{
-               "name.0" => "is required",
-               "name.1" => "must be real"
+               "name[0]" => "is required",
+               "name[1]" => "must be real"
              }
     end
 
@@ -30,7 +30,7 @@ defmodule Inertia.ErrorsTest do
     test "array of nested errors" do
       assert process_changeset_errors(%{
                "items" => [%{"name" => ["is invalid"]}, %{"name" => ["is invalid"]}]
-             }) == %{"items.0.name" => "is invalid", "items.1.name" => "is invalid"}
+             }) == %{"items[0].name" => "is invalid", "items[1].name" => "is invalid"}
     end
   end
 

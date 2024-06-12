@@ -112,11 +112,31 @@ defmodule Inertia.Controller do
   @spec assign_errors(Plug.Conn.t(), data :: Ecto.Changeset.t(), msg_func :: function()) ::
           Plug.Conn.t()
   def assign_errors(conn, map_or_changeset) do
-    assign_prop(conn, :errors, Errors.compile_errors!(conn, map_or_changeset))
+    errors =
+      map_or_changeset
+      |> Errors.compile_errors!()
+      |> bag_errors(conn)
+      |> inertia_always()
+
+    assign_prop(conn, :errors, errors)
   end
 
   def assign_errors(conn, %Ecto.Changeset{} = changeset, msg_func) do
-    assign_prop(conn, :errors, Errors.compile_errors!(conn, changeset, msg_func))
+    errors =
+      changeset
+      |> Errors.compile_errors!(msg_func)
+      |> bag_errors(conn)
+      |> inertia_always()
+
+    assign_prop(conn, :errors, errors)
+  end
+
+  defp bag_errors(errors, conn) do
+    if error_bag = conn.private[:inertia_error_bag] do
+      %{error_bag => errors}
+    else
+      errors
+    end
   end
 
   @doc """
