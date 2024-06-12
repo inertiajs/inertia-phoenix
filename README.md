@@ -2,6 +2,17 @@
 
 The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Rendering responses](#rendering-responses)
+- [Lazy data evaluation](#lazy-data-evaluation)
+- [Shared data](#shared-data)
+- [Validations](#validations)
+- [Flash messages](#flash-messages)
+- [CSRF protection](#csrf-protection)
+- [Server-side rendering](#server-side-rendering-experimental)
+
 ## Installation
 
 The package can be installed by adding `inertia` to your list of dependencies in `mix.exs`:
