@@ -137,6 +137,7 @@ defmodule Inertia.Controller do
       shared
       |> Map.merge(props)
       |> resolve_props(only: only, except: except)
+      |> maybe_put_flash(conn)
 
     conn
     |> put_private(:inertia_page, %{component: component, props: props})
@@ -219,6 +220,11 @@ defmodule Inertia.Controller do
       true -> false
     end
   end
+
+  # Skip putting flash in the props if there's already `:flash` key assigned.
+  # Otherwise, put the flash in the props.
+  defp maybe_put_flash(%{flash: _} = props, _conn), do: props
+  defp maybe_put_flash(props, conn), do: Map.put(props, :flash, conn.assigns.flash)
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
     conn

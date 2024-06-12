@@ -73,18 +73,28 @@ defmodule MyAppWeb.PageController do
     redirect(conn, external: "http://www.example.com/")
   end
 
+  def overridden_flash(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:flash, %{foo: "bar"})
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
+    |> put_flash(:info, "Updated")
     |> redirect(to: "/")
   end
 
   def patch(conn, _params) do
     conn
+    |> put_flash(:info, "Patched")
     |> redirect(to: "/")
   end
 
   def delete(conn, _params) do
     conn
+    |> put_flash(:info, "Deleted")
     |> redirect(to: "/")
   end
 

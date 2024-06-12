@@ -24,6 +24,7 @@ defmodule MyAppWeb.Router do
     get "/redirect_on_error", PageController, :redirect_on_error
     get "/bad_error_map", PageController, :bad_error_map
     get "/external_redirect", PageController, :external_redirect
+    get "/overridden_flash", PageController, :overridden_flash
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

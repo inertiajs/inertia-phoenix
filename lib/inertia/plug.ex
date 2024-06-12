@@ -15,6 +15,7 @@ defmodule Inertia.Plug do
     |> assign(:inertia_head, [])
     |> put_private(:inertia_version, compute_version())
     |> put_private(:inertia_error_bag, get_error_bag(conn))
+    |> merge_forwarded_flash()
     |> fetch_inertia_errors()
     |> detect_inertia()
   end
@@ -152,8 +153,28 @@ defmodule Inertia.Plug do
     conn
     |> put_resp_header("x-inertia-location", request_url(conn))
     |> put_resp_content_type("text/html")
+    |> forward_flash()
     |> send_resp(:conflict, "")
     |> halt()
+  end
+
+  defp forward_flash(%{assigns: %{flash: flash}} = conn)
+       when is_map(flash) and map_size(flash) > 0 do
+    put_session(conn, "inertia_flash", flash)
+  end
+
+  defp forward_flash(conn), do: conn
+
+  defp merge_forwarded_flash(conn) do
+    case get_session(conn, "inertia_flash") do
+      nil ->
+        conn
+
+      flash ->
+        conn
+        |> delete_session("inertia_flash")
+        |> assign(:flash, Map.merge(conn.assigns.flash, flash))
+    end
   end
 
   defp static_paths do

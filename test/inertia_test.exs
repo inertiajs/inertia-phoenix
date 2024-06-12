@@ -21,7 +21,7 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"text" => "Hello World", "errors" => %{}},
+             "props" => %{"text" => "Hello World", "errors" => %{}, "flash" => %{}},
              "url" => "/",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -38,7 +38,12 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"text" => "Hello World", "foo" => "bar", "errors" => %{}},
+             "props" => %{
+               "text" => "Hello World",
+               "foo" => "bar",
+               "errors" => %{},
+               "flash" => %{}
+             },
              "url" => "/shared",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -178,7 +183,8 @@ defmodule InertiaTest do
                "lazy_1" => "lazy_1",
                "lazy_3" => "lazy_3",
                "nested" => %{"lazy_2" => "lazy_2"},
-               "errors" => %{}
+               "errors" => %{},
+               "flash" => %{}
              },
              "url" => "/lazy",
              "version" => @current_version
@@ -196,7 +202,11 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f"}}}, "errors" => %{}},
+             "props" => %{
+               "a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f"}}},
+               "errors" => %{},
+               "flash" => %{}
+             },
              "url" => "/nested",
              "version" => @current_version
            }
@@ -213,7 +223,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => %{"b" => %{"c" => "c"}}, "errors" => %{}},
+             "props" => %{"a" => %{"b" => %{"c" => "c"}}, "errors" => %{}, "flash" => %{}},
              "url" => "/nested",
              "version" => @current_version
            }
@@ -230,7 +240,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}},
+             "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}, "flash" => %{}},
              "url" => "/always",
              "version" => @current_version
            }
@@ -249,7 +259,8 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{
                "a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f", "g" => "g"}, "d" => "d"}},
-               "errors" => %{}
+               "errors" => %{},
+               "flash" => %{}
              },
              "url" => "/nested",
              "version" => @current_version
@@ -265,7 +276,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"b" => "b", "errors" => %{}},
+             "props" => %{"b" => "b", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
              "version" => @current_version
            }
@@ -282,7 +293,7 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => "a", "errors" => %{}},
+             "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
              "version" => @current_version
            }
@@ -298,7 +309,8 @@ defmodule InertiaTest do
     assert json_response(conn, 200) == %{
              "component" => "Home",
              "props" => %{
-               "errors" => %{"settings.theme" => "can't be blank", "name" => "can't be blank"}
+               "errors" => %{"settings.theme" => "can't be blank", "name" => "can't be blank"},
+               "flash" => %{}
              },
              "url" => "/changeset_errors",
              "version" => @current_version
@@ -321,7 +333,8 @@ defmodule InertiaTest do
                    "settings.theme" => "can't be blank",
                    "name" => "can't be blank"
                  }
-               }
+               },
+               "flash" => %{}
              },
              "url" => "/changeset_errors",
              "version" => @current_version
@@ -363,6 +376,56 @@ defmodule InertiaTest do
     assert html_response(conn, 409)
     refute get_resp_header(conn, "x-inertia") == ["true"]
     assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  test "automatically includes flash in props", %{conn: conn} do
+    conn =
+      conn
+      |> patch(~p"/")
+
+    assert html_response(conn, 302)
+
+    conn =
+      conn
+      |> recycle()
+      |> get("/")
+
+    assert html_response(conn, 200) =~ ~s("flash":{"info":"Patched") |> html_escape()
+  end
+
+  test "does not clobber the flash prop if manually set", %{conn: conn} do
+    conn =
+      conn
+      |> get(~p"/overridden_flash")
+
+    assert html_response(conn, 200) =~ ~s("flash":{"foo":"bar") |> html_escape()
+  end
+
+  test "forwards flash across forced refreshes", %{conn: conn} do
+    conn =
+      conn
+      |> patch(~p"/")
+
+    assert html_response(conn, 302)
+
+    # The next redirect hop triggers a forced refresh...
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", "different")
+      |> get("/")
+
+    assert html_response(conn, 409)
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+
+    # After the hop, flash should be present in the props
+    conn =
+      conn
+      |> recycle()
+      |> get("/")
+
+    assert html_response(conn, 200) =~ ~s("flash":{"info":"Patched") |> html_escape()
   end
 
   defp html_escape(content) do
