@@ -139,13 +139,15 @@ This action will render an HTML page containing a `<div>` element with the name 
 
 ## Lazy data evaluation
 
-If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either anonymous function (or named function reference), or the `Inertia.Controller.inertia_lazy/1` function.
+If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either an anonymous function (or named function reference) and optionally wrap it with the `Inertia.Controller.inertia_lazy/1` function.
 
 > [!NOTE]
 > `inertia_lazy` props will _only_ be included the when explicitly requested in a partial
 > reload. If you want to include the prop on first visit, you'll want to use a
 > bare anonymous function or named function reference instead. See below for
 > examples of how prop assignment behaves.
+
+Here are some specific examples of how the methods of lazy data evaluation differ:
 
 ```elixir
 conn
@@ -168,7 +170,7 @@ conn
 
 ## Shared data
 
-To share data on every request, you can use the `Inertia.Controller.assign_prop/2` function inside of a `Plug.Conn` plug. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user. Your plug might look something like this:
+To share data on every request, you can use the `assign_prop/2` function inside of a shared plug in your response pipeline. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user and you want to be sure all your Inertia components receive that user data. Your plug might look something like this:
 
 ```elixir
 defmodule MyApp.UserAuth do
@@ -178,7 +180,11 @@ defmodule MyApp.UserAuth do
 
   def authenticate_user(conn, _opts) do
     user = get_user_from_session(conn)
-
+ 
+    # Here we are storing the user in the conn assigns (so
+    # we can use it for things like checking permissions later on),
+    # AND we are assigning a serialized represention of the user
+    # to our Inertia props.
     conn
     |> assign(:user, user)
     |> assign_prop(:user, serialize_user(user))
@@ -192,9 +198,9 @@ Anywhere this plug is used, the serialized `user` prop will be passed to the Ine
 
 ## Validations
 
-Validation errors have some specific conventions to make wiring up with Inertia's form helpers smooth. The `errors` prop is specially managed by this library and is always included in the props object for Inertia components.
+Validation errors follow some specific conventions to make wiring up with Inertia's form helpers seamless. The `errors` prop is managed by this library and is always included in the props object for Inertia components. (When there are no errors, the `errors` prop will be an empty object).
 
-You can either pass an `Ecto.Changeset` struct or a bare map to the `assign_errors` function.
+The `assign_errors` function is how you tell Inertia what errors should be represented on the front-end. You can either pass an `Ecto.Changeset` struct or a bare map to the `assign_errors` function.
 
 ```elixir
 def update(conn, params) do
@@ -212,7 +218,7 @@ def update(conn, params) do
 end
 ```
 
-The `assign_errors` function will automatically convert the changeset errors into a shape compatible with the client-side adapter.
+The `assign_errors` function will automatically convert the changeset errors into a shape compatible with the client-side adapter. Since Inertia.js expects a flat map of key-value pairs, the error serializer will flatten nested errors down to compound keys:
 
 ```javascript
 {
@@ -226,9 +232,9 @@ The `assign_errors` function will automatically convert the changeset errors int
 }
 ```
 
-Errors are preserved in the session across redirects, so you can safely respond with a redirect back to page where the form lives.
+Errors are automatically preserved across redirects, so you can safely respond with a redirect back to page where the form lives to display form errors.
 
-If you need to construct your own map of errors, be sure it's a flat mapping of atom (or string) keys to string values like this:
+If you need to construct your own map of errors (rather than pass in a changeset), be sure it's a flat mapping of atom (or string) keys to string values like this:
 
 ```elixir
 conn
@@ -240,7 +246,7 @@ conn
 
 ## Flash messages
 
-This library automatically includes Phoenix flash data in Inertia props.
+This library automatically includes Phoenix flash data in Inertia props, under the `flash` key.
 
 For example, given the following controller action:
 
