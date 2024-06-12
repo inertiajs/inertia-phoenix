@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Assign errors via an `assign_errors` helper ([#10](https://github.com/inertiajs/inertia-phoenix/issues/10))
 - Preserve assigned errors across redirects ([#10](https://github.com/inertiajs/inertia-phoenix/issues/10))
