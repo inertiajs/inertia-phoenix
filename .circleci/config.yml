@@ -1,15 +1,15 @@
 version: 2.1
 
 executors:
-  elixir-1.15:
+  elixir-1-15:
     docker:
       - image: cimg/elixir:1.15-node
 
-  elixir-1.16:
+  elixir-1-16:
     docker:
       - image: cimg/elixir:1.16-node
 
-  elixir-1.17:
+  elixir-1-17:
     docker:
       - image: cimg/elixir:1.17-node
 
@@ -83,4 +83,4 @@ workflows:
       - test:
           matrix:
             parameters:
-              executor: [elixir-1.15, elixir-1.16, elixir-1.17]
+              executor: [elixir-1-15, elixir-1-16, elixir-1-17]
