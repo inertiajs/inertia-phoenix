@@ -1,30 +1,18 @@
 version: 2.1
 
-executors:
-  elixir-1-15:
-    docker:
-      - image: cimg/elixir:1.15-node
-
-  elixir-1-16:
-    docker:
-      - image: cimg/elixir:1.16-node
-
-  elixir-1-17:
-    docker:
-      - image: cimg/elixir:1.17-node
-
 jobs:
   test:
     parameters:
-      executor:
-        type: executor
+      version:
+        type: string
 
     # The resource_class feature allows configuring CPU and RAM resources for each job. 
     # Different resource classes are available for different executors. 
     # https://circleci.com/docs/2.0/configuration-reference/#resourceclass
     resource_class: "large"
 
-    executor: << parameters.executor >>
+    docker:
+      - image: cimg/elixir:<< parameters.version >>-node
 
     environment:
       MIX_ENV: test
@@ -32,50 +20,31 @@ jobs:
     working_directory: /home/circleci/repo
     steps:
       - checkout
-      - run:
-          name: "Check versions"
-          command: |
-            mix --version
+      - mix --version
       - restore_cache:
           keys:
-            - elixir-build-v1.14.0-{{ checksum "mix.lock" }}
+            - elixir-build-<< parameters.version >>-{{ checksum "mix.lock" }}
       - restore_cache:
           keys:
-            - elixir-plt-v2-{{ checksum "mix.lock" }}
-      - run:
-          name: "Install Hex"
-          command: mix local.hex --force
-      - run:
-          name: "Install Rebar"
-          command: mix local.rebar --force
-      - run:
-          name: "Install Elixir dependencies"
-          command: mix deps.get
-      - run:
-          name: "Compile Elixir source"
-          command: mix compile --warnings-as-errors
+            - elixir-plt-v1-{{ checksum "mix.lock" }}
+      - mix local.hex --force
+      - mix local.rebar --force
+      - mix deps.get
+      - mix compile --warnings-as-errors
       - save_cache:
-          key: elixir-build-v1.14.0-{{ checksum "mix.lock" }}
+          key: elixir-build-<< parameters.version >>-{{ checksum "mix.lock" }}
           paths:
             - "_build"
             - "deps"
             - "~/.mix"
-      - run:
-          name: "Run Elixir test suite"
-          command: mix test --exclude exclude_from_ci
-      - run:
-          name: "Run Elixir formatter check"
-          command: mix format --check-formatted
-      - run:
-          name: "Run Credo"
-          command: mix credo
+      - mix test
+      - mix format --check-formatted
+      - mix credo
       - save_cache:
-          key: elixir-plt-v2-{{ checksum "mix.lock" }}
+          key: elixir-plt-<< parameters.version >>-{{ checksum "mix.lock" }}
           paths:
             - "priv/plts"
-      - run:
-          name: "Run Dialyzer"
-          command: mix dialyzer
+      - mix dialyzer
 
 workflows:
   all-tests:
@@ -83,4 +52,4 @@ workflows:
       - test:
           matrix:
             parameters:
-              executor: [elixir-1-15, elixir-1-16, elixir-1-17]
+              version: ["1.15", "1.16"]
