@@ -20,31 +20,31 @@ jobs:
     working_directory: /home/circleci/repo
     steps:
       - checkout
-      - mix --version
+      - run: mix --version
       - restore_cache:
           keys:
             - elixir-build-<< parameters.version >>-{{ checksum "mix.lock" }}
       - restore_cache:
           keys:
             - elixir-plt-v1-{{ checksum "mix.lock" }}
-      - mix local.hex --force
-      - mix local.rebar --force
-      - mix deps.get
-      - mix compile --warnings-as-errors
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
       - save_cache:
           key: elixir-build-<< parameters.version >>-{{ checksum "mix.lock" }}
           paths:
             - "_build"
             - "deps"
             - "~/.mix"
-      - mix test
-      - mix format --check-formatted
-      - mix credo
+      - run: mix test
+      - run: mix format --check-formatted
+      - run: mix credo
       - save_cache:
           key: elixir-plt-<< parameters.version >>-{{ checksum "mix.lock" }}
           paths:
             - "priv/plts"
-      - mix dialyzer
+      - run: mix dialyzer
 
 workflows:
   all-tests:
