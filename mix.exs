@@ -77,9 +77,10 @@ defmodule Inertia.MixProject do
 
   def links do
     %{
-      "GitHub" => "https://github.com/svycal/inertia-phoenix",
-      "Changelog" => "https://github.com/svycal/inertia-phoenix/blob/v#{@version}/CHANGELOG.md",
-      "Readme" => "https://github.com/svycal/inertia-phoenix/blob/v#{@version}/README.md"
+      "GitHub" => "https://github.com/inertiajs/inertia-phoenix",
+      "Changelog" =>
+        "https://github.com/inertiajs/inertia-phoenix/blob/v#{@version}/CHANGELOG.md",
+      "Readme" => "https://github.com/inertiajs/inertia-phoenix/blob/v#{@version}/README.md"
     }
   end
 end

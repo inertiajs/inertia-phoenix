@@ -2,17 +2,17 @@
 
 ## Unreleased
 
-- Assign errors via an `assign_errors` helper ([#10](https://github.com/svycal/inertia-phoenix/issues/10))
-- Preserve assigned errors across redirects ([#10](https://github.com/svycal/inertia-phoenix/issues/10))
-- Set up external redirects properly for Inertia requests ([#11](https://github.com/svycal/inertia-phoenix/issues/11))
-- Pass CSRF tokens via cookies ([#12](https://github.com/svycal/inertia-phoenix/issues/12)) 
-- Forward flash contents across forced refreshes ([#13](https://github.com/svycal/inertia-phoenix/issues/13))
+- Assign errors via an `assign_errors` helper ([#10](https://github.com/inertiajs/inertia-phoenix/issues/10))
+- Preserve assigned errors across redirects ([#10](https://github.com/inertiajs/inertia-phoenix/issues/10))
+- Set up external redirects properly for Inertia requests ([#11](https://github.com/inertiajs/inertia-phoenix/issues/11))
+- Pass CSRF tokens via cookies ([#12](https://github.com/inertiajs/inertia-phoenix/issues/12)) 
+- Forward flash contents across forced refreshes ([#13](https://github.com/inertiajs/inertia-phoenix/issues/13))
 - Automatically pass Phoenix flash data via the `flash` prop
 
 ## 0.4.0
 
-- Support for partial reloads ([#6](https://github.com/svycal/inertia-phoenix/issues/6))
-- Support lazy data evaluation ([#7](https://github.com/svycal/inertia-phoenix/issues/7))
+- Support for partial reloads ([#6](https://github.com/inertiajs/inertia-phoenix/issues/6))
+- Support lazy data evaluation ([#7](https://github.com/inertiajs/inertia-phoenix/issues/7))
 
 ## 0.3.0
 
