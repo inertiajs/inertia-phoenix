@@ -218,12 +218,16 @@ defmodule InertiaTest do
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
       |> put_req_header("x-inertia-partial-component", "Home")
-      |> put_req_header("x-inertia-partial-except", "a.b.d,a.b.e.f,a.b.e.g")
+      |> put_req_header("x-inertia-partial-except", "a.b.d,a.b.e.f,a.b.e.g,a.b.e.h")
       |> get(~p"/nested")
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => %{"b" => %{"c" => "c"}}, "errors" => %{}, "flash" => %{}},
+             "props" => %{
+               "a" => %{"b" => %{"c" => "c", "e" => %{}}},
+               "errors" => %{},
+               "flash" => %{}
+             },
              "url" => "/nested",
              "version" => @current_version
            }
@@ -258,7 +262,9 @@ defmodule InertiaTest do
     assert json_response(conn, 200) == %{
              "component" => "Home",
              "props" => %{
-               "a" => %{"b" => %{"c" => "c", "e" => %{"f" => "f", "g" => "g"}, "d" => "d"}},
+               "a" => %{
+                 "b" => %{"c" => "c", "e" => %{"f" => "f", "g" => "g", "h" => %{}}, "d" => "d"}
+               },
                "errors" => %{},
                "flash" => %{}
              },
@@ -435,6 +441,16 @@ defmodule InertiaTest do
 
     assert html_response(conn, 200)
     assert %{"XSRF-TOKEN" => %{value: "" <> _, http_only: false}} = conn.resp_cookies
+  end
+
+  test "preserves nested empty prop objects", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/nested")
+
+    assert %{"props" => %{"a" => %{"b" => %{"e" => %{"h" => %{}}}}}} = json_response(conn, 200)
   end
 
   defp html_escape(content) do

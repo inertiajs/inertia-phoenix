@@ -26,7 +26,7 @@ defmodule MyAppWeb.PageController do
   def nested(conn, _params) do
     conn
     |> assign(:page_title, "Home")
-    |> assign_prop(:a, %{b: %{c: "c", d: "d", e: %{f: "f", g: "g"}}})
+    |> assign_prop(:a, %{b: %{c: "c", d: "d", e: %{f: "f", g: "g", h: %{}}}})
     |> render_inertia("Home")
   end
 
