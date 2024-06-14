@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
-- [Bug] Prevent overly greedy empty object elimination
+### Bug Fixes
+
+- Prevent overly greedy empty object elimination ([#14](https://github.com/inertiajs/inertia-phoenix/pull/14))
 
 ## 0.5.0
 
