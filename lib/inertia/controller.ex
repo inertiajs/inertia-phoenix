@@ -168,7 +168,7 @@ defmodule Inertia.Controller do
   # Private helpers
 
   defp resolve_props(map, opts) when is_map(map) do
-    values =
+    map =
       map
       |> Map.to_list()
       |> Enum.reduce([], fn {key, value}, acc ->
@@ -182,9 +182,10 @@ defmodule Inertia.Controller do
           [{key, resolved_value} | acc]
         end
       end)
+      |> Map.new()
 
-    if keep?(opts, values) do
-      Map.new(values)
+    if keep_map?(opts, map) do
+      map
     else
       :skip
     end
@@ -219,12 +220,27 @@ defmodule Inertia.Controller do
     end
   end
 
-  defp keep?(opts, values) do
-    case {opts[:keep], opts[:path], values} do
-      {true, _, _} -> true
-      {_, nil, _} -> true
-      {_, _, [_ | _]} -> true
-      {_, _, _} -> false
+  defp keep_map?(opts, map) do
+    path = opts[:path]
+    only = opts[:only]
+    except = opts[:except]
+    keep = opts[:keep]
+
+    cond do
+      # KEEP if the value is an "always" prop
+      keep -> true
+      # KEEP if this is the root props object
+      is_nil(path) -> true
+      # KEEP if the map is not empty
+      !Enum.empty?(map) -> true
+      # KEEP if this is a full page load (not a partial load)
+      Enum.empty?(only) && Enum.empty?(except) -> true
+      # If restricted by `only`, KEEP if explicitly included
+      !Enum.empty?(only) -> Enum.member?(only, path)
+      # If restricted by `except`, KEEP unless explicitly excluded
+      !Enum.empty?(except) -> !Enum.member?(except, path)
+      # Otherwise, eliminate the object
+      true -> false
     end
   end
 
