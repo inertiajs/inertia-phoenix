@@ -302,10 +302,15 @@ The Inertia.js client library comes with with server-side rendering (SSR) suppor
 
 ### Add a server-side rendering module
 
-To get started, you'll need to create a JavaScript module that exports a `render` function to perform the actual server-side rendering of pages. Suppose your `app.js` file looks something like this:
+To get started, you'll need to create a JavaScript module that exports a `render` function to perform the actual server-side rendering of pages. 
+
+> [!NOTE]
+> For the purpose of these instructions, we'll assume you're using React. The steps would be similar for other front-end environments supported by Inertia.js, such as Vue.
+
+Suppose your main `app.jsx` file looks something like this:
 
 ```js
-// assets/js/app.js
+// assets/js/app.jsx
 
 import React from "react";
 import { createInertiaApp } from "@inertiajs/react";
@@ -322,10 +327,10 @@ createInertiaApp({
 });
 ```
 
-Create a second JavaScript file alongside your `app.js` called `ssr.js` with an exported `render` function.
+You'll need to create a second JavaScript file (alongside your `app.jsx`) that exports a `render` function. Let's name it `ssr.jsx`.
 
 ```js
-// assets/js/ssr.js
+// assets/js/ssr.jsx
 
 import React from "react";
 import ReactDOMServer from "react-dom/server";
@@ -344,9 +349,9 @@ export function render(page) {
 }
 ```
 
-This is similar to the server entry-point [documented here](https://inertiajs.com/server-side-rendering#add-server-entry-point), except we are simply exporting a render function instead of creating a Node.js server process.
+This is similar to the server entry-point [documented here](https://inertiajs.com/server-side-rendering#add-server-entry-point), except we are simply exporting a render function instead of starting a Node.js server process.
 
-Next, configure esbuild to compile the `ssr.js` bundle.
+Next, configure esbuild to compile the `ssr.jsx` bundle.
 
 ```diff
   # config/config.exs
@@ -354,28 +359,34 @@ Next, configure esbuild to compile the `ssr.js` bundle.
   config :esbuild,
     version: "0.21.4",
     app: [
-      args: ~w(
-        js/app.js
-        --bundle
-        --target=es2017
-        --outdir=../priv/static/assets
-        --external:/fonts/*
-        --external:/images/*
-      ),
+      args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
       cd: Path.expand("../assets", __DIR__),
       env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
     ],
 +   ssr: [
-+     args: ~w(
-+       js/ssr.js
-+       --bundle
-+       --platform=node
-+       --outdir=../priv
-+       --format=cjs
-+     ),
++     args: ~w( js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs),
 +     cd: Path.expand("../assets", __DIR__),
 +     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
 +   ]
+```
+
+Add the `ssr` build to the watchers in your dev environment, alongside the other asset watchers:
+
+```diff
+  # config/dev.exs
+  config :my_app, MyAppWeb.Endpoint,
+    # Binding to loopback ipv4 address prevents access from other machines.
+    # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
+    http: [ip: {127, 0, 0, 1}, port: 4000],
+    check_origin: false,
+    code_reloader: true,
+    debug_errors: true,
+    secret_key_base: "4Z2yyTu6Uy8AM+MguG3oldEf4aIdswR2BsCm1OtqDK0lEv++T02KktRaXfMbC/Zs",
+    watchers: [
+      esbuild: {Esbuild, :install_and_run, [:app, ~w(--sourcemap=inline --watch)]},
++     ssr: {Esbuild, :install_and_run, [:ssr, ~w(--sourcemap=inline --watch)]},
+      tailwind: {Tailwind, :install_and_run, [:my_app, ~w(--watch)]}
+    ]
 ```
 
 Add the `ssr` build step to the asset build and deploy scripts.
