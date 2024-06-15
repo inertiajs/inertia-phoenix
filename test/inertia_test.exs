@@ -453,6 +453,16 @@ defmodule InertiaTest do
     assert %{"props" => %{"a" => %{"b" => %{"e" => %{"h" => %{}}}}}} = json_response(conn, 200)
   end
 
+  test "handles prop values that are serializable structs", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/struct_props")
+
+    assert %{"props" => %{"now" => "2024-07-04T00:00:00Z"}} = json_response(conn, 200)
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

@@ -167,7 +167,7 @@ defmodule Inertia.Controller do
 
   # Private helpers
 
-  defp resolve_props(map, opts) when is_map(map) do
+  defp resolve_props(map, opts) when is_map(map) and not is_struct(map) do
     map =
       map
       |> Map.to_list()

@@ -80,6 +80,13 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def struct_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:now, ~U[2024-07-04 00:00:00Z])
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> put_flash(:info, "Updated")

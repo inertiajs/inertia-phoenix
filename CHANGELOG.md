@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+### Bug Fixes
+
+- Fix exception when assigning structs as prop values (like `DateTime`)
+
 ## 0.6.0
 
 ### Bug Fixes
