@@ -488,6 +488,8 @@ Then, update your Inertia Elixir configuration to enable SSR.
     raise_on_ssr_failure: true
 ```
 
+In production, be sure to set `NODE_ENV` environment variable to `production`, so that the SSR script is cached for optimal performance.
+
 ### Client side hydration
 
 [Follow the instructions from the Inertia.js docs](https://inertiajs.com/server-side-rendering#client-side-hydration) for updating your client-side code to hydrate the pre-rendered HTML coming from the server.
