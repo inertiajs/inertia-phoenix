@@ -6,6 +6,7 @@ The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 
 - [Installation](#installation)
 - [Rendering responses](#rendering-responses)
+- [Setting up the client-side](#setting-up-the-client-side)
 - [Lazy data evaluation](#lazy-data-evaluation)
 - [Shared data](#shared-data)
 - [Validations](#validations)
@@ -110,7 +111,7 @@ Next, replace the title tag in your layout with the `<.inertia_title>` component
   <html lang="en" class="[scrollbar-gutter:stable]">
     <head>
 -     <.live_title><%= assigns[:page_title] %></.live_title>
-+     <.inertia_title><%= @page_title %></.inertia_title>
++     <.inertia_title><%= assigns[:page_title] %></.inertia_title>
 +     <.inertia_head content={@inertia_head} />
     </head>
 ```
@@ -136,6 +137,67 @@ end
 The `assign_prop` function allows you defined props that should be passed in to the component. The `render_inertia` function accepts the conn, the name of the component to render, and an optional map containing more initial props to pass to the page component.
 
 This action will render an HTML page containing a `<div>` element with the name of the component and the initial props, following Inertia.js conventions. On subsequent requests dispatched by the Inertia.js client library, this action will return a JSON response with the data necessary for rendering the page.
+
+## Setting up the client-side
+
+The [Inertia.js docs](https://inertiajs.com/client-side-setup) provide a good general walk-through on how to setup your JavaScript assets to boot your Inertia app. If you're new to Inertia, we recommend checking that out to familiarize yourself with how it all works. 
+
+Here we'll provide some additional guidance on getting your Phoenix app (with esbuild) configured. Further down in the [server-side rendering](#server-side-rendering-experimental) section, we'll explain how to augment your scripts for SSR.
+
+First, install the Inertia.js library for the frontend framework of your choice. In these instructions we'll use React, but the process will be similiar for other supported frameworks, like Vue or Svelte.
+
+```
+cd assets
+npm install @inertiajs/react react react-dom
+```
+
+Then, replace the contents of your `app.js` file with the Inertia boot function.
+
+```javascript
+// assets/js/app.js
+
+import React from "react";
+import axios from "axios";
+
+import { createInertiaApp } from "@inertiajs/react";
+import { hydrateRoot } from "react-dom/client";
+import { pages } from "./pages";
+
+axios.defaults.xsrfHeaderName = "x-csrf-token";
+
+createInertiaApp({
+  resolve: async (name) => {
+    return pages[name];
+  },
+  setup({ App, el, props }) {
+    createRoot(el).render(<App {...props} />);
+  },
+});
+```
+
+You can organize your Inertia page components a few different ways. The script example above assumes you have a `pages.js` module that exports an object of page components.
+
+```javascript
+// assets/js/pages.js
+
+import { Dashboard } from "./pages/dashboard";
+
+export const pages = { Dashboard };
+```
+
+```javascript
+// assets/js/pages/dashboard.js
+
+import React from "react";
+
+export const Dashboard = () => {
+  return (
+    <div>
+      {/* ... page contents ...*/}
+    </div>
+  );
+}
+```
 
 ## Lazy data evaluation
 
