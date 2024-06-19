@@ -151,10 +151,10 @@ cd assets
 npm install @inertiajs/react react react-dom
 ```
 
-Then, replace the contents of your `app.js` file with the Inertia boot function.
+Then, replace the contents of your `app.js` file with the Inertia boot function and rename it to `app.jsx` (since we are using JSX).
 
 ```javascript
-// assets/js/app.js
+// assets/js/app.jsx
 
 import React from "react";
 import axios from "axios";
@@ -178,7 +178,7 @@ createInertiaApp({
 You can organize your Inertia page components a few different ways. The script example above assumes you have a `pages.js` module that exports an object of page components.
 
 ```javascript
-// assets/js/pages.js
+// assets/js/pages.jsx
 
 import { Dashboard } from "./pages/dashboard";
 
@@ -186,7 +186,7 @@ export const pages = { Dashboard };
 ```
 
 ```javascript
-// assets/js/pages/dashboard.js
+// assets/js/pages/dashboard.jsx
 
 import React from "react";
 
@@ -197,6 +197,21 @@ export const Dashboard = () => {
     </div>
   );
 }
+```
+
+You'll need to update the filename in your esbuild config and make sure your `--target` is at least `es2020`.
+
+```diff
+  # config/config.exs
+
+  config :esbuild,
+    version: "0.17.11",
+    my_app: [
+-     args: ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
++     args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+      cd: Path.expand("../assets", __DIR__),
+      env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+    ]
 ```
 
 ## Lazy data evaluation
