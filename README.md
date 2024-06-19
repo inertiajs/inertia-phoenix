@@ -521,7 +521,7 @@ First, you'll need to add the `Inertia.SSR` module to your application supervisi
 
 +       # Start the SSR process pool
 +       # You must specify a `path` option to locate the directory where the `ssr.js` file lives.
-+       {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"])}
++       {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"])},
 
         # Start to serve requests, typically the last entry
         MyAppWeb.Endpoint,
