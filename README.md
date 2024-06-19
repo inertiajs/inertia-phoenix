@@ -438,7 +438,7 @@ Next, configure esbuild to compile the `ssr.jsx` bundle.
       env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
     ],
 +   ssr: [
-+     args: ~w( js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs),
++     args: ~w(js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs),
 +     cd: Path.expand("../assets", __DIR__),
 +     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
 +   ]
