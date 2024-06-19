@@ -160,7 +160,7 @@ import React from "react";
 import axios from "axios";
 
 import { createInertiaApp } from "@inertiajs/react";
-import { hydrateRoot } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { pages } from "./pages";
 
 axios.defaults.xsrfHeaderName = "x-csrf-token";
