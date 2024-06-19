@@ -160,7 +160,7 @@ import React from "react";
 import axios from "axios";
 
 import { createInertiaApp } from "@inertiajs/react";
-import { hydrateRoot } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { pages } from "./pages";
 
 axios.defaults.xsrfHeaderName = "x-csrf-token";
@@ -438,7 +438,7 @@ Next, configure esbuild to compile the `ssr.jsx` bundle.
       env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
     ],
 +   ssr: [
-+     args: ~w( js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs),
++     args: ~w(js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs),
 +     cd: Path.expand("../assets", __DIR__),
 +     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
 +   ]
@@ -521,7 +521,7 @@ First, you'll need to add the `Inertia.SSR` module to your application supervisi
 
 +       # Start the SSR process pool
 +       # You must specify a `path` option to locate the directory where the `ssr.js` file lives.
-+       {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"])}
++       {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"])},
 
         # Start to serve requests, typically the last entry
         MyAppWeb.Endpoint,
