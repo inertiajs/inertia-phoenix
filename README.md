@@ -375,7 +375,7 @@ The Inertia.js client library comes with with server-side rendering (SSR) suppor
 
 ### Add a server-side rendering module
 
-To get started, you'll need to create a JavaScript module that exports a `render` function to perform the actual server-side rendering of pages. For the purpose of these instructions, we'll assume you're using React. The steps would be similar for other front-end environments supported by Inertia.js, such as [Vue](https://github.com/CallumVass/inertia_vue).
+To get started, you'll need to create a JavaScript module that exports a `render` function to perform the actual server-side rendering of pages. For the purpose of these instructions, we'll assume you're using React. The steps would be similar for other front-end environments supported by Inertia.js, such as [Vue](https://github.com/CallumVass/inertia_vue) and [Svelte](https://github.com/tonydangblog/phoenix-inertia-svelte).
 
 Suppose your main `app.jsx` file looks something like this:
 
