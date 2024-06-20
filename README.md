@@ -140,18 +140,16 @@ This action will render an HTML page containing a `<div>` element with the name 
 
 ## Setting up the client-side
 
-The [Inertia.js docs](https://inertiajs.com/client-side-setup) provide a good general walk-through on how to setup your JavaScript assets to boot your Inertia app. If you're new to Inertia, we recommend checking that out to familiarize yourself with how it all works. 
+The [Inertia.js docs](https://inertiajs.com/client-side-setup) provide a good general walk-through on how to setup your JavaScript assets to boot your Inertia app. If you're new to Inertia, we recommend checking that out to familiarize yourself with how it all works. Here we'll provide some guidance on getting your Phoenix app with esbuild configured for basic client-side rendering (and further down, we'll delve into server-side rendering).
 
-Here we'll provide some additional guidance on getting your Phoenix app (with esbuild) configured. Further down in the [server-side rendering](#server-side-rendering-experimental) section, we'll explain how to augment your scripts for SSR.
-
-First, install the Inertia.js library for the frontend framework of your choice. In these instructions we'll use React, but the process will be similiar for other supported frameworks, like Vue or Svelte.
+To get started, install the Inertia.js library for the frontend framework of your choice. In these instructions we'll use React, but the process is similiar for other Inertia-compatible frameworks, like Vue or Svelte.
 
 ```
 cd assets
 npm install @inertiajs/react react react-dom
 ```
 
-Then, replace the contents of your `app.js` file with the Inertia boot function and rename it to `app.jsx` (since we are using JSX).
+Replace the contents of your `app.js` file with the Inertia boot function and rename it to `app.jsx` (since we are using JSX).
 
 ```javascript
 // assets/js/app.jsx
@@ -174,7 +172,7 @@ createInertiaApp({
 });
 ```
 
-You can organize your Inertia page components a few different ways. The script example above assumes your pages live in the `assets/js/pages` directory and default export the page component.
+The example above assumes your pages live in the `assets/js/pages` directory and have a default export with page component, like this:
 
 ```javascript
 // assets/js/pages/Dashboard.jsx
@@ -192,20 +190,22 @@ const Dashboard = () => {
 export default Dashboard;
 ```
 
-Ensure your esbuild version is >= 0.19.0 (for glob import support), update your entrypoint filename to the correct `.jsx` extension, and ensure your `--target` is at least `es2020`.
+Next, make some adjustments to your esbuild config:
 
-```diff
-  # config/config.exs
+- Ensure the version is >= 0.19.0 (this is required for glob-style imports for your pages)
+- Update your entrypoint filename to the correct `.jsx` extension
+- Ensure your build `--target` is at least `es2020`
 
-  config :esbuild,
--   version: "0.17.11",
-+   version: "0.21.5",
-    my_app: [
--     args: ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-+     args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-      cd: Path.expand("../assets", __DIR__),
-      env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-    ]
+```elixir
+# config/config.exs
+
+config :esbuild,
+  version: "0.21.5",
+  my_app: [
+    args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
 ```
 
 If you updated your esbuild version, you'll need to run `mix esbuild.install` to fetch the new version.
@@ -385,11 +385,10 @@ Suppose your main `app.jsx` file looks something like this:
 import React from "react";
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
-import { pages } from "./pages";
 
 createInertiaApp({
-  resolve: (name) => {
-    return pages[name];
+  resolve: async (name) => {
+    return await import(`./pages/${name}.jsx`);
   },
   setup({ App, el, props }) {
     createRoot(el).render(<App {...props} />);
@@ -405,14 +404,13 @@ You'll need to create a second JavaScript file (alongside your `app.jsx`) that e
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { createInertiaApp } from "@inertiajs/react";
-import { pages } from "./pages";
 
 export function render(page) {
   return createInertiaApp({
     page,
     render: ReactDOMServer.renderToString,
-    resolve: (name) => {
-      return pages[name];
+    resolve: async (name) => {
+      return await import(`./pages/${name}.jsx`);
     },
     setup: ({ App, props }) => <App {...props} />,
   });
@@ -427,7 +425,7 @@ Next, configure esbuild to compile the `ssr.jsx` bundle.
   # config/config.exs
 
   config :esbuild,
-    version: "0.21.4",
+    version: "0.21.5",
     app: [
       args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
       cd: Path.expand("../assets", __DIR__),
@@ -573,11 +571,10 @@ Using our example React script from above, the adaptation looks like this:
   import { createInertiaApp } from "@inertiajs/react";
 - import { createRoot } from "react-dom/client";
 + import { hydrateRoot } from "react-dom/client";
-  import { pages } from "./pages";
 
   createInertiaApp({
-    resolve: (name) => {
-      return pages[name];
+    resolve: async (name) => {
+      return await import(`./pages/${name}.jsx`);
     },
     setup({ App, el, props }) {
 -     createRoot(el).render(<App {...props} />);
