@@ -161,13 +161,12 @@ import axios from "axios";
 
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
-import { pages } from "./pages";
 
 axios.defaults.xsrfHeaderName = "x-csrf-token";
 
 createInertiaApp({
   resolve: async (name) => {
-    return pages[name];
+    return await import(`./pages/${name}.jsx`);
   },
   setup({ App, el, props }) {
     createRoot(el).render(<App {...props} />);
@@ -175,37 +174,32 @@ createInertiaApp({
 });
 ```
 
-You can organize your Inertia page components a few different ways. The script example above assumes you have a `pages.js` module that exports an object of page components.
+You can organize your Inertia page components a few different ways. The script example above assumes your pages live in the `assets/js/pages` directory and default export the page component.
 
 ```javascript
-// assets/js/pages.jsx
-
-import { Dashboard } from "./pages/dashboard";
-
-export const pages = { Dashboard };
-```
-
-```javascript
-// assets/js/pages/dashboard.jsx
+// assets/js/pages/Dashboard.jsx
 
 import React from "react";
 
-export const Dashboard = () => {
+const Dashboard = () => {
   return (
     <div>
       {/* ... page contents ...*/}
     </div>
   );
 }
+
+export default Dashboard;
 ```
 
-You'll need to update the filename in your esbuild config and make sure your `--target` is at least `es2020`.
+Ensure your esbuild version is >= 0.19.0 (for glob import support), update your entrypoint filename to the correct `.jsx` extension, and ensure your `--target` is at least `es2020`.
 
 ```diff
   # config/config.exs
 
   config :esbuild,
-    version: "0.17.11",
+-   version: "0.17.11",
++   version: "0.21.5",
     my_app: [
 -     args: ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
 +     args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
@@ -213,6 +207,8 @@ You'll need to update the filename in your esbuild config and make sure your `--
       env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
     ]
 ```
+
+If you updated your esbuild version, you'll need to run `mix esbuild.install` to fetch the new version.
 
 ## Lazy data evaluation
 
@@ -567,6 +563,28 @@ In production, be sure to set `NODE_ENV` environment variable to `production`, s
 ### Client side hydration
 
 [Follow the instructions from the Inertia.js docs](https://inertiajs.com/server-side-rendering#client-side-hydration) for updating your client-side code to hydrate the pre-rendered HTML coming from the server.
+
+Using our example React script from above, the adaptation looks like this:
+
+```diff
+  // assets/js/app.jsx
+
+  import React from "react";
+  import { createInertiaApp } from "@inertiajs/react";
+- import { createRoot } from "react-dom/client";
++ import { hydrateRoot } from "react-dom/client";
+  import { pages } from "./pages";
+
+  createInertiaApp({
+    resolve: (name) => {
+      return pages[name];
+    },
+    setup({ App, el, props }) {
+-     createRoot(el).render(<App {...props} />);
++     hydrateRoot(el, <App {...props} />);
+    },
+  });
+```
 
 ---
 
