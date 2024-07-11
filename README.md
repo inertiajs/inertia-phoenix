@@ -21,7 +21,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 0.7.0"}
+    {:inertia, "~> 0.8.0"}
   ]
 end
 ```
@@ -56,7 +56,7 @@ config :inertia,
   # Recommended: enable in non-production environments and disable in production,
   # so that SSR failures will not cause 500 errors (but instead will fallback to
   # CSR).
-  raise_on_ssr_failure: true
+  raise_on_ssr_failure: config_env() != :prod
 ```
 
 This library includes a few modules to help render Inertia responses:
@@ -553,7 +553,7 @@ Then, update your Inertia Elixir configuration to enable SSR.
     # Recommended: enable in non-production environments and disable in production,
     # so that SSR failures will not cause 500 errors (but instead will fallback to
     # CSR).
-    raise_on_ssr_failure: true
+    raise_on_ssr_failure: config_env() != :prod
 ```
 
 In production, be sure to set `NODE_ENV` environment variable to `production`, so that the SSR script is cached for optimal performance.
