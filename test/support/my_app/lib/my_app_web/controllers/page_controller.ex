@@ -87,6 +87,13 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def binary_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:content, "’")
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> put_flash(:info, "Updated")

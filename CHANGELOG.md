@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+### Features
+
+- Support unicode props (by using the `binary` flag on Node function calls)
+
 ## 0.7.0
 
 ### Bug Fixes

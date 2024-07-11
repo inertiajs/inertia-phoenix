@@ -45,7 +45,7 @@ defmodule Inertia.SSR do
   @doc false
   def call(page) do
     module = GenServer.call(Config, :module)
-    NodeJS.call({module, :render}, [page], name: supervisor_name())
+    NodeJS.call({module, :render}, [page], name: supervisor_name(), binary: true)
   end
 
   defp supervisor_name do
