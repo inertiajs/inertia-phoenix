@@ -91,7 +91,6 @@ defmodule InertiaTest do
     assert body =~ ~s(<div id="ssr"></div>)
   end
 
-
   test "supports binary", %{conn: conn} do
     path =
       __ENV__.file
