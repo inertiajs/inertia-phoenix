@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0
+
+### Bug Fixes
+
+- Fix improper elimination of nested props when using only partials
+
 ## 0.8.0
 
 ### Features

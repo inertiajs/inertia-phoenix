@@ -236,7 +236,7 @@ defmodule Inertia.Controller do
       # KEEP if this is a full page load (not a partial load)
       Enum.empty?(only) && Enum.empty?(except) -> true
       # If restricted by `only`, KEEP if explicitly included
-      !Enum.empty?(only) -> Enum.member?(only, path)
+      !Enum.empty?(only) -> only_covers_path?(only, path)
       # If restricted by `except`, KEEP unless explicitly excluded
       !Enum.empty?(except) -> !Enum.member?(except, path)
       # Otherwise, eliminate the object
@@ -252,10 +252,21 @@ defmodule Inertia.Controller do
 
     cond do
       keep -> false
-      length(only) > 0 && !Enum.member?(only, path) -> true
+      length(only) > 0 && !only_covers_path?(only, path) -> true
       length(except) > 0 && Enum.member?(except, path) -> true
       true -> false
     end
+  end
+
+  # This helper determines if the list of "only" paths includes
+  # a given path. For example, if only is ["a"] and path is "a.b.c",
+  # this returns true, because "a.b.c" is nested under "a".
+  defp only_covers_path?(only, path) do
+    parts = String.split(path, ".")
+
+    Enum.any?(1..length(parts), fn amount ->
+      Enum.member?(only, Enum.join(Enum.take(parts, amount), "."))
+    end)
   end
 
   # Skip putting flash in the props if there's already `:flash` key assigned.

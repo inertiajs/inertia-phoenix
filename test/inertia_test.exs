@@ -218,6 +218,29 @@ defmodule InertiaTest do
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
       |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "a")
+      |> get(~p"/nested")
+
+    assert json_response(conn, 200) == %{
+             "component" => "Home",
+             "props" => %{
+               "a" => %{
+                 "b" => %{"c" => "c", "d" => "d", "e" => %{"f" => "f", "g" => "g", "h" => %{}}}
+               },
+               "errors" => %{},
+               "flash" => %{}
+             },
+             "url" => "/nested",
+             "version" => @current_version
+           }
+  end
+
+  test "deep partial 'only' reloads", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
       |> put_req_header("x-inertia-partial-data", "a.b.c,a.b.e.f")
       |> get(~p"/nested")
 
