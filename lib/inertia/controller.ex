@@ -156,7 +156,8 @@ defmodule Inertia.Controller do
     props =
       shared
       |> Map.merge(props)
-      |> resolve_props(only: only, except: except)
+      |> apply_filters(only, except)
+      |> resolve_props()
       |> maybe_put_flash(conn)
 
     conn
@@ -167,107 +168,51 @@ defmodule Inertia.Controller do
 
   # Private helpers
 
-  defp resolve_props(map, opts) when is_map(map) and not is_struct(map) do
-    map =
-      map
-      |> Map.to_list()
-      |> Enum.reduce([], fn {key, value}, acc ->
-        path = if opts[:path], do: "#{opts[:path]}.#{key}", else: to_string(key)
-        opts = Keyword.put(opts, :path, path)
-        resolved_value = resolve_props(value, opts)
-
-        if resolved_value == :skip do
-          acc
-        else
-          [{key, resolved_value} | acc]
-        end
-      end)
-      |> Map.new()
-
-    if keep_map?(opts, map) do
-      map
-    else
-      :skip
-    end
-  end
-
-  defp resolve_props({:lazy, value}, opts) do
-    if Enum.member?(opts[:only], opts[:path]) do
-      resolve_props(value, opts)
-    else
-      :skip
-    end
-  end
-
-  defp resolve_props({:keep, value}, opts) do
-    opts = Keyword.put(opts, :keep, true)
-    resolve_props(value, opts)
-  end
-
-  defp resolve_props(fun, opts) when is_function(fun, 0) do
-    if skip?(opts) do
-      :skip
-    else
-      fun.()
-    end
-  end
-
-  defp resolve_props(value, opts) do
-    if skip?(opts) do
-      :skip
-    else
-      value
-    end
-  end
-
-  defp keep_map?(opts, map) do
-    path = opts[:path]
-    only = opts[:only]
-    except = opts[:except]
-    keep = opts[:keep]
-
-    cond do
-      # KEEP if the value is an "always" prop
-      keep -> true
-      # KEEP if this is the root props object
-      is_nil(path) -> true
-      # KEEP if the map is not empty
-      !Enum.empty?(map) -> true
-      # KEEP if this is a full page load (not a partial load)
-      Enum.empty?(only) && Enum.empty?(except) -> true
-      # If restricted by `only`, KEEP if explicitly included
-      !Enum.empty?(only) -> only_covers_path?(only, path)
-      # If restricted by `except`, KEEP unless explicitly excluded
-      !Enum.empty?(except) -> !Enum.member?(except, path)
-      # Otherwise, eliminate the object
-      true -> false
-    end
-  end
-
-  defp skip?(opts) do
-    path = opts[:path]
-    only = opts[:only]
-    except = opts[:except]
-    keep = opts[:keep]
-
-    cond do
-      keep -> false
-      length(only) > 0 && !only_covers_path?(only, path) -> true
-      length(except) > 0 && Enum.member?(except, path) -> true
-      true -> false
-    end
-  end
-
-  # This helper determines if the list of "only" paths includes
-  # a given path. For example, if only is ["a"] and path is "a.b.c",
-  # this returns true, because "a.b.c" is nested under "a".
-  defp only_covers_path?(only, path) do
-    parts = String.split(path, ".")
-
-    Enum.any?(1..length(parts), fn amount ->
-      Enum.member?(only, Enum.join(Enum.take(parts, amount), "."))
+  defp apply_filters(props, only, _except) when length(only) > 0 do
+    props
+    |> Enum.filter(fn {key, value} ->
+      case value do
+        {:keep, _} -> true
+        _ -> Enum.member?(only, to_string(key))
+      end
     end)
+    |> Map.new()
   end
+
+  defp apply_filters(props, _only, except) when length(except) > 0 do
+    props
+    |> Enum.filter(fn {key, value} ->
+      case value do
+        {:keep, _} -> true
+        _ -> !Enum.member?(except, to_string(key))
+      end
+    end)
+    |> Map.new()
+  end
+
+  defp apply_filters(props, _only, _except) do
+    props
+    |> Enum.filter(fn {_key, value} ->
+      case value do
+        {:lazy, _} -> false
+        _ -> true
+      end
+    end)
+    |> Map.new()
+  end
+
+  defp resolve_props(map) when is_map(map) and not is_struct(map) do
+    map
+    |> Enum.reduce([], fn {key, value}, acc ->
+      [{key, resolve_props(value)} | acc]
+    end)
+    |> Map.new()
+  end
+
+  defp resolve_props({:lazy, value}), do: resolve_props(value)
+  defp resolve_props({:keep, value}), do: resolve_props(value)
+  defp resolve_props(fun) when is_function(fun, 0), do: fun.()
+  defp resolve_props(value), do: value
 
   # Skip putting flash in the props if there's already `:flash` key assigned.
   # Otherwise, put the flash in the props.
