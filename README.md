@@ -21,7 +21,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 0.9.0"}
+    {:inertia, "~> 0.10.0"}
   ]
 end
 ```
