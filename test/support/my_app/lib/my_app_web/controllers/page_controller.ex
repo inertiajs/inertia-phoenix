@@ -42,7 +42,7 @@ defmodule MyAppWeb.PageController do
   def tagged_lazy(conn, _params) do
     conn
     |> assign(:page_title, "Home")
-    |> assign_prop(:a, inertia_lazy(fn -> "a" end))
+    |> assign_prop(:a, inertia_optional(fn -> "a" end))
     |> assign_prop(:b, "b")
     |> render_inertia("Home")
   end

@@ -14,16 +14,16 @@ defmodule Inertia.Controller do
 
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
-  @type lazy() :: {:lazy, fun()}
+  @type optional() :: {:optional, fun()}
   @type always() :: {:keep, any()}
 
   @doc """
-  Marks a prop value as lazy, which means it will only get evaluated if
+  Marks a prop value as optional, which means it will only get evaluated if
   explicitly requested in a partial reload.
 
-  Lazy props will _only_ be included the when explicitly requested in a partial
-  reload. If you want to include the prop on first visit, you'll want to use a
-  bare anonymous function or named function reference instead.
+  Optional props will _only_ be included the when explicitly requested in a
+  partial reload. If you want to include the prop on first visit, you'll want to
+  use a bare anonymous function or named function reference instead.
 
       conn
       # ALWAYS included on first visit...
@@ -40,14 +40,19 @@ defmodule Inertia.Controller do
       # NEVER included on first visit...
       # OPTIONALLY included on partial reloads...
       # ONLY evaluated when needed...
-      |> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
+      |> assign_prop(:super_expensive_thing, inertia_optional(fn -> calculate_thing() end))
   """
-  @spec inertia_lazy(fun :: fun()) :: lazy()
-  def inertia_lazy(fun) when is_function(fun), do: {:lazy, fun}
+  @spec inertia_optional(fun :: fun()) :: optional()
+  def inertia_optional(fun) when is_function(fun), do: {:lazy, fun}
 
-  def inertia_lazy(_) do
-    raise ArgumentError, message: "inertia_lazy/1 only accepts a function argument"
+  def inertia_optional(_) do
+    raise ArgumentError, message: "inertia_optional/1 only accepts a function argument"
   end
+
+  @doc false
+  @spec inertia_lazy(fun :: fun()) :: optional()
+  @deprecated "Use inertia_optional/1 instead"
+  def inertia_lazy(fun), do: inertia_optional(fun)
 
   @doc """
   Marks a prop value as "always included", which means it will be included in

@@ -191,7 +191,7 @@ defmodule InertiaTest do
     assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
   end
 
-  test "evaluates lazy props", %{conn: conn} do
+  test "evaluates optional props", %{conn: conn} do
     conn =
       conn
       |> put_req_header("x-inertia", "true")

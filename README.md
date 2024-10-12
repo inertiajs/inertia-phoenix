@@ -212,10 +212,10 @@ If you updated your esbuild version, you'll need to run `mix esbuild.install` to
 
 ## Lazy data evaluation
 
-If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either an anonymous function (or named function reference) and optionally wrap it with the `Inertia.Controller.inertia_lazy/1` function.
+If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either an anonymous function (or named function reference) and optionally wrap it with the `Inertia.Controller.inertia_optional/1` function.
 
 > [!NOTE]
-> `inertia_lazy` props will _only_ be included the when explicitly requested in a partial
+> `inertia_optional` props will _only_ be included the when explicitly requested in a partial
 > reload. If you want to include the prop on first visit, you'll want to use a
 > bare anonymous function or named function reference instead. See below for
 > examples of how prop assignment behaves.
@@ -238,7 +238,7 @@ conn
 # NEVER included on first visit...
 # OPTIONALLY included on partial reloads...
 # ONLY evaluated when needed...
-|> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
+|> assign_prop(:super_expensive_thing, inertia_optional(fn -> calculate_thing() end))
 ```
 
 ## Shared data
