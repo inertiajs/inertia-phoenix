@@ -101,10 +101,6 @@ defmodule Inertia.Plug do
   defp convert_redirects(conn) do
     register_before_send(conn, fn %{method: method, status: status} = conn ->
       cond do
-        # see: https://inertiajs.com/redirects#303-response-code
-        method in ["PUT", "PATCH", "DELETE"] and status in [301, 302] ->
-          put_status(conn, 303)
-
         # see: https://inertiajs.com/redirects#external-redirects
         external_redirect?(conn) ->
           [location] = get_resp_header(conn, "location")
@@ -112,6 +108,10 @@ defmodule Inertia.Plug do
           conn
           |> put_status(409)
           |> put_resp_header("x-inertia-location", location)
+
+        # see: https://inertiajs.com/redirects#303-response-code
+        method in ["PUT", "PATCH", "DELETE"] and status in [301, 302] ->
+          put_status(conn, 303)
 
         true ->
           conn
