@@ -12,6 +12,8 @@ Add support for Inertia v2 🎉. There are no breaking changes required to suppo
 - Add `inertia_merge` function to instruct the client-side to merge the prop value with existing data.
 - Add `inertia_defer` function to instruct the client-side to fetch the prop value immediately after initial page load.
 
+This version also includes some new helpers for testing Inertia-based controller responses, in the `Inertia.Testing` module.
+
 ### Deprecations
 
 - The `inertia_lazy/1` function has been deprecated in favor of `inertia_optional/1`

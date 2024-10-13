@@ -12,7 +12,8 @@ The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Validations](#validations)
 - [Flash messages](#flash-messages)
 - [CSRF protection](#csrf-protection)
-- [Server-side rendering](#server-side-rendering-experimental)
+- [Testing](#csrf-protection)
+- [Server-side rendering](#server-side-rendering)
 
 ## Installation
 
@@ -366,7 +367,42 @@ axios.defaults.xsrfHeaderName = "x-csrf-token";
 // the rest of your Inertia client code...
 ```
 
-## Server-side rendering (Experimental)
+## Testing
+
+The `Inertia.Testing` module includes helpers for testing your Inertia controller responses, such as the `inertia_component/1` and `inertia_props/1` functions.
+
+
+```elixir
+use MyAppWeb.ConnCase
+
+import Inertia.Testing
+
+describe "GET /" do
+  test "renders the home page", %{conn: conn} do
+    conn = get("/")
+    assert inertia_component(conn) == "Home"
+    assert %{user: %{id: 1}} = inertia_props(conn)
+  end
+end
+```
+
+We recommend importing `Inertia.Testing` in your `ConnCase` helper, so that it will be at the ready for all your controller tests:
+
+```elixir
+defmodule MyApp.ConnCase do
+  use ExUnit.CaseTemplate
+
+  using do
+    quote do
+      import Inertia.Testing
+
+      # ...
+    end
+  end
+end
+```
+
+## Server-side rendering
 
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
 
