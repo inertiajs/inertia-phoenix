@@ -29,6 +29,8 @@ defmodule MyAppWeb.Router do
     get "/binary_props", PageController, :binary_props
     get "/merge_props", PageController, :merge_props
     get "/deferred_props", PageController, :deferred_props
+    get "/encrypted_history", PageController, :encrypted_history
+    get "/cleared_history", PageController, :cleared_history
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

@@ -225,7 +225,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"errors" => %{}, "flash" => %{}, "b" => "b", "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -242,7 +244,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}, "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -259,7 +263,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}, "flash" => %{}},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -282,7 +288,9 @@ defmodule InertiaTest do
                "important" => "stuff"
              },
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -297,7 +305,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"b" => "b", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -314,7 +324,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -332,7 +344,9 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -356,7 +370,9 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -548,6 +564,40 @@ defmodule InertiaTest do
 
     # The deferred props list should not be returned on partial requests
     refute "deferredProps" in Map.keys(body)
+  end
+
+  test "instructs the client-side to encrypt history", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/encrypted_history")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}},
+             "url" => "/encrypted_history",
+             "version" => @current_version,
+             "encryptHistory" => true,
+             "clearHistory" => false
+           } = json_response(conn, 200)
+  end
+
+  test "instructs the client-side to clear history", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/cleared_history")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}},
+             "url" => "/cleared_history",
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => true
+           } = json_response(conn, 200)
   end
 
   defp html_escape(content) do

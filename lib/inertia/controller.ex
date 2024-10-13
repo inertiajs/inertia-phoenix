@@ -99,6 +99,32 @@ defmodule Inertia.Controller do
   end
 
   @doc """
+  Instuct the client-side to encrypt history for this page.
+  """
+  @spec encrypt_history(Plug.Conn.t()) :: Plug.Conn.t()
+  def encrypt_history(conn) do
+    put_private(conn, :inertia_encrypt_history, true)
+  end
+
+  @spec encrypt_history(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def encrypt_history(conn, true_or_false) when is_boolean(true_or_false) do
+    put_private(conn, :inertia_encrypt_history, true_or_false)
+  end
+
+  @doc """
+  Instuct the client-side to clear the history.
+  """
+  @spec clear_history(Plug.Conn.t()) :: Plug.Conn.t()
+  def clear_history(conn) do
+    put_private(conn, :inertia_clear_history, true)
+  end
+
+  @spec clear_history(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def clear_history(conn, true_or_false) when is_boolean(true_or_false) do
+    put_private(conn, :inertia_clear_history, true_or_false)
+  end
+
+  @doc """
   Assigns errors to the Inertia page data. This helper accepts an
   `Ecto.Changeset` (and automatically serializes its errors into a shape
   compatible with Inertia), or a bare map of errors.
@@ -360,7 +386,9 @@ defmodule Inertia.Controller do
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: conn.private.inertia_version
+      version: conn.private.inertia_version,
+      encryptHistory: conn.private.inertia_encrypt_history,
+      clearHistory: conn.private.inertia_clear_history
     }
     |> maybe_put_merge_props(conn)
     |> maybe_put_deferred_props(conn)

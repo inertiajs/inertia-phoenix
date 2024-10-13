@@ -15,6 +15,8 @@ defmodule Inertia.Plug do
     |> assign(:inertia_head, [])
     |> put_private(:inertia_version, compute_version())
     |> put_private(:inertia_error_bag, get_error_bag(conn))
+    |> put_private(:inertia_encrypt_history, false)
+    |> put_private(:inertia_clear_history, false)
     |> merge_forwarded_flash()
     |> fetch_inertia_errors()
     |> detect_inertia()

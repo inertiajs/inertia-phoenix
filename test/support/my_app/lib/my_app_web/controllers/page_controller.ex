@@ -113,6 +113,20 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def encrypted_history(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> encrypt_history()
+    |> render_inertia("Home")
+  end
+
+  def cleared_history(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> clear_history()
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> put_flash(:info, "Updated")
