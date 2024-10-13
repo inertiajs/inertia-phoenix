@@ -27,6 +27,7 @@ defmodule MyAppWeb.Router do
     get "/overridden_flash", PageController, :overridden_flash
     get "/struct_props", PageController, :struct_props
     get "/binary_props", PageController, :binary_props
+    get "/merge_props", PageController, :merge_props
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

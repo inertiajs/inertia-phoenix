@@ -16,6 +16,7 @@ defmodule Inertia.Controller do
 
   @type optional() :: {:optional, fun()}
   @type always() :: {:keep, any()}
+  @type merge() :: {:merge, any()}
 
   @doc """
   Marks a prop value as optional, which means it will only get evaluated if
@@ -53,6 +54,12 @@ defmodule Inertia.Controller do
   @spec inertia_lazy(fun :: fun()) :: optional()
   @deprecated "Use inertia_optional/1 instead"
   def inertia_lazy(fun), do: inertia_optional(fun)
+
+  @doc """
+  Marks that a prop should be merged with existing data on the client-side.
+  """
+  @spec inertia_merge(value :: any()) :: merge()
+  def inertia_merge(value), do: {:merge, value}
 
   @doc """
   Marks a prop value as "always included", which means it will be included in
@@ -161,17 +168,37 @@ defmodule Inertia.Controller do
     props =
       shared
       |> Map.merge(props)
+
+    {props, merge_props} = resolve_merge_props(props)
+
+    props =
+      props
       |> apply_filters(only, except)
       |> resolve_props()
       |> maybe_put_flash(conn)
 
     conn
-    |> put_private(:inertia_page, %{component: component, props: props})
+    |> put_private(:inertia_page, %{component: component, props: props, merge_props: merge_props})
     |> put_csrf_cookie()
     |> send_response()
   end
 
   # Private helpers
+
+  defp resolve_merge_props(props) do
+    {props_array, merge_props} =
+      Enum.reduce(props, {[], []}, fn {key, value}, {processed_props, merge_prop_keys} ->
+        case value do
+          {:merge, unwrapped_value} ->
+            {[{key, unwrapped_value} | processed_props], [key | merge_prop_keys]}
+
+          _ ->
+            {[{key, value} | processed_props], merge_prop_keys}
+        end
+      end)
+
+    {Map.new(props_array), merge_props}
+  end
 
   defp apply_filters(props, only, _except) when length(only) > 0 do
     props
@@ -216,6 +243,7 @@ defmodule Inertia.Controller do
 
   defp resolve_props({:lazy, value}), do: resolve_props(value)
   defp resolve_props({:keep, value}), do: resolve_props(value)
+  defp resolve_props({:merge, value}), do: resolve_props(value)
   defp resolve_props(fun) when is_function(fun, 0), do: fun.()
   defp resolve_props(value), do: value
 
@@ -285,7 +313,8 @@ defmodule Inertia.Controller do
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: conn.private.inertia_version
+      version: conn.private.inertia_version,
+      mergeProps: conn.private.inertia_page.merge_props
     }
   end
 

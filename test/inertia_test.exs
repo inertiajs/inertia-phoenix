@@ -225,7 +225,8 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"errors" => %{}, "flash" => %{}, "b" => "b", "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -242,7 +243,8 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}, "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -259,7 +261,8 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}, "flash" => %{}},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -282,7 +285,8 @@ defmodule InertiaTest do
                "important" => "stuff"
              },
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -297,7 +301,8 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"b" => "b", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -314,7 +319,8 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -332,7 +338,8 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -356,7 +363,8 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version
+             "version" => @current_version,
+             "mergeProps" => []
            }
   end
 
@@ -474,6 +482,22 @@ defmodule InertiaTest do
       |> get(~p"/struct_props")
 
     assert %{"props" => %{"now" => "2024-07-04T00:00:00Z"}} = json_response(conn, 200)
+  end
+
+  test "gathers merge prop keys", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/merge_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b"},
+             "url" => "/merge_props",
+             "mergeProps" => ["a"],
+             "version" => @current_version
+           } = json_response(conn, 200)
   end
 
   defp html_escape(content) do
