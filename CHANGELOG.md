@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+Add support for Inertia v2 🎉. There are no breaking changes required to support v2, only additive features:
+
+- Add `encrypt_history` function to instruct the client-side to encrypt the history entry.
+- Add `clear_history` function to instruct the client-side to clear history.
+- Add `inertia_optional` function, to replace the now-deprecated `inertia_lazy` function.
+- Add `inertia_merge` function to instruct the client-side to merge the prop value with existing data.
+- Add `inertia_defer` function to instruct the client-side to fetch the prop value immediately after initial page load.
+
+### Deprecations
+
+- The `inertia_lazy/1` function has been deprecated in favor of `inertia_optional/1`
+
 ## 0.10.0
 
 ### Bug Fixes
