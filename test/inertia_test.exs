@@ -600,6 +600,21 @@ defmodule InertiaTest do
            } = json_response(conn, 200)
   end
 
+  test "camelizes props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/camelized_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "firstName" => "Bob"},
+             "url" => "/camelized_props",
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

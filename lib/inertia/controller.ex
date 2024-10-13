@@ -125,6 +125,39 @@ defmodule Inertia.Controller do
   end
 
   @doc """
+  Enable (or disable) automatic conversion of prop keys from snake case (e.g.
+  `inserted_at`), which is conventional in Elixir, to camel case (e.g.
+  `insertedAt`), which is conventional in JavaScript.
+
+  ## Examples
+
+  Using `camelize_props` here will convert `first_name` to `firstName` in the
+  response props.
+
+      conn
+      |> assign_prop(:first_name, "Bob")
+      |> camelize_props()
+      |> render_inertia("Home")
+
+  You may also pass a boolean to the `camelize_props` function (to override any
+  previously-set or globally-configured value):
+
+      conn
+      |> assign_prop(:first_name, "Bob")
+      |> camelize_props(false)
+      |> render_inertia("Home")
+  """
+  @spec camelize_props(Plug.Conn.t()) :: Plug.Conn.t()
+  def camelize_props(conn) do
+    put_private(conn, :inertia_camelize_props, true)
+  end
+
+  @spec camelize_props(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def camelize_props(conn, true_or_false) when is_boolean(true_or_false) do
+    put_private(conn, :inertia_camelize_props, true_or_false)
+  end
+
+  @doc """
   Assigns errors to the Inertia page data. This helper accepts an
   `Ecto.Changeset` (and automatically serializes its errors into a shape
   compatible with Inertia), or a bare map of errors.
@@ -210,11 +243,9 @@ defmodule Inertia.Controller do
     is_partial = conn.private[:inertia_partial_component] == component
     only = if is_partial, do: conn.private[:inertia_partial_only], else: []
     except = if is_partial, do: conn.private[:inertia_partial_except], else: []
+    camelize_props = conn.private[:inertia_camelize_props] || false
 
-    props =
-      shared
-      |> Map.merge(props)
-
+    props = Map.merge(shared, props)
     {props, merge_props} = resolve_merge_props(props)
     {props, deferred_props} = resolve_deferred_props(props)
 
@@ -226,7 +257,7 @@ defmodule Inertia.Controller do
     props =
       props
       |> apply_filters(only, except)
-      |> resolve_props()
+      |> resolve_props(camelize_props: camelize_props)
       |> maybe_put_flash(conn)
 
     conn
@@ -306,19 +337,33 @@ defmodule Inertia.Controller do
     |> Map.new()
   end
 
-  defp resolve_props(map) when is_map(map) and not is_struct(map) do
+  defp resolve_props(map, opts) when is_map(map) and not is_struct(map) do
     map
     |> Enum.reduce([], fn {key, value}, acc ->
-      [{key, resolve_props(value)} | acc]
+      [{transform_key(key, opts), resolve_props(value, opts)} | acc]
     end)
     |> Map.new()
   end
 
-  defp resolve_props({:optional, value}), do: resolve_props(value)
-  defp resolve_props({:keep, value}), do: resolve_props(value)
-  defp resolve_props({:merge, value}), do: resolve_props(value)
-  defp resolve_props(fun) when is_function(fun, 0), do: fun.()
-  defp resolve_props(value), do: value
+  defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props(fun, _opts) when is_function(fun, 0), do: fun.()
+  defp resolve_props(value, _opts), do: value
+
+  defp transform_key(key, opts) do
+    if opts[:camelize_props] do
+      key
+      |> to_string()
+      |> Phoenix.Naming.camelize(:lower)
+      |> atomize_if(is_atom(key))
+    else
+      key
+    end
+  end
+
+  defp atomize_if(value, true), do: String.to_atom(value)
+  defp atomize_if(value, false), do: value
 
   # Skip putting flash in the props if there's already `:flash` key assigned.
   # Otherwise, put the flash in the props.

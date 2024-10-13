@@ -47,6 +47,11 @@ config :inertia,
   # assets using the `static_paths` config). Defaults to "1".
   default_version: "1",
 
+  # Enable automatic conversion of prop keys from snake case (e.g. `inserted_at`),
+  # which is conventional in Elixir, to camel case (e.g. `insertedAt`), which is
+  # conventional in JavaScript.
+  camelize_props: false,
+
   # Enable server-side rendering for page responses (requires some additional setup,
   # see instructions below). Defaults to `false`.
   ssr: false,
@@ -138,6 +143,29 @@ end
 The `assign_prop` function allows you defined props that should be passed in to the component. The `render_inertia` function accepts the conn, the name of the component to render, and an optional map containing more initial props to pass to the page component.
 
 This action will render an HTML page containing a `<div>` element with the name of the component and the initial props, following Inertia.js conventions. On subsequent requests dispatched by the Inertia.js client library, this action will return a JSON response with the data necessary for rendering the page.
+
+If you want to automatically convert your prop keys from snake case (conventional in Elixir) to camel case to keep with JavaScript conventions (e.g. `first_name` to `firstName`), you can configure that globally or enable/disable it on a per-request basis.
+
+```elixir
+import Config
+
+config :inertia,
+  endpoint: MyAppWeb.Endpoint,
+  camelize_props: true
+```
+
+```elixir
+defmodule MyAppWeb.ProfileController do
+  use MyAppWeb, :controller
+
+  def index(conn, _params) do
+    conn
+    |> assign_prop(:first_name, "Bob")
+    |> camelize_props()
+    |> render_inertia("ProfilePage")
+  end
+end
+```
 
 ## Setting up the client-side
 

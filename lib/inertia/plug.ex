@@ -17,6 +17,7 @@ defmodule Inertia.Plug do
     |> put_private(:inertia_error_bag, get_error_bag(conn))
     |> put_private(:inertia_encrypt_history, false)
     |> put_private(:inertia_clear_history, false)
+    |> put_private(:inertia_camelize_props, default_camelize_props())
     |> merge_forwarded_flash()
     |> fetch_inertia_errors()
     |> detect_inertia()
@@ -203,5 +204,9 @@ defmodule Inertia.Plug do
 
   defp default_version do
     Application.get_env(:inertia, :default_version, "1")
+  end
+
+  defp default_camelize_props do
+    Application.get_env(:inertia, :camelize_props, false)
   end
 end
