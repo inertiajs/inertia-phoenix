@@ -102,6 +102,16 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def deferred_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, inertia_defer(fn -> "a" end))
+    |> assign_prop(:b, inertia_defer(fn -> "b" end, "dashboard"))
+    |> assign_prop(:c, inertia_defer(fn -> "c" end) |> inertia_merge())
+    |> assign_prop(:d, "d")
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> put_flash(:info, "Updated")

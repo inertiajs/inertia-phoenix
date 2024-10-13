@@ -225,8 +225,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"errors" => %{}, "flash" => %{}, "b" => "b", "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -243,8 +242,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}, "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -261,8 +259,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}, "flash" => %{}},
              "url" => "/always",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -285,8 +282,7 @@ defmodule InertiaTest do
                "important" => "stuff"
              },
              "url" => "/always",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -301,8 +297,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"b" => "b", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -319,8 +314,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -338,8 +332,7 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -363,8 +356,7 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version,
-             "mergeProps" => []
+             "version" => @current_version
            }
   end
 
@@ -498,6 +490,46 @@ defmodule InertiaTest do
              "mergeProps" => ["a"],
              "version" => @current_version
            } = json_response(conn, 200)
+  end
+
+  test "processes deferred props on initial page load", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/deferred_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "d" => "d"},
+             "url" => "/deferred_props",
+             "mergeProps" => ["c"],
+             "version" => @current_version,
+             "deferredProps" => %{"dashboard" => ["b"], "default" => ["c", "a"]}
+           } = json_response(conn, 200)
+  end
+
+  test "loads deferred props on partial request", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "a,b,c")
+      |> get(~p"/deferred_props")
+
+    body = json_response(conn, 200)
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "url" => "/deferred_props",
+             "mergeProps" => ["c"],
+             "version" => @current_version
+           } = body
+
+    # The deferred props list should not be returned on partial requests
+    refute "deferredProps" in Map.keys(body)
   end
 
   defp html_escape(content) do

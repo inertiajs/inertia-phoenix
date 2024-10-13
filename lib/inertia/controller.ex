@@ -17,6 +17,7 @@ defmodule Inertia.Controller do
   @type optional() :: {:optional, fun()}
   @type always() :: {:keep, any()}
   @type merge() :: {:merge, any()}
+  @type defer() :: {:defer, any()}
 
   @doc """
   Marks a prop value as optional, which means it will only get evaluated if
@@ -44,7 +45,7 @@ defmodule Inertia.Controller do
       |> assign_prop(:super_expensive_thing, inertia_optional(fn -> calculate_thing() end))
   """
   @spec inertia_optional(fun :: fun()) :: optional()
-  def inertia_optional(fun) when is_function(fun), do: {:lazy, fun}
+  def inertia_optional(fun) when is_function(fun), do: {:optional, fun}
 
   def inertia_optional(_) do
     raise ArgumentError, message: "inertia_optional/1 only accepts a function argument"
@@ -60,6 +61,25 @@ defmodule Inertia.Controller do
   """
   @spec inertia_merge(value :: any()) :: merge()
   def inertia_merge(value), do: {:merge, value}
+
+  @doc """
+  Marks that a prop should fetched immediately after the page is loaded on the client-side.
+  """
+  @spec inertia_defer(fun :: fun()) :: merge()
+  def inertia_defer(fun) when is_function(fun), do: {:defer, {fun, "default"}}
+
+  def inertia_defer(_) do
+    raise ArgumentError, message: "inertia_defer/1 only accepts a function argument"
+  end
+
+  @spec inertia_defer(fun :: fun(), group :: String.t()) :: merge()
+  def inertia_defer(fun, group) when is_function(fun) and is_binary(group) do
+    {:defer, {fun, group}}
+  end
+
+  def inertia_defer(_, _) do
+    raise ArgumentError, message: "inertia_defer/2 only accepts function and group arguments"
+  end
 
   @doc """
   Marks a prop value as "always included", which means it will be included in
@@ -170,6 +190,7 @@ defmodule Inertia.Controller do
       |> Map.merge(props)
 
     {props, merge_props} = resolve_merge_props(props)
+    {props, deferred_props} = resolve_deferred_props(props)
 
     props =
       props
@@ -178,7 +199,13 @@ defmodule Inertia.Controller do
       |> maybe_put_flash(conn)
 
     conn
-    |> put_private(:inertia_page, %{component: component, props: props, merge_props: merge_props})
+    |> put_private(:inertia_page, %{
+      component: component,
+      props: props,
+      merge_props: merge_props,
+      deferred_props: deferred_props,
+      is_partial: is_partial
+    })
     |> put_csrf_cookie()
     |> send_response()
   end
@@ -186,18 +213,33 @@ defmodule Inertia.Controller do
   # Private helpers
 
   defp resolve_merge_props(props) do
-    {props_array, merge_props} =
-      Enum.reduce(props, {[], []}, fn {key, value}, {processed_props, merge_prop_keys} ->
-        case value do
-          {:merge, unwrapped_value} ->
-            {[{key, unwrapped_value} | processed_props], [key | merge_prop_keys]}
+    Enum.reduce(props, {[], []}, fn {key, value}, {props, keys} ->
+      case value do
+        {:merge, unwrapped_value} ->
+          {[{key, unwrapped_value} | props], [key | keys]}
 
-          _ ->
-            {[{key, value} | processed_props], merge_prop_keys}
-        end
-      end)
+        _ ->
+          {[{key, value} | props], keys}
+      end
+    end)
+  end
 
-    {Map.new(props_array), merge_props}
+  defp resolve_deferred_props(props) do
+    Enum.reduce(props, {[], %{}}, fn {key, value}, {props, keys} ->
+      case value do
+        {:defer, {fun, group}} ->
+          keys =
+            case Map.get(keys, group) do
+              [_ | _] = group_keys -> Map.put(keys, group, [key | group_keys])
+              _ -> Map.put(keys, group, [key])
+            end
+
+          {[{key, {:optional, fun}} | props], keys}
+
+        _ ->
+          {[{key, value} | props], keys}
+      end
+    end)
   end
 
   defp apply_filters(props, only, _except) when length(only) > 0 do
@@ -226,7 +268,7 @@ defmodule Inertia.Controller do
     props
     |> Enum.filter(fn {_key, value} ->
       case value do
-        {:lazy, _} -> false
+        {:optional, _} -> false
         _ -> true
       end
     end)
@@ -241,7 +283,7 @@ defmodule Inertia.Controller do
     |> Map.new()
   end
 
-  defp resolve_props({:lazy, value}), do: resolve_props(value)
+  defp resolve_props({:optional, value}), do: resolve_props(value)
   defp resolve_props({:keep, value}), do: resolve_props(value)
   defp resolve_props({:merge, value}), do: resolve_props(value)
   defp resolve_props(fun) when is_function(fun, 0), do: fun.()
@@ -313,9 +355,31 @@ defmodule Inertia.Controller do
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: conn.private.inertia_version,
-      mergeProps: conn.private.inertia_page.merge_props
+      version: conn.private.inertia_version
     }
+    |> maybe_put_merge_props(conn)
+    |> maybe_put_deferred_props(conn)
+  end
+
+  defp maybe_put_merge_props(assigns, conn) do
+    merge_props = conn.private.inertia_page.merge_props
+
+    if Enum.empty?(merge_props) do
+      assigns
+    else
+      Map.put(assigns, :mergeProps, merge_props)
+    end
+  end
+
+  defp maybe_put_deferred_props(assigns, conn) do
+    is_partial = conn.private.inertia_page.is_partial
+    deferred_props = conn.private.inertia_page.deferred_props
+
+    if is_partial || Enum.empty?(deferred_props) do
+      assigns
+    else
+      Map.put(assigns, :deferredProps, deferred_props)
+    end
   end
 
   defp request_path(conn) do
