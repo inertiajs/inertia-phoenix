@@ -98,7 +98,8 @@ defmodule MyAppWeb.PageController do
     conn
     |> assign(:page_title, "Home")
     |> assign_prop(:a, inertia_merge("a"))
-    |> assign_prop(:b, "b")
+    |> assign_prop(:b, inertia_merge("b"))
+    |> assign_prop(:c, "c")
     |> render_inertia("Home")
   end
 

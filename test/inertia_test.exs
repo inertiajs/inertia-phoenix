@@ -485,9 +485,27 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b"},
+             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
              "url" => "/merge_props",
-             "mergeProps" => ["a"],
+             "mergeProps" => ["b", "a"],
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
+  test "excludes reset props from merge props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-reset", "a")
+      |> get(~p"/merge_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "url" => "/merge_props",
+             # Excludes "a", since it was passed in the x-inertia-reset header
+             "mergeProps" => ["b"],
              "version" => @current_version
            } = json_response(conn, 200)
   end

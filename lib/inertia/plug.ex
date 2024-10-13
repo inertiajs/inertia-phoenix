@@ -50,6 +50,7 @@ defmodule Inertia.Plug do
         |> put_private(:inertia_version, compute_version())
         |> put_private(:inertia_request, true)
         |> detect_partial_reload()
+        |> detect_reset()
         |> convert_redirects()
         |> check_version()
 
@@ -69,6 +70,19 @@ defmodule Inertia.Plug do
       _ ->
         conn
     end
+  end
+
+  defp detect_reset(conn) do
+    resets =
+      case get_req_header(conn, "x-inertia-reset") do
+        [stringified_list] when is_binary(stringified_list) ->
+          String.split(stringified_list, ",")
+
+        _ ->
+          []
+      end
+
+    put_private(conn, :inertia_reset, resets)
   end
 
   defp get_partial_only(conn) do

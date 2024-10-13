@@ -192,6 +192,11 @@ defmodule Inertia.Controller do
     {props, merge_props} = resolve_merge_props(props)
     {props, deferred_props} = resolve_deferred_props(props)
 
+    merge_props =
+      Enum.reject(merge_props, fn key ->
+        to_string(key) in conn.private[:inertia_reset]
+      end)
+
     props =
       props
       |> apply_filters(only, except)
