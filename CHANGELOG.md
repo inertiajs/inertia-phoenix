@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+### Bug Fixes
+
+- Allow for external redirects from `PUT` / `PATCH` / `DELETE` requests ([#22](https://github.com/inertiajs/inertia-phoenix/pull/22))
+
 ### Features
 
-Add support for Inertia v2 🎉. There are no breaking changes required to support v2, only additive features:
+Support new Inertia v2 mechanics 🎉. There are no breaking changes required to support v2, only new features:
 
 - Add `encrypt_history` function to instruct the client-side to encrypt the history entry.
 - Add `clear_history` function to instruct the client-side to clear history.

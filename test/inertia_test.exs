@@ -401,12 +401,48 @@ defmodule InertiaTest do
     end
   end
 
-  test "converts external redirects to 409", %{conn: conn} do
+  test "converts external redirects from GET to 409", %{conn: conn} do
     conn =
       conn
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
       |> get(~p"/external_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  test "converts external redirects from PUT to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put(~p"/external_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  test "converts external redirects from PATCH to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> patch(~p"/external_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  test "converts external redirects from DELETE to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> delete(~p"/external_redirect")
 
     assert html_response(conn, 409)
     refute get_resp_header(conn, "x-inertia") == ["true"]

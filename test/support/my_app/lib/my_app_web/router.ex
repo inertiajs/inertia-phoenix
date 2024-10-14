@@ -23,7 +23,7 @@ defmodule MyAppWeb.Router do
     get "/changeset_errors", PageController, :changeset_errors
     get "/redirect_on_error", PageController, :redirect_on_error
     get "/bad_error_map", PageController, :bad_error_map
-    get "/external_redirect", PageController, :external_redirect
+    match :*, "/external_redirect", PageController, :external_redirect
     get "/overridden_flash", PageController, :overridden_flash
     get "/struct_props", PageController, :struct_props
     get "/binary_props", PageController, :binary_props
