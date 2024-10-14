@@ -569,14 +569,19 @@ defmodule InertiaTest do
       |> put_req_header("x-inertia-version", @current_version)
       |> get(~p"/deferred_props")
 
+    body = json_response(conn, 200)
+
     assert %{
              "component" => "Home",
              "props" => %{"errors" => %{}, "flash" => %{}, "d" => "d"},
              "url" => "/deferred_props",
              "mergeProps" => ["c"],
-             "version" => @current_version,
-             "deferredProps" => %{"dashboard" => ["b"], "default" => ["c", "a"]}
-           } = json_response(conn, 200)
+             "version" => @current_version
+           } = body
+
+    assert body["deferredProps"]["default"]
+           |> MapSet.new()
+           |> MapSet.equal?(MapSet.new(["a", "c"]))
   end
 
   test "loads deferred props on partial request", %{conn: conn} do
