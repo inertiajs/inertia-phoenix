@@ -17,7 +17,7 @@ defmodule Inertia.Controller do
   @type optional() :: {:optional, fun()}
   @type always() :: {:keep, any()}
   @type merge() :: {:merge, any()}
-  @type defer() :: {:defer, any()}
+  @type defer() :: {:defer, {fun(), String.t()}}
 
   @doc """
   Marks a prop value as optional, which means it will only get evaluated if
@@ -65,14 +65,14 @@ defmodule Inertia.Controller do
   @doc """
   Marks that a prop should fetched immediately after the page is loaded on the client-side.
   """
-  @spec inertia_defer(fun :: fun()) :: merge()
+  @spec inertia_defer(fun :: fun()) :: defer()
   def inertia_defer(fun) when is_function(fun), do: {:defer, {fun, "default"}}
 
   def inertia_defer(_) do
     raise ArgumentError, message: "inertia_defer/1 only accepts a function argument"
   end
 
-  @spec inertia_defer(fun :: fun(), group :: String.t()) :: merge()
+  @spec inertia_defer(fun :: fun(), group :: String.t()) :: defer()
   def inertia_defer(fun, group) when is_function(fun) and is_binary(group) do
     {:defer, {fun, group}}
   end
