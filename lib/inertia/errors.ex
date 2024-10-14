@@ -82,12 +82,8 @@ defmodule Inertia.Errors do
     {path, message}
   end
 
-  def process_changeset_errors([msg | _] = messages, path) when is_binary(msg) do
-    messages
-    |> Enum.with_index()
-    |> Enum.map(fn {message, idx} ->
-      {"#{path}[#{idx}]", message}
-    end)
+  def process_changeset_errors([first_message | _], path) when is_binary(first_message) do
+    {path, first_message}
   end
 
   # The default message function to call when traversing Ecto errors

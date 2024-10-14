@@ -10,10 +10,9 @@ defmodule Inertia.ErrorsTest do
              }
     end
 
-    test "multiple errors for one key" do
+    test "outputs the first error when there are multiple" do
       assert process_changeset_errors(%{"name" => ["is required", "must be real"]}) == %{
-               "name[0]" => "is required",
-               "name[1]" => "must be real"
+               "name" => "is required"
              }
     end
 

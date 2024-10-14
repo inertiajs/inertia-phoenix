@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+The errors serializer (for `Ecto.Changeset` structs) has been adjusted to better align with the behavior in the Laravel adapter in cases when there are **multiple validation errors for a single field**.
+
+**Old Behavior**
+
+Previously, the serializer would include each error under a separate key, with a `[0]` index suffix, like this:
+
+```javascript
+{
+  "name[0]": "is too long",
+  "name[1]": "is not real"
+}
+```
+
+While this retains maximal information about all the errors for a field, in practice it's difficult to target the right error records for display in the UI.
+
+**New Behavior**
+
+Now, the serializer simply takes the _first error message_ and returns it under the field name, without any added suffix:
+
+```javascript
+{
+  "name": "is too long"
+}
+```
+
 ### Bug Fixes
 
 - Allow for external redirects from `PUT` / `PATCH` / `DELETE` requests ([#22](https://github.com/inertiajs/inertia-phoenix/pull/22))
