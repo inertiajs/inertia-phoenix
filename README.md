@@ -8,10 +8,13 @@ The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Rendering responses](#rendering-responses)
 - [Setting up the client-side](#setting-up-the-client-side)
 - [Lazy data evaluation](#lazy-data-evaluation)
+- [Deferred props](#deferred-props)
+- [Merge props](#merge-props)
 - [Shared data](#shared-data)
 - [Validations](#validations)
 - [Flash messages](#flash-messages)
 - [CSRF protection](#csrf-protection)
+- [History](#history)
 - [Testing](#testing)
 - [Server-side rendering](#server-side-rendering)
 
@@ -49,8 +52,13 @@ config :inertia,
 
   # Enable automatic conversion of prop keys from snake case (e.g. `inserted_at`),
   # which is conventional in Elixir, to camel case (e.g. `insertedAt`), which is
-  # conventional in JavaScript.
+  # conventional in JavaScript. Defaults to `false`.
   camelize_props: false,
+
+  # Instruct the client side whether to encrypt the page object in the window history 
+  # state. This can also be set/overridden on a per-request basis, using the `encrypt_history`
+  # controller helper. Defaults to `false`.
+  history: [encrypt: false],
 
   # Enable server-side rendering for page responses (requires some additional setup,
   # see instructions below). Defaults to `false`.
@@ -270,6 +278,44 @@ conn
 |> assign_prop(:super_expensive_thing, inertia_optional(fn -> calculate_thing() end))
 ```
 
+## Deferred props
+
+**Requires Inertia v2.x on the client-side**. 
+
+If you have expensive data that you'd like to automatically fetch (from the client-side via an async background request) after the page is initially rendered, you can mark the prop as deferred:
+
+```elixir
+conn
+|> assign_prop(:expensive_thing, inertia_defer(fn -> calculate_thing() end))
+```
+
+The `inertia_defer/1` helper accepts a function argument in the first position. You may optionally use the `inertia_defer/2` helper, which accepts a "group" name in the second position:
+
+```elixir
+conn
+|> assign_prop(:expensive_thing, inertia_defer(fn -> calculate_thing() end, "dashboard"))
+```
+
+If no group names are specified, then the client-side will issue a single async request to fetch all the deferred props. If there are multiple group names, then the client-side will issue one async request per group instead. This is useful if you have some very expensive data that you'd prefer fetch in parallel alongside other expensive data.
+
+## Merge props
+
+**Requires Inertia v2.x on the client-side**.
+
+If you have prop data that should get merged with the existing data on the client-side on subsequent requests (for example, an array of paginated data being presented in an "infinite scroll" interface), then you can tag the prop value using the `inertia_merge/1` helper:
+
+```elixir
+conn
+|> assign_prop(:paginated_list, inertia_merge(["a", "b", "c"]))
+```
+
+Merge props can also accept deferred props:
+
+```elixir
+conn
+|> assign_prop(:paginated_list, inertia_defer(&calculate_next_page/0) |> inertia_merge())
+```
+
 ## Shared data
 
 To share data on every request, you can use the `assign_prop/2` function inside of a shared plug in your response pipeline. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user and you want to be sure all your Inertia components receive that user data. Your plug might look something like this:
@@ -393,6 +439,35 @@ import axios from "axios";
 axios.defaults.xsrfHeaderName = "x-csrf-token";
 
 // the rest of your Inertia client code...
+```
+
+## History
+
+**Requires Inertia v2.x on the client-side**.
+
+### Encryption
+
+If your page props contain sensitive data (such as information about the currently-authenticated user), you can opt to encrypt the history data that's cached in the browser.
+
+```elixir
+conn
+|> encrypt_history()
+```
+
+You can also enable history encryption globally in your application config:
+
+```elixir
+config :inertia,
+  history: [encrypt: true]
+```
+
+### Clearing history
+
+To instruct the client to clear this history (for example, when a user logs out), you can use the `clear_history/0` helper when building your response.
+
+```elixir
+conn
+|> clear_history()
 ```
 
 ## Testing
