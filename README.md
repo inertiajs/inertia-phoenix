@@ -12,7 +12,7 @@ The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Validations](#validations)
 - [Flash messages](#flash-messages)
 - [CSRF protection](#csrf-protection)
-- [Testing](#csrf-protection)
+- [Testing](#testing)
 - [Server-side rendering](#server-side-rendering)
 
 ## Installation
