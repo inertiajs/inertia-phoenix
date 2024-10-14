@@ -1,5 +1,57 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+The errors serializer (for `Ecto.Changeset` structs) has been adjusted to better align with the behavior in the Laravel adapter in cases when there are **multiple validation errors for a single field**.
+
+**Old Behavior**
+
+Previously, the serializer would include each error under a separate key, with a `[0]` index suffix, like this:
+
+```javascript
+{
+  "name[0]": "is too long",
+  "name[1]": "is not real"
+}
+```
+
+While this retains maximal information about all the errors for a field, in practice it's difficult to target the right error records for display in the UI.
+
+**New Behavior**
+
+Now, the serializer simply takes the _first error message_ and returns it under the field name, without any added suffix:
+
+```javascript
+{
+  "name": "is too long"
+}
+```
+
+### Bug Fixes
+
+- Allow for external redirects from `PUT` / `PATCH` / `DELETE` requests ([#22](https://github.com/inertiajs/inertia-phoenix/pull/22))
+
+### Features
+
+Support new Inertia v2 mechanics 🎉. There are no breaking changes required to support v2, only new features:
+
+- Add `encrypt_history` function to instruct the client-side to encrypt the history entry.
+- Add `clear_history` function to instruct the client-side to clear history.
+- Add `inertia_optional` function, to replace the now-deprecated `inertia_lazy` function.
+- Add `inertia_merge` function to instruct the client-side to merge the prop value with existing data.
+- Add `inertia_defer` function to instruct the client-side to fetch the prop value immediately after initial page load.
+
+This version also includes some new features:
+
+- Helpers for testing Inertia-based controller responses via the `Inertia.Testing` module.
+- Added a `camelize_props` global config option and a `camelize_props` function (to use on a per-request basis) to automatically convert prop keys from snake case to camel case.
+
+### Deprecations
+
+- The `inertia_lazy/1` function has been deprecated in favor of `inertia_optional/1`
+
 ## 0.10.0
 
 ### Bug Fixes

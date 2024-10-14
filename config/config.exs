@@ -13,7 +13,8 @@ config :inertia, MyAppWeb.Endpoint,
 config :inertia,
   endpoint: MyAppWeb.Endpoint,
   static_paths: ["/assets/app.js"],
-  default_version: "1"
+  default_version: "1",
+  camelize_props: false
 
 config :phoenix, :json_library, Jason
 

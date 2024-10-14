@@ -14,16 +14,18 @@ defmodule Inertia.Controller do
 
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
-  @type lazy() :: {:lazy, fun()}
+  @type optional() :: {:optional, fun()}
   @type always() :: {:keep, any()}
+  @type merge() :: {:merge, any()}
+  @type defer() :: {:defer, {fun(), String.t()}}
 
   @doc """
-  Marks a prop value as lazy, which means it will only get evaluated if
+  Marks a prop value as optional, which means it will only get evaluated if
   explicitly requested in a partial reload.
 
-  Lazy props will _only_ be included the when explicitly requested in a partial
-  reload. If you want to include the prop on first visit, you'll want to use a
-  bare anonymous function or named function reference instead.
+  Optional props will _only_ be included the when explicitly requested in a
+  partial reload. If you want to include the prop on first visit, you'll want to
+  use a bare anonymous function or named function reference instead.
 
       conn
       # ALWAYS included on first visit...
@@ -40,13 +42,43 @@ defmodule Inertia.Controller do
       # NEVER included on first visit...
       # OPTIONALLY included on partial reloads...
       # ONLY evaluated when needed...
-      |> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
+      |> assign_prop(:super_expensive_thing, inertia_optional(fn -> calculate_thing() end))
   """
-  @spec inertia_lazy(fun :: fun()) :: lazy()
-  def inertia_lazy(fun) when is_function(fun), do: {:lazy, fun}
+  @spec inertia_optional(fun :: fun()) :: optional()
+  def inertia_optional(fun) when is_function(fun), do: {:optional, fun}
 
-  def inertia_lazy(_) do
-    raise ArgumentError, message: "inertia_lazy/1 only accepts a function argument"
+  def inertia_optional(_) do
+    raise ArgumentError, message: "inertia_optional/1 only accepts a function argument"
+  end
+
+  @doc false
+  @spec inertia_lazy(fun :: fun()) :: optional()
+  @deprecated "Use inertia_optional/1 instead"
+  def inertia_lazy(fun), do: inertia_optional(fun)
+
+  @doc """
+  Marks that a prop should be merged with existing data on the client-side.
+  """
+  @spec inertia_merge(value :: any()) :: merge()
+  def inertia_merge(value), do: {:merge, value}
+
+  @doc """
+  Marks that a prop should fetched immediately after the page is loaded on the client-side.
+  """
+  @spec inertia_defer(fun :: fun()) :: defer()
+  def inertia_defer(fun) when is_function(fun), do: {:defer, {fun, "default"}}
+
+  def inertia_defer(_) do
+    raise ArgumentError, message: "inertia_defer/1 only accepts a function argument"
+  end
+
+  @spec inertia_defer(fun :: fun(), group :: String.t()) :: defer()
+  def inertia_defer(fun, group) when is_function(fun) and is_binary(group) do
+    {:defer, {fun, group}}
+  end
+
+  def inertia_defer(_, _) do
+    raise ArgumentError, message: "inertia_defer/2 only accepts function and group arguments"
   end
 
   @doc """
@@ -64,6 +96,65 @@ defmodule Inertia.Controller do
   def assign_prop(conn, key, value) do
     shared = conn.private[:inertia_shared] || %{}
     put_private(conn, :inertia_shared, Map.put(shared, key, value))
+  end
+
+  @doc """
+  Instuct the client-side to encrypt history for this page.
+  """
+  @spec encrypt_history(Plug.Conn.t()) :: Plug.Conn.t()
+  def encrypt_history(conn) do
+    put_private(conn, :inertia_encrypt_history, true)
+  end
+
+  @spec encrypt_history(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def encrypt_history(conn, true_or_false) when is_boolean(true_or_false) do
+    put_private(conn, :inertia_encrypt_history, true_or_false)
+  end
+
+  @doc """
+  Instuct the client-side to clear the history.
+  """
+  @spec clear_history(Plug.Conn.t()) :: Plug.Conn.t()
+  def clear_history(conn) do
+    put_private(conn, :inertia_clear_history, true)
+  end
+
+  @spec clear_history(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def clear_history(conn, true_or_false) when is_boolean(true_or_false) do
+    put_private(conn, :inertia_clear_history, true_or_false)
+  end
+
+  @doc """
+  Enable (or disable) automatic conversion of prop keys from snake case (e.g.
+  `inserted_at`), which is conventional in Elixir, to camel case (e.g.
+  `insertedAt`), which is conventional in JavaScript.
+
+  ## Examples
+
+  Using `camelize_props` here will convert `first_name` to `firstName` in the
+  response props.
+
+      conn
+      |> assign_prop(:first_name, "Bob")
+      |> camelize_props()
+      |> render_inertia("Home")
+
+  You may also pass a boolean to the `camelize_props` function (to override any
+  previously-set or globally-configured value):
+
+      conn
+      |> assign_prop(:first_name, "Bob")
+      |> camelize_props(false)
+      |> render_inertia("Home")
+  """
+  @spec camelize_props(Plug.Conn.t()) :: Plug.Conn.t()
+  def camelize_props(conn) do
+    put_private(conn, :inertia_camelize_props, true)
+  end
+
+  @spec camelize_props(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def camelize_props(conn, true_or_false) when is_boolean(true_or_false) do
+    put_private(conn, :inertia_camelize_props, true_or_false)
   end
 
   @doc """
@@ -152,21 +243,66 @@ defmodule Inertia.Controller do
     is_partial = conn.private[:inertia_partial_component] == component
     only = if is_partial, do: conn.private[:inertia_partial_only], else: []
     except = if is_partial, do: conn.private[:inertia_partial_except], else: []
+    camelize_props = conn.private[:inertia_camelize_props] || false
+
+    props = Map.merge(shared, props)
+    {props, merge_props} = resolve_merge_props(props)
+    {props, deferred_props} = resolve_deferred_props(props)
+
+    merge_props =
+      Enum.reject(merge_props, fn key ->
+        to_string(key) in conn.private[:inertia_reset]
+      end)
 
     props =
-      shared
-      |> Map.merge(props)
+      props
       |> apply_filters(only, except)
-      |> resolve_props()
+      |> resolve_props(camelize_props: camelize_props)
       |> maybe_put_flash(conn)
 
     conn
-    |> put_private(:inertia_page, %{component: component, props: props})
+    |> put_private(:inertia_page, %{
+      component: component,
+      props: props,
+      merge_props: merge_props,
+      deferred_props: deferred_props,
+      is_partial: is_partial
+    })
     |> put_csrf_cookie()
     |> send_response()
   end
 
   # Private helpers
+
+  defp resolve_merge_props(props) do
+    Enum.reduce(props, {[], []}, fn {key, value}, {props, keys} ->
+      case value do
+        {:merge, unwrapped_value} ->
+          {[{key, unwrapped_value} | props], [key | keys]}
+
+        _ ->
+          {[{key, value} | props], keys}
+      end
+    end)
+  end
+
+  defp resolve_deferred_props(props) do
+    Enum.reduce(props, {[], %{}}, fn {key, value}, {props, keys} ->
+      case value do
+        {:defer, {fun, group}} ->
+          keys =
+            case Map.get(keys, group) do
+              [_ | _] = group_keys -> Map.put(keys, group, [key | group_keys])
+              _ -> Map.put(keys, group, [key])
+            end
+
+          {[{key, {:optional, fun}} | props], keys}
+
+        _ ->
+          {[{key, value} | props], keys}
+      end
+    end)
+  end
 
   defp apply_filters(props, only, _except) when length(only) > 0 do
     props
@@ -194,25 +330,40 @@ defmodule Inertia.Controller do
     props
     |> Enum.filter(fn {_key, value} ->
       case value do
-        {:lazy, _} -> false
+        {:optional, _} -> false
         _ -> true
       end
     end)
     |> Map.new()
   end
 
-  defp resolve_props(map) when is_map(map) and not is_struct(map) do
+  defp resolve_props(map, opts) when is_map(map) and not is_struct(map) do
     map
     |> Enum.reduce([], fn {key, value}, acc ->
-      [{key, resolve_props(value)} | acc]
+      [{transform_key(key, opts), resolve_props(value, opts)} | acc]
     end)
     |> Map.new()
   end
 
-  defp resolve_props({:lazy, value}), do: resolve_props(value)
-  defp resolve_props({:keep, value}), do: resolve_props(value)
-  defp resolve_props(fun) when is_function(fun, 0), do: fun.()
-  defp resolve_props(value), do: value
+  defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props(fun, _opts) when is_function(fun, 0), do: fun.()
+  defp resolve_props(value, _opts), do: value
+
+  defp transform_key(key, opts) do
+    if opts[:camelize_props] do
+      key
+      |> to_string()
+      |> Phoenix.Naming.camelize(:lower)
+      |> atomize_if(is_atom(key))
+    else
+      key
+    end
+  end
+
+  defp atomize_if(value, true), do: String.to_atom(value)
+  defp atomize_if(value, false), do: value
 
   # Skip putting flash in the props if there's already `:flash` key assigned.
   # Otherwise, put the flash in the props.
@@ -280,8 +431,33 @@ defmodule Inertia.Controller do
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: conn.private.inertia_version
+      version: conn.private.inertia_version,
+      encryptHistory: conn.private.inertia_encrypt_history,
+      clearHistory: conn.private.inertia_clear_history
     }
+    |> maybe_put_merge_props(conn)
+    |> maybe_put_deferred_props(conn)
+  end
+
+  defp maybe_put_merge_props(assigns, conn) do
+    merge_props = conn.private.inertia_page.merge_props
+
+    if Enum.empty?(merge_props) do
+      assigns
+    else
+      Map.put(assigns, :mergeProps, merge_props)
+    end
+  end
+
+  defp maybe_put_deferred_props(assigns, conn) do
+    is_partial = conn.private.inertia_page.is_partial
+    deferred_props = conn.private.inertia_page.deferred_props
+
+    if is_partial || Enum.empty?(deferred_props) do
+      assigns
+    else
+      Map.put(assigns, :deferredProps, deferred_props)
+    end
   end
 
   defp request_path(conn) do

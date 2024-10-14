@@ -191,7 +191,7 @@ defmodule InertiaTest do
     assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
   end
 
-  test "evaluates lazy props", %{conn: conn} do
+  test "evaluates optional props", %{conn: conn} do
     conn =
       conn
       |> put_req_header("x-inertia", "true")
@@ -225,7 +225,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"errors" => %{}, "flash" => %{}, "b" => "b", "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -242,7 +244,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}, "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -259,7 +263,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}, "flash" => %{}},
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -282,7 +288,9 @@ defmodule InertiaTest do
                "important" => "stuff"
              },
              "url" => "/always",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -297,7 +305,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"b" => "b", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -314,7 +324,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -332,7 +344,9 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -356,7 +370,9 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => false
            }
   end
 
@@ -385,12 +401,48 @@ defmodule InertiaTest do
     end
   end
 
-  test "converts external redirects to 409", %{conn: conn} do
+  test "converts external redirects from GET to 409", %{conn: conn} do
     conn =
       conn
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
       |> get(~p"/external_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  test "converts external redirects from PUT to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put(~p"/external_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  test "converts external redirects from PATCH to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> patch(~p"/external_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+  end
+
+  test "converts external redirects from DELETE to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> delete(~p"/external_redirect")
 
     assert html_response(conn, 409)
     refute get_resp_header(conn, "x-inertia") == ["true"]
@@ -474,6 +526,134 @@ defmodule InertiaTest do
       |> get(~p"/struct_props")
 
     assert %{"props" => %{"now" => "2024-07-04T00:00:00Z"}} = json_response(conn, 200)
+  end
+
+  test "gathers merge prop keys", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/merge_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "url" => "/merge_props",
+             "mergeProps" => ["b", "a"],
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
+  test "excludes reset props from merge props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-reset", "a")
+      |> get(~p"/merge_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "url" => "/merge_props",
+             # Excludes "a", since it was passed in the x-inertia-reset header
+             "mergeProps" => ["b"],
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
+  test "processes deferred props on initial page load", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/deferred_props")
+
+    body = json_response(conn, 200)
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "d" => "d"},
+             "url" => "/deferred_props",
+             "mergeProps" => ["c"],
+             "version" => @current_version
+           } = body
+
+    assert body["deferredProps"]["default"]
+           |> MapSet.new()
+           |> MapSet.equal?(MapSet.new(["a", "c"]))
+  end
+
+  test "loads deferred props on partial request", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "a,b,c")
+      |> get(~p"/deferred_props")
+
+    body = json_response(conn, 200)
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "url" => "/deferred_props",
+             "mergeProps" => ["c"],
+             "version" => @current_version
+           } = body
+
+    # The deferred props list should not be returned on partial requests
+    refute "deferredProps" in Map.keys(body)
+  end
+
+  test "instructs the client-side to encrypt history", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/encrypted_history")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}},
+             "url" => "/encrypted_history",
+             "version" => @current_version,
+             "encryptHistory" => true,
+             "clearHistory" => false
+           } = json_response(conn, 200)
+  end
+
+  test "instructs the client-side to clear history", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/cleared_history")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}},
+             "url" => "/cleared_history",
+             "version" => @current_version,
+             "encryptHistory" => false,
+             "clearHistory" => true
+           } = json_response(conn, 200)
+  end
+
+  test "camelizes props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/camelized_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{"errors" => %{}, "flash" => %{}, "firstName" => "Bob"},
+             "url" => "/camelized_props",
+             "version" => @current_version
+           } = json_response(conn, 200)
   end
 
   defp html_escape(content) do

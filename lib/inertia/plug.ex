@@ -15,6 +15,9 @@ defmodule Inertia.Plug do
     |> assign(:inertia_head, [])
     |> put_private(:inertia_version, compute_version())
     |> put_private(:inertia_error_bag, get_error_bag(conn))
+    |> put_private(:inertia_encrypt_history, default_encrypt_history())
+    |> put_private(:inertia_clear_history, false)
+    |> put_private(:inertia_camelize_props, default_camelize_props())
     |> merge_forwarded_flash()
     |> fetch_inertia_errors()
     |> detect_inertia()
@@ -50,6 +53,7 @@ defmodule Inertia.Plug do
         |> put_private(:inertia_version, compute_version())
         |> put_private(:inertia_request, true)
         |> detect_partial_reload()
+        |> detect_reset()
         |> convert_redirects()
         |> check_version()
 
@@ -69,6 +73,19 @@ defmodule Inertia.Plug do
       _ ->
         conn
     end
+  end
+
+  defp detect_reset(conn) do
+    resets =
+      case get_req_header(conn, "x-inertia-reset") do
+        [stringified_list] when is_binary(stringified_list) ->
+          String.split(stringified_list, ",")
+
+        _ ->
+          []
+      end
+
+    put_private(conn, :inertia_reset, resets)
   end
 
   defp get_partial_only(conn) do
@@ -187,5 +204,14 @@ defmodule Inertia.Plug do
 
   defp default_version do
     Application.get_env(:inertia, :default_version, "1")
+  end
+
+  defp default_camelize_props do
+    Application.get_env(:inertia, :camelize_props, false)
+  end
+
+  defp default_encrypt_history do
+    history_config = Application.get_env(:inertia, :history) || []
+    !!history_config[:encrypt]
   end
 end

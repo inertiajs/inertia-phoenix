@@ -8,11 +8,15 @@ The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Rendering responses](#rendering-responses)
 - [Setting up the client-side](#setting-up-the-client-side)
 - [Lazy data evaluation](#lazy-data-evaluation)
+- [Deferred props](#deferred-props)
+- [Merge props](#merge-props)
 - [Shared data](#shared-data)
 - [Validations](#validations)
 - [Flash messages](#flash-messages)
 - [CSRF protection](#csrf-protection)
-- [Server-side rendering](#server-side-rendering-experimental)
+- [History](#history)
+- [Testing](#testing)
+- [Server-side rendering](#server-side-rendering)
 
 ## Installation
 
@@ -45,6 +49,16 @@ config :inertia,
   # The default version string to use (if you decide not to track any static
   # assets using the `static_paths` config). Defaults to "1".
   default_version: "1",
+
+  # Enable automatic conversion of prop keys from snake case (e.g. `inserted_at`),
+  # which is conventional in Elixir, to camel case (e.g. `insertedAt`), which is
+  # conventional in JavaScript. Defaults to `false`.
+  camelize_props: false,
+
+  # Instruct the client side whether to encrypt the page object in the window history 
+  # state. This can also be set/overridden on a per-request basis, using the `encrypt_history`
+  # controller helper. Defaults to `false`.
+  history: [encrypt: false],
 
   # Enable server-side rendering for page responses (requires some additional setup,
   # see instructions below). Defaults to `false`.
@@ -138,6 +152,29 @@ The `assign_prop` function allows you defined props that should be passed in to 
 
 This action will render an HTML page containing a `<div>` element with the name of the component and the initial props, following Inertia.js conventions. On subsequent requests dispatched by the Inertia.js client library, this action will return a JSON response with the data necessary for rendering the page.
 
+If you want to automatically convert your prop keys from snake case (conventional in Elixir) to camel case to keep with JavaScript conventions (e.g. `first_name` to `firstName`), you can configure that globally or enable/disable it on a per-request basis.
+
+```elixir
+import Config
+
+config :inertia,
+  endpoint: MyAppWeb.Endpoint,
+  camelize_props: true
+```
+
+```elixir
+defmodule MyAppWeb.ProfileController do
+  use MyAppWeb, :controller
+
+  def index(conn, _params) do
+    conn
+    |> assign_prop(:first_name, "Bob")
+    |> camelize_props()
+    |> render_inertia("ProfilePage")
+  end
+end
+```
+
 ## Setting up the client-side
 
 The [Inertia.js docs](https://inertiajs.com/client-side-setup) provide a good general walk-through on how to setup your JavaScript assets to boot your Inertia app. If you're new to Inertia, we recommend checking that out to familiarize yourself with how it all works. Here we'll provide some guidance on getting your Phoenix app with esbuild configured for basic client-side rendering (and further down, we'll delve into server-side rendering).
@@ -212,10 +249,10 @@ If you updated your esbuild version, you'll need to run `mix esbuild.install` to
 
 ## Lazy data evaluation
 
-If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either an anonymous function (or named function reference) and optionally wrap it with the `Inertia.Controller.inertia_lazy/1` function.
+If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either an anonymous function (or named function reference) and optionally wrap it with the `Inertia.Controller.inertia_optional/1` function.
 
 > [!NOTE]
-> `inertia_lazy` props will _only_ be included the when explicitly requested in a partial
+> `inertia_optional` props will _only_ be included the when explicitly requested in a partial
 > reload. If you want to include the prop on first visit, you'll want to use a
 > bare anonymous function or named function reference instead. See below for
 > examples of how prop assignment behaves.
@@ -238,7 +275,45 @@ conn
 # NEVER included on first visit...
 # OPTIONALLY included on partial reloads...
 # ONLY evaluated when needed...
-|> assign_prop(:super_expensive_thing, inertia_lazy(fn -> calculate_thing() end))
+|> assign_prop(:super_expensive_thing, inertia_optional(fn -> calculate_thing() end))
+```
+
+## Deferred props
+
+**Requires Inertia v2.x on the client-side**. 
+
+If you have expensive data that you'd like to automatically fetch (from the client-side via an async background request) after the page is initially rendered, you can mark the prop as deferred:
+
+```elixir
+conn
+|> assign_prop(:expensive_thing, inertia_defer(fn -> calculate_thing() end))
+```
+
+The `inertia_defer/1` helper accepts a function argument in the first position. You may optionally use the `inertia_defer/2` helper, which accepts a "group" name in the second position:
+
+```elixir
+conn
+|> assign_prop(:expensive_thing, inertia_defer(fn -> calculate_thing() end, "dashboard"))
+```
+
+If no group names are specified, then the client-side will issue a single async request to fetch all the deferred props. If there are multiple group names, then the client-side will issue one async request per group instead. This is useful if you have some very expensive data that you'd prefer fetch in parallel alongside other expensive data.
+
+## Merge props
+
+**Requires Inertia v2.x on the client-side**.
+
+If you have prop data that should get merged with the existing data on the client-side on subsequent requests (for example, an array of paginated data being presented in an "infinite scroll" interface), then you can tag the prop value using the `inertia_merge/1` helper:
+
+```elixir
+conn
+|> assign_prop(:paginated_list, inertia_merge(["a", "b", "c"]))
+```
+
+Merge props can also accept deferred props:
+
+```elixir
+conn
+|> assign_prop(:paginated_list, inertia_defer(&calculate_next_page/0) |> inertia_merge())
 ```
 
 ## Shared data
@@ -366,7 +441,71 @@ axios.defaults.xsrfHeaderName = "x-csrf-token";
 // the rest of your Inertia client code...
 ```
 
-## Server-side rendering (Experimental)
+## History
+
+**Requires Inertia v2.x on the client-side**.
+
+### Encryption
+
+If your page props contain sensitive data (such as information about the currently-authenticated user), you can opt to encrypt the history data that's cached in the browser.
+
+```elixir
+conn
+|> encrypt_history()
+```
+
+You can also enable history encryption globally in your application config:
+
+```elixir
+config :inertia,
+  history: [encrypt: true]
+```
+
+### Clearing history
+
+To instruct the client to clear this history (for example, when a user logs out), you can use the `clear_history/0` helper when building your response.
+
+```elixir
+conn
+|> clear_history()
+```
+
+## Testing
+
+The `Inertia.Testing` module includes helpers for testing your Inertia controller responses, such as the `inertia_component/1` and `inertia_props/1` functions.
+
+
+```elixir
+use MyAppWeb.ConnCase
+
+import Inertia.Testing
+
+describe "GET /" do
+  test "renders the home page", %{conn: conn} do
+    conn = get("/")
+    assert inertia_component(conn) == "Home"
+    assert %{user: %{id: 1}} = inertia_props(conn)
+  end
+end
+```
+
+We recommend importing `Inertia.Testing` in your `ConnCase` helper, so that it will be at the ready for all your controller tests:
+
+```elixir
+defmodule MyApp.ConnCase do
+  use ExUnit.CaseTemplate
+
+  using do
+    quote do
+      import Inertia.Testing
+
+      # ...
+    end
+  end
+end
+```
+
+## Server-side rendering
 
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
 

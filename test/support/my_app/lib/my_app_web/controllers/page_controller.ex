@@ -42,7 +42,7 @@ defmodule MyAppWeb.PageController do
   def tagged_lazy(conn, _params) do
     conn
     |> assign(:page_title, "Home")
-    |> assign_prop(:a, inertia_lazy(fn -> "a" end))
+    |> assign_prop(:a, inertia_optional(fn -> "a" end))
     |> assign_prop(:b, "b")
     |> render_inertia("Home")
   end
@@ -91,6 +91,47 @@ defmodule MyAppWeb.PageController do
     conn
     |> assign(:page_title, "Home")
     |> assign_prop(:content, "’")
+    |> render_inertia("Home")
+  end
+
+  def merge_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, inertia_merge("a"))
+    |> assign_prop(:b, inertia_merge("b"))
+    |> assign_prop(:c, "c")
+    |> render_inertia("Home")
+  end
+
+  def deferred_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, inertia_defer(fn -> "a" end))
+    |> assign_prop(:b, inertia_defer(fn -> "b" end, "dashboard"))
+    |> assign_prop(:c, inertia_defer(fn -> "c" end) |> inertia_merge())
+    |> assign_prop(:d, "d")
+    |> render_inertia("Home")
+  end
+
+  def encrypted_history(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> encrypt_history()
+    |> render_inertia("Home")
+  end
+
+  def cleared_history(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> clear_history()
+    |> render_inertia("Home")
+  end
+
+  def camelized_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:first_name, "Bob")
+    |> camelize_props()
     |> render_inertia("Home")
   end
 
