@@ -44,6 +44,7 @@ defmodule Inertia.Controller do
       # ONLY evaluated when needed...
       |> assign_prop(:super_expensive_thing, inertia_optional(fn -> calculate_thing() end))
   """
+  @doc since: "1.0.0"
   @spec inertia_optional(fun :: fun()) :: optional()
   def inertia_optional(fun) when is_function(fun), do: {:optional, fun}
 
@@ -59,12 +60,14 @@ defmodule Inertia.Controller do
   @doc """
   Marks that a prop should be merged with existing data on the client-side.
   """
+  @doc since: "1.0.0"
   @spec inertia_merge(value :: any()) :: merge()
   def inertia_merge(value), do: {:merge, value}
 
   @doc """
   Marks that a prop should fetched immediately after the page is loaded on the client-side.
   """
+  @doc since: "1.0.0"
   @spec inertia_defer(fun :: fun()) :: defer()
   def inertia_defer(fun) when is_function(fun), do: {:defer, {fun, "default"}}
 
@@ -101,6 +104,7 @@ defmodule Inertia.Controller do
   @doc """
   Instuct the client-side to encrypt history for this page.
   """
+  @doc since: "1.0.0"
   @spec encrypt_history(Plug.Conn.t()) :: Plug.Conn.t()
   def encrypt_history(conn) do
     put_private(conn, :inertia_encrypt_history, true)
@@ -114,6 +118,7 @@ defmodule Inertia.Controller do
   @doc """
   Instuct the client-side to clear the history.
   """
+  @doc since: "1.0.0"
   @spec clear_history(Plug.Conn.t()) :: Plug.Conn.t()
   def clear_history(conn) do
     put_private(conn, :inertia_clear_history, true)
@@ -147,6 +152,7 @@ defmodule Inertia.Controller do
       |> camelize_props(false)
       |> render_inertia("Home")
   """
+  @doc since: "1.0.0"
   @spec camelize_props(Plug.Conn.t()) :: Plug.Conn.t()
   def camelize_props(conn) do
     put_private(conn, :inertia_camelize_props, true)
