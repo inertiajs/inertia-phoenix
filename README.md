@@ -694,7 +694,25 @@ Then, update your Inertia Elixir configuration to enable SSR.
     # CSR).
     raise_on_ssr_failure: config_env() != :prod
 ```
+If you haven't installed node into your runner image add the following command after the `FROM ${RUNNER_IMAGE}`
+```diff
+FROM ${RUNNER_IMAGE}
 
+RUN apt-get update -y && \
+-     apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates && \
++     apt-get install -y libstdc++6 openssl curl libncurses5 locales ca-certificates && \ # add curl to dependencies
+      apt-get clean && rm -f /var/lib/apt/lists/*_*
+
+# Install Node JS from https://deb.nodesource.com/
++ RUN curl -fsSL https://deb.nodesource.com/setup_x.x | bash - && \
++    apt-get update && \
++    apt-get install -y nodejs
+
+# ...
+
+ENV MIX_ENV="prod"
++ ENV NODE_ENV="production"
+```
 In production, be sure to set `NODE_ENV` environment variable to `production`, so that the SSR script is cached for optimal performance.
 
 ### Client side hydration
