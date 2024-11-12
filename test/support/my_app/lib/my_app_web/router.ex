@@ -32,6 +32,7 @@ defmodule MyAppWeb.Router do
     get "/encrypted_history", PageController, :encrypted_history
     get "/cleared_history", PageController, :cleared_history
     get "/camelized_props", PageController, :camelized_props
+    get "/local_ssr", PageController, :local_ssr
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add `ssr` option to `render_inertia` function
+
 ## 1.0.0-beta.1
 
 ### Breaking Changes

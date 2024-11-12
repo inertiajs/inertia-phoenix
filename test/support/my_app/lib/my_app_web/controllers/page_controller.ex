@@ -135,6 +135,12 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def local_ssr(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render_inertia("Home", ssr: true)
+  end
+
   def update(conn, _params) do
     conn
     |> put_flash(:info, "Updated")

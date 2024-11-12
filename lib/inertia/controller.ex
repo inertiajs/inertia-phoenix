@@ -19,6 +19,9 @@ defmodule Inertia.Controller do
   @type merge() :: {:merge, any()}
   @type defer() :: {:defer, {fun(), String.t()}}
 
+  @type render_opt() :: {:ssr, boolean()}
+  @type render_opts() :: [render_opt()]
+
   @doc """
   Marks a prop value as optional, which means it will only get evaluated if
   explicitly requested in a partial reload.
@@ -240,10 +243,34 @@ defmodule Inertia.Controller do
   Renders an Inertia response.
   """
   @spec render_inertia(Plug.Conn.t(), component :: String.t()) :: Plug.Conn.t()
-  @spec render_inertia(Plug.Conn.t(), component :: String.t(), props :: map()) :: Plug.Conn.t()
+  @spec render_inertia(
+          Plug.Conn.t(),
+          component :: String.t(),
+          props_or_opts :: map() | render_opts()
+        ) :: Plug.Conn.t()
+  @spec render_inertia(
+          Plug.Conn.t(),
+          component :: String.t(),
+          props :: map(),
+          opts :: render_opts()
+        ) :: Plug.Conn.t()
 
-  def render_inertia(conn, component, props \\ %{}) do
+  def render_inertia(conn, component, props_or_opts \\ %{}, opts \\ []) do
     shared = conn.private[:inertia_shared] || %{}
+
+    props =
+      if is_map(props_or_opts) do
+        props_or_opts
+      else
+        %{}
+      end
+
+    opts =
+      if is_list(props_or_opts) and opts == [] do
+        props_or_opts
+      else
+        opts
+      end
 
     # Only render partial props if the partial component matches the current page
     is_partial = conn.private[:inertia_partial_component] == component
@@ -274,6 +301,7 @@ defmodule Inertia.Controller do
       deferred_props: deferred_props,
       is_partial: is_partial
     })
+    |> detect_ssr(opts)
     |> put_csrf_cookie()
     |> send_response()
   end
@@ -385,7 +413,7 @@ defmodule Inertia.Controller do
   end
 
   defp send_response(conn) do
-    if ssr_enabled?() do
+    if conn.private[:inertia_ssr] do
       case SSR.call(inertia_assigns(conn)) do
         {:ok, %{"head" => head, "body" => body}} ->
           send_ssr_response(conn, head, body)
@@ -477,7 +505,11 @@ defmodule Inertia.Controller do
     put_resp_cookie(conn, "XSRF-TOKEN", get_csrf_token(), http_only: false)
   end
 
-  defp ssr_enabled? do
+  defp detect_ssr(conn, opts) do
+    put_private(conn, :inertia_ssr, opts[:ssr] || ssr_enabled_globally?())
+  end
+
+  defp ssr_enabled_globally? do
     Application.get_env(:inertia, :ssr, false)
   end
 

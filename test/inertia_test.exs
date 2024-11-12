@@ -91,6 +91,27 @@ defmodule InertiaTest do
     assert body =~ ~s(<div id="ssr"></div>)
   end
 
+  test "renders ssr response when locally specified", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, false)
+
+    conn =
+      conn
+      |> get(~p"/local_ssr")
+
+    body = html_response(conn, 200)
+
+    assert body =~ ~r/<title inertia>(\s*)New title(\s*)<\/title>/
+    assert body =~ ~s(<meta name="description" content="Head stuff" />)
+    assert body =~ ~s(<div id="ssr"></div>)
+  end
+
   test "supports binary", %{conn: conn} do
     path =
       __ENV__.file
