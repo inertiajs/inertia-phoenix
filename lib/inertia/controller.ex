@@ -241,12 +241,41 @@ defmodule Inertia.Controller do
 
   @doc """
   Renders an Inertia response.
+
+  ## Options
+
+  - `ssr`: whether to server-side render the response (see the docs on
+    "Server-side rendering" in the README for more information on setting this
+    up). Defaults to the globally-configured value, or `false` if no global
+    config is specified.
+
+  ## Examples
+
+      conn
+      |> assign_prop(:user_id, 1)
+      |> render_inertia("SettingsPage")
+
+  You may pass additional props as map for the third argument:
+
+      conn
+      |> assign_prop(:user_id, 1)
+      |> render_inertia("SettingsPage", %{name: "Bob"})
+
+  You may also pass options for the last positional argument:
+
+      conn
+      |> assign_prop(:user_id, 1)
+      |> render_inertia("SettingsPage", ssr: true)
+
+      conn
+      |> assign_prop(:user_id, 1)
+      |> render_inertia("SettingsPage", %{name: "Bob"}, ssr: true)
   """
   @spec render_inertia(Plug.Conn.t(), component :: String.t()) :: Plug.Conn.t()
   @spec render_inertia(
           Plug.Conn.t(),
           component :: String.t(),
-          props_or_opts :: map() | render_opts()
+          inline_props_or_opts :: map() | render_opts()
         ) :: Plug.Conn.t()
   @spec render_inertia(
           Plug.Conn.t(),
@@ -254,23 +283,25 @@ defmodule Inertia.Controller do
           props :: map(),
           opts :: render_opts()
         ) :: Plug.Conn.t()
+  def render_inertia(%Plug.Conn{} = conn, component) do
+    build_inertia_response(conn, component, %{}, [])
+  end
 
-  def render_inertia(conn, component, props_or_opts \\ %{}, opts \\ []) do
-    shared = conn.private[:inertia_shared] || %{}
+  def render_inertia(%Plug.Conn{} = conn, component, inline_props) when is_map(inline_props) do
+    build_inertia_response(conn, component, inline_props, [])
+  end
 
-    props =
-      if is_map(props_or_opts) do
-        props_or_opts
-      else
-        %{}
-      end
+  def render_inertia(%Plug.Conn{} = conn, component, opts) when is_list(opts) do
+    build_inertia_response(conn, component, %{}, opts)
+  end
 
-    opts =
-      if is_list(props_or_opts) and opts == [] do
-        props_or_opts
-      else
-        opts
-      end
+  def render_inertia(%Plug.Conn{} = conn, component, inline_props, opts)
+      when is_map(inline_props) and is_list(opts) do
+    build_inertia_response(conn, component, inline_props, opts)
+  end
+
+  defp build_inertia_response(conn, component, inline_props, opts) do
+    shared_props = conn.private[:inertia_shared] || %{}
 
     # Only render partial props if the partial component matches the current page
     is_partial = conn.private[:inertia_partial_component] == component
@@ -278,7 +309,7 @@ defmodule Inertia.Controller do
     except = if is_partial, do: conn.private[:inertia_partial_except], else: []
     camelize_props = conn.private[:inertia_camelize_props] || false
 
-    props = Map.merge(shared, props)
+    props = Map.merge(shared_props, inline_props)
     {props, merge_props} = resolve_merge_props(props)
     {props, deferred_props} = resolve_deferred_props(props)
 
