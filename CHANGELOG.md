@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Camelize prop names inside lists (e.g. `assign_prop(:items, [%{item_name: "..."}])`).
+
 ## 1.0.0-beta.2
 
 ### Features

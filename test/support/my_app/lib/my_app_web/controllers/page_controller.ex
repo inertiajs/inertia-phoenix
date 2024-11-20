@@ -131,6 +131,7 @@ defmodule MyAppWeb.PageController do
     conn
     |> assign(:page_title, "Home")
     |> assign_prop(:first_name, "Bob")
+    |> assign_prop(:items, [%{item_name: "Foo"}])
     |> camelize_props()
     |> render_inertia("Home")
   end

@@ -410,6 +410,10 @@ defmodule Inertia.Controller do
     |> Map.new()
   end
 
+  defp resolve_props(list, opts) when is_list(list) do
+    Enum.map(list, &resolve_props(&1, opts))
+  end
+
   defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)

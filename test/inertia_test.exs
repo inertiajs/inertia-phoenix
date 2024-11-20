@@ -671,7 +671,12 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}, "firstName" => "Bob"},
+             "props" => %{
+               "errors" => %{},
+               "flash" => %{},
+               "firstName" => "Bob",
+               "items" => [%{"itemName" => "Foo"}]
+             },
              "url" => "/camelized_props",
              "version" => @current_version
            } = json_response(conn, 200)
