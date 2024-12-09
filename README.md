@@ -124,8 +124,8 @@ Next, replace the title tag in your layout with the `<.inertia_title>` component
   <!DOCTYPE html>
   <html lang="en" class="[scrollbar-gutter:stable]">
     <head>
--     <.live_title><%= assigns[:page_title] %></.live_title>
-+     <.inertia_title><%= assigns[:page_title] %></.inertia_title>
+-     <.live_title>{@page_title}</.live_title>
++     <.inertia_title>{@page_title}</.inertia_title>
 +     <.inertia_head content={@inertia_head} />
     </head>
 ```

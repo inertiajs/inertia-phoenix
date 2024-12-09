@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Update Phoenix LiveView to v1.0.
+
 ## 1.0.0-beta.3
 
 ### Bug Fixes

@@ -33,7 +33,7 @@ defmodule Inertia.MixProject do
     [
       {:phoenix, "~> 1.7"},
       {:phoenix_html, ">= 3.0.0"},
-      {:phoenix_live_view, "~> 0.18"},
+      {:phoenix_live_view, "~> 1.0"},
       {:plug, ">= 1.5.0 and < 2.0.0"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.2", only: :test},

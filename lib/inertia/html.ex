@@ -17,7 +17,7 @@ defmodule Inertia.HTML do
   def inertia_title(assigns) do
     ~H"""
     <title data-prefix={@prefix} data-suffix={@suffix} inertia>
-      <%= @prefix %><%= render_slot(@inner_block) %><%= @suffix %>
+      {@prefix}{render_slot(@inner_block)}{@suffix}
     </title>
     """
   end
@@ -27,7 +27,7 @@ defmodule Inertia.HTML do
 
   def inertia_head(assigns) do
     ~H"""
-    <%= Phoenix.HTML.raw(Enum.join(@content, "\n")) %>
+    {Phoenix.HTML.raw(Enum.join(@content, "\n"))}
     """
   end
 
@@ -54,7 +54,7 @@ defmodule Inertia.HTML do
 
   def inertia_ssr(assigns) do
     ~H"""
-    <%= Phoenix.HTML.raw(@body) %>
+    {Phoenix.HTML.raw(@body)}
     """
   end
 
