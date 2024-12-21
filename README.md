@@ -1,6 +1,6 @@
 # Inertia.js Phoenix Adapter [![Hex Package](https://img.shields.io/hexpm/v/inertia)](https://hex.pm/packages/inertia) [![Hex Docs](https://img.shields.io/badge/docs-green)](https://hexdocs.pm/inertia/readme.html)
 
-The Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
+The official Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 1.0.0-beta.3"}
+    {:inertia, "~> 2.0.0"}
   ]
 end
 ```
