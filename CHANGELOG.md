@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0
+
+### Fixed
+
+- Include new Inertia v2 attributes in the initial page object (`mergeProps`, `deferredProps`, `encryptHistory`, `clearHistory`).
+- Mark internal component functions in `Inertia.HTML` as private.
+
 ## 2.0.0
 
 ### Added

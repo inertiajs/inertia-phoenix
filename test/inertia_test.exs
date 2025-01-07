@@ -586,6 +586,18 @@ defmodule InertiaTest do
   test "processes deferred props on initial page load", %{conn: conn} do
     conn =
       conn
+      |> get(~p"/deferred_props")
+
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    assert props["deferredProps"]["default"]
+           |> MapSet.new()
+           |> MapSet.equal?(MapSet.new(["a", "c"]))
+
+    conn =
+      conn
+      |> recycle()
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
       |> get(~p"/deferred_props")
@@ -686,5 +698,16 @@ defmodule InertiaTest do
     content
     |> Phoenix.HTML.html_escape()
     |> Phoenix.HTML.safe_to_string()
+  end
+
+  defp extract_page_data_from_html(raw_html) do
+    {:ok, html} = Floki.parse_document(raw_html)
+
+    [json_data] =
+      html
+      |> Floki.find("div[data-page]")
+      |> Floki.attribute("data-page")
+
+    Jason.decode!(json_data)
   end
 end

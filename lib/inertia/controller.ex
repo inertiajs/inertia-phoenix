@@ -308,15 +308,13 @@ defmodule Inertia.Controller do
     only = if is_partial, do: conn.private[:inertia_partial_only], else: []
     except = if is_partial, do: conn.private[:inertia_partial_except], else: []
     camelize_props = conn.private[:inertia_camelize_props] || false
+    reset = conn.private[:inertia_reset] || []
 
     props = Map.merge(shared_props, inline_props)
     {props, merge_props} = resolve_merge_props(props)
     {props, deferred_props} = resolve_deferred_props(props)
 
-    merge_props =
-      Enum.reject(merge_props, fn key ->
-        to_string(key) in conn.private[:inertia_reset]
-      end)
+    merge_props = Enum.reject(merge_props, fn key -> to_string(key) in reset end)
 
     props =
       props
@@ -492,7 +490,7 @@ defmodule Inertia.Controller do
   defp send_csr_response(conn) do
     conn
     |> put_view(Inertia.HTML)
-    |> render(:inertia_page, inertia_assigns(conn))
+    |> render(:inertia_page, %{page: inertia_assigns(conn)})
   end
 
   defp inertia_assigns(conn) do

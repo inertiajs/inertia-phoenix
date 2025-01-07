@@ -31,27 +31,14 @@ defmodule Inertia.HTML do
     """
   end
 
-  @doc type: :component
-  attr(:component, :string, required: true, doc: "The name of the JavaScript page component.")
-  attr(:props, :map, required: true, doc: "The page props (data).")
-  attr(:url, :string, required: true, doc: "The page URL.")
-  attr(:version, :string, required: true, doc: "The current asset version.")
-
+  @doc false
   def inertia_page(assigns) do
     ~H"""
-    <div
-      id="app"
-      data-page={
-        json_library().encode!(%{component: @component, props: @props, url: @url, version: @version})
-      }
-    >
-    </div>
+    <div id="app" data-page={json_library().encode!(@page)}></div>
     """
   end
 
-  @doc type: :component
-  attr(:body, :string, required: true, doc: "The server-rendered body")
-
+  @doc false
   def inertia_ssr(assigns) do
     ~H"""
     {Phoenix.HTML.raw(@body)}
