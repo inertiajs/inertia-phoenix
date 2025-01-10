@@ -463,7 +463,7 @@ config :inertia,
 
 ### Clearing history
 
-To instruct the client to clear this history (for example, when a user logs out), you can use the `clear_history/0` helper when building your response.
+To instruct the client to clear this history (for example, when a user logs out), you can use the `clear_history/1` helper when building your response.
 
 ```elixir
 conn
@@ -510,11 +510,11 @@ end
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
 
 > [!NOTE]
-> The steps for enabling SSR in Phoenix are similar to other backend frameworks, but instead of running a separate Node.js server process to render HTML, this library spins up a pool of Node.js process workers to handle SSR calls. We'll highlight those differences below.
+> The steps for enabling SSR in Phoenix are similar to other backend frameworks, but instead of running a separate Node.js server process to render HTML, this library spins up a pool of Node.js process workers to handle SSR calls and manages the state of those node processes from your Elixir process tree. This is mostly just an implementation detail that you don't need to be concerned about, but we'll highlight how our `ssr.js` script differs from the Inertia.js docs.
 
 ### Add a server-side rendering module
 
-To get started, you'll need to create a JavaScript module that exports a `render` function to perform the actual server-side rendering of pages. For the purpose of these instructions, we'll assume you're using React. The steps would be similar for other front-end environments supported by Inertia.js, such as [Vue](https://github.com/CallumVass/inertia_vue) and [Svelte](https://github.com/tonydangblog/phoenix-inertia-svelte).
+You'll need to create a JavaScript module that exports a `render` function to perform the actual server-side rendering of pages. For the purpose of these instructions, we'll assume you're using React. The steps would be similar for other front-end environments supported by Inertia.js, such as [Vue](https://github.com/CallumVass/inertia_vue) and [Svelte](https://github.com/tonydangblog/phoenix-inertia-svelte).
 
 Suppose your main `app.jsx` file looks something like this:
 
@@ -556,7 +556,7 @@ export function render(page) {
 }
 ```
 
-This is similar to the server entry-point [documented here](https://inertiajs.com/server-side-rendering#add-server-entry-point), except we are simply exporting a render function instead of starting a Node.js server process.
+This is similar to the server entry-point [documented here](https://inertiajs.com/server-side-rendering#add-server-entry-point), except we are simply **exporting a function called `render`**, instead of starting a Node.js server process.
 
 Next, configure esbuild to compile the `ssr.jsx` bundle.
 
@@ -630,9 +630,9 @@ As configured, this will place the generated `ssr.js` bundle into the `priv` dir
 
 ### Configuring your app for server-rendering
 
-Now that you have a Node.js module capable of server-rendering your pages, let's tell the Inertia.js Phoenix library to use SSR.
+Now that you have a Node.js module capable of server-rendering your pages, youll need to tell the Inertia.js Phoenix library to perform SSR.
 
-First, you'll need to add the `Inertia.SSR` module to your application supervision tree.
+First, add the `Inertia.SSR` module to your application's supervision tree.
 
 ```diff
   # lib/my_app/application.ex
@@ -661,7 +661,7 @@ First, you'll need to add the `Inertia.SSR` module to your application supervisi
       ]
 ```
 
-Then, update your Inertia Elixir configuration to enable SSR.
+Then, update your config to enable SSR (if you'd like to enable it globally).
 
 ```diff
   # config/config.exs
@@ -694,26 +694,37 @@ Then, update your Inertia Elixir configuration to enable SSR.
     # CSR).
     raise_on_ssr_failure: config_env() != :prod
 ```
-If you haven't installed node into your runner image add the following command after the `FROM ${RUNNER_IMAGE}`
-```diff
-FROM ${RUNNER_IMAGE}
 
-RUN apt-get update -y && \
+### Installing Node.js in your production
+
+You need to have Node.js installed in your production server environment, so that we can call the SSR script when serving pages. These steps assume you are deploying your application using a Dockerfile and releases.
+
+If you haven't installed node into your runner image, add the following command to your Dockerfile (after the `FROM ${RUNNER_IMAGE}` step).
+
+```diff
+  FROM ${RUNNER_IMAGE}
+
+  # install curl (and a few other packages)
+  RUN apt-get update -y && \
 -     apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates && \
-+     apt-get install -y libstdc++6 openssl curl libncurses5 locales ca-certificates && \ # add curl to dependencies
++     apt-get install -y libstdc++6 openssl curl libncurses5 locales ca-certificates && \
       apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-# Install Node JS from https://deb.nodesource.com/
+  # install Node.js
 + RUN curl -fsSL https://deb.nodesource.com/setup_x.x | bash - && \
 +    apt-get update && \
 +    apt-get install -y nodejs
 
-# ...
+  # ...
 
-ENV MIX_ENV="prod"
+  ENV MIX_ENV="prod"
+
+  # ensure node is running in production mode
 + ENV NODE_ENV="production"
 ```
-In production, be sure to set `NODE_ENV` environment variable to `production`, so that the SSR script is cached for optimal performance.
+
+> [!IMPORTANT]
+> **Be sure to set `NODE_ENV=production`**, so that the SSR script is cached in memory. Otherwise, your page rendering times will be very slow!
 
 ### Client side hydration
 
