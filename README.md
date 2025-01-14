@@ -249,30 +249,30 @@ If you updated your esbuild version, you'll need to run `mix esbuild.install` to
 
 Esbuild also supports code-splitting, which can be useful for larger applications. To enable it, you'll need to:
 
-- Set the `format` as `ESM`
-- Add the `--splitting` flag
-- Optionally, set the `chunk-names` flag to customize the output filenames
+- Set the `format` as [`esm`](https://esbuild.github.io/api/#format-esm)
+- Add the [`--splitting`](https://esbuild.github.io/api/#splitting) flag
+- Optionally, set the [`chunk-names`](https://esbuild.github.io/api/#chunk-names) flag to customize the output filenames
 
 ```diff
-# config/config.exs
+  # config/config.exs
 
-config :esbuild,
-  version: "0.21.5",
-  my_app: [
--    args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-+    args: ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-    cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-  ]
+  config :esbuild,
+    version: "0.21.5",
+    my_app: [
+-     args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
++     args: ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+      cd: Path.expand("../assets", __DIR__),
+      env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+    ]
 ```
 
-After that, we need to update our root layout, and load the javascript bundle as an ESM module:
+After that, we need to update our root layout to load the JavaScript bundle as an ESM module (by changing the `type` attribute from `text/javascript` to `module`):
 
 ```diff
-# lib/my_app_web/components/layouts/root.html.eex
+  # lib/my_app_web/components/layouts/root.html.eex
 
--  <script type='text/javascript' defer phx-track-static  src={~p"/assets/app.js"}></script>
-+  <script type='module' defer phx-track-static  src={~p"/assets/app.js"}></script>
+-  <script type='text/javascript' defer phx-track-static src={~p"/assets/app.js"}></script>
++  <script type='module' defer phx-track-static src={~p"/assets/app.js"}></script>
 ```
 
 > [!NOTE]
