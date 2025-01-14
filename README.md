@@ -148,7 +148,7 @@ defmodule MyAppWeb.ProfileController do
 end
 ```
 
-The `assign_prop` function allows you defined props that should be passed in to the component. The `render_inertia` function accepts the conn, the name of the component to render, and an optional map containing more initial props to pass to the page component.
+The `assign_prop` function allows you to define props that should be passed in to the component. The `render_inertia` function accepts the conn, the name of the component to render, and an optional map containing more initial props to pass to the page component.
 
 This action will render an HTML page containing a `<div>` element with the name of the component and the initial props, following Inertia.js conventions. On subsequent requests dispatched by the Inertia.js client library, this action will return a JSON response with the data necessary for rendering the page.
 
@@ -179,7 +179,7 @@ end
 
 The [Inertia.js docs](https://inertiajs.com/client-side-setup) provide a good general walk-through on how to setup your JavaScript assets to boot your Inertia app. If you're new to Inertia, we recommend checking that out to familiarize yourself with how it all works. Here we'll provide some guidance on getting your Phoenix app with esbuild configured for basic client-side rendering (and further down, we'll delve into server-side rendering).
 
-To get started, install the Inertia.js library for the frontend framework of your choice. In these instructions we'll use React, but the process is similiar for other Inertia-compatible frameworks, like Vue or Svelte.
+To get started, install the Inertia.js library for the frontend framework of your choice. In these instructions we'll use React, but the process is similar for other Inertia-compatible frameworks, like Vue or Svelte.
 
 ```
 cd assets
@@ -246,6 +246,39 @@ config :esbuild,
 ```
 
 If you updated your esbuild version, you'll need to run `mix esbuild.install` to fetch the new version.
+
+Esbuild also supports code-splitting, which can be useful for larger applications. To enable it, you'll need to:
+
+- Set the `format` as `ESM`
+- Add the `--splitting` flag
+- Optionally, set the `chunk-names` flag to customize the output filenames
+
+```diff
+# config/config.exs
+
+config :esbuild,
+  version: "0.21.5",
+  my_app: [
+-    args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
++    args: ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
+```
+
+After that, we need to update our root layout, and load the javascript bundle as an ESM module:
+
+```diff
+# lib/my_app_web/components/layouts/root.html.eex
+
+-  <script type='text/javascript' defer phx-track-static  src={~p"/assets/app.js"}></script>
++  <script type='module' defer phx-track-static  src={~p"/assets/app.js"}></script>
+```
+
+> [!NOTE]
+> ESM code splitting requires modern browser support.
+> While most current browsers support ESM modules, you should verify compatibility requirements with your target audience.
+> You can read more about how code-splitting works with esbuild in the [official documentation](https://esbuild.github.io/api/#chunk-names).
 
 ## Lazy data evaluation
 
@@ -372,7 +405,7 @@ The `assign_errors` function will automatically convert the changeset errors int
 {
   "name" => "can't be blank",
 
-  // Nested errors keys are flattened with a dot seperator (`.`) 
+  // Nested errors keys are flattened with a dot separator (`.`) 
   "team.name" => "must be at least 3 characters long",
 
   // Nested arrays are zero-based and indexed using bracket notation (`[0]`)
