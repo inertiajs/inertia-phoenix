@@ -14,16 +14,18 @@ defmodule Inertia.Controller do
 
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
+  @type raw_prop_key :: atom() | String.t()
+
   @opaque optional() :: {:optional, fun()}
   @opaque always() :: {:keep, any()}
   @opaque merge() :: {:merge, any()}
   @opaque defer() :: {:defer, {fun(), String.t()}}
-  @opaque preserved_prop_key :: {:preserve, atom()}
+  @opaque preserved_prop_key :: {:preserve, raw_prop_key()}
 
   @type render_opt() :: {:ssr, boolean()}
   @type render_opts() :: [render_opt()]
 
-  @type prop_key() :: atom() | preserved_prop_key()
+  @type prop_key() :: raw_prop_key() | preserved_prop_key()
 
   @doc """
   Marks a prop value as optional, which means it will only get evaluated if
@@ -121,7 +123,7 @@ defmodule Inertia.Controller do
       |> render_inertia("Home")
   """
   @doc since: "2.2.0"
-  @spec preserve_case(atom()) :: preserved_prop_key()
+  @spec preserve_case(raw_prop_key()) :: preserved_prop_key()
   def preserve_case(key), do: {:preserve, key}
 
   @doc """
