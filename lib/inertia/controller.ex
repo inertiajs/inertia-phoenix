@@ -14,13 +14,16 @@ defmodule Inertia.Controller do
 
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
-  @type optional() :: {:optional, fun()}
-  @type always() :: {:keep, any()}
-  @type merge() :: {:merge, any()}
-  @type defer() :: {:defer, {fun(), String.t()}}
+  @opaque optional() :: {:optional, fun()}
+  @opaque always() :: {:keep, any()}
+  @opaque merge() :: {:merge, any()}
+  @opaque defer() :: {:defer, {fun(), String.t()}}
+  @opaque preserved_prop_key :: {:preserve, atom()}
 
   @type render_opt() :: {:ssr, boolean()}
   @type render_opts() :: [render_opt()]
+
+  @type prop_key() :: atom() | preserved_prop_key()
 
   @doc """
   Marks a prop value as optional, which means it will only get evaluated if
@@ -96,9 +99,35 @@ defmodule Inertia.Controller do
   def inertia_always(value), do: {:keep, value}
 
   @doc """
+  Prevents auto-transformation of a prop key to camel-case (when
+  `camelize_props` is enabled).
+
+  ## Example
+
+      conn
+      |> assign_prop(preserve_case(:this_will_not_be_camelized), "value")
+      |> assign_prop(:this_will_be_camelized, "another_value")
+      |> camelize_props()
+      |> render_inertia("Home")
+
+  You can also use this helper inside of nested props:
+
+      conn
+      |> assign_prop(:user, %{
+        preserve_case(:this_will_not_be_camelized) => "value",
+        this_will_be_camelized: "another_value"
+      })
+      |> camelize_props()
+      |> render_inertia("Home")
+  """
+  @doc since: "2.2.0"
+  @spec preserve_case(atom()) :: preserved_prop_key()
+  def preserve_case(key), do: {:preserve, key}
+
+  @doc """
   Assigns a prop value to the Inertia page data.
   """
-  @spec assign_prop(Plug.Conn.t(), atom(), any()) :: Plug.Conn.t()
+  @spec assign_prop(Plug.Conn.t(), prop_key(), any()) :: Plug.Conn.t()
   def assign_prop(conn, key, value) do
     shared = conn.private[:inertia_shared] || %{}
     put_private(conn, :inertia_shared, Map.put(shared, key, value))
@@ -318,7 +347,7 @@ defmodule Inertia.Controller do
 
     props =
       props
-      |> apply_filters(only, except)
+      |> apply_filters(only, except, camelize_props: camelize_props)
       |> resolve_props(camelize_props: camelize_props)
       |> maybe_put_flash(conn)
 
@@ -340,11 +369,8 @@ defmodule Inertia.Controller do
   defp resolve_merge_props(props) do
     Enum.reduce(props, {[], []}, fn {key, value}, {props, keys} ->
       case value do
-        {:merge, unwrapped_value} ->
-          {[{key, unwrapped_value} | props], [key | keys]}
-
-        _ ->
-          {[{key, value} | props], keys}
+        {:merge, unwrapped_value} -> {[{key, unwrapped_value} | props], [key | keys]}
+        _ -> {[{key, value} | props], keys}
       end
     end)
   end
@@ -367,29 +393,45 @@ defmodule Inertia.Controller do
     end)
   end
 
-  defp apply_filters(props, only, _except) when length(only) > 0 do
+  defp apply_filters(props, only, _except, opts) when length(only) > 0 do
     props
     |> Enum.filter(fn {key, value} ->
       case value do
-        {:keep, _} -> true
-        _ -> Enum.member?(only, to_string(key))
+        {:keep, _} ->
+          true
+
+        _ ->
+          transformed_key =
+            key
+            |> transform_key(opts)
+            |> to_string()
+
+          Enum.member?(only, transformed_key)
       end
     end)
     |> Map.new()
   end
 
-  defp apply_filters(props, _only, except) when length(except) > 0 do
+  defp apply_filters(props, _only, except, opts) when length(except) > 0 do
     props
     |> Enum.filter(fn {key, value} ->
       case value do
-        {:keep, _} -> true
-        _ -> !Enum.member?(except, to_string(key))
+        {:keep, _} ->
+          true
+
+        _ ->
+          transformed_key =
+            key
+            |> transform_key(opts)
+            |> to_string()
+
+          !Enum.member?(except, transformed_key)
       end
     end)
     |> Map.new()
   end
 
-  defp apply_filters(props, _only, _except) do
+  defp apply_filters(props, _only, _except, _opts) do
     props
     |> Enum.filter(fn {_key, value} ->
       case value do
@@ -417,6 +459,10 @@ defmodule Inertia.Controller do
   defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
   defp resolve_props(fun, _opts) when is_function(fun, 0), do: fun.()
   defp resolve_props(value, _opts), do: value
+
+  # Applies any specified transformations to the key (such as conversion to
+  # camel case), unless the key has been marked as "preserved".
+  defp transform_key({:preserve, key}, _opts), do: key
 
   defp transform_key(key, opts) do
     if opts[:camelize_props] do

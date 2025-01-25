@@ -136,6 +136,16 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def preserved_case_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(preserve_case(:first_name), "Bob")
+    |> assign_prop(:last_name, "Jones")
+    |> assign_prop(:profile, %{preserve_case(:birth_year) => "Foo"})
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
   def local_ssr(conn, _params) do
     conn
     |> assign(:page_title, "Home")

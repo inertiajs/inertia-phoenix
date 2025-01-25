@@ -694,6 +694,27 @@ defmodule InertiaTest do
            } = json_response(conn, 200)
   end
 
+  test "preserves tagged props from camelization", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/preserved_case_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{
+               "errors" => %{},
+               "flash" => %{},
+               "first_name" => "Bob",
+               "lastName" => "Jones",
+               "profile" => %{"birth_year" => "Foo"}
+             },
+             "url" => "/preserved_case_props",
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

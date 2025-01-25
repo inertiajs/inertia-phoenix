@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.0 (Unreleased)
+
+### Added
+
+- Add `preserve_case` helper to prevent auto-camelization of specified prop keys.
+
+### Fixed
+
+- Ensure prop keys are compared in the proper casing (for partial reloads) when `camelize_props` is enabled.
+
 ## 2.1.0
 
 ### Fixed
