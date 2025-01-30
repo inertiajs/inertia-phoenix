@@ -694,6 +694,27 @@ defmodule InertiaTest do
            } = json_response(conn, 200)
   end
 
+  test "camelizes deferred props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-partial-data", "items")
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/camelized_deferred_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{
+               "errors" => %{},
+               "flash" => %{},
+               "items" => [%{"itemName" => "Foo"}]
+             },
+             "url" => "/camelized_deferred_props",
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
   test "preserves tagged props from camelization", %{conn: conn} do
     conn =
       conn

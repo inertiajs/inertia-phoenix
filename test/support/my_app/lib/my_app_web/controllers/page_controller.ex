@@ -136,6 +136,15 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def camelized_deferred_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:first_name, "Bob")
+    |> assign_prop(:items, inertia_defer(fn -> [%{item_name: "Foo"}] end))
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
   def preserved_case_props(conn, _params) do
     conn
     |> assign(:page_title, "Home")

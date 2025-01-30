@@ -459,7 +459,7 @@ defmodule Inertia.Controller do
   defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props(fun, _opts) when is_function(fun, 0), do: fun.()
+  defp resolve_props(fun, opts) when is_function(fun, 0), do: resolve_props(fun.(), opts)
   defp resolve_props(value, _opts), do: value
 
   # Applies any specified transformations to the key (such as conversion to
