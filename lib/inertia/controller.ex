@@ -56,6 +56,7 @@ defmodule Inertia.Controller do
   @spec inertia_optional(fun :: fun()) :: optional()
   def inertia_optional(fun) when is_function(fun), do: {:optional, fun}
 
+  @doc since: "1.0.0"
   def inertia_optional(_) do
     raise ArgumentError, message: "inertia_optional/1 only accepts a function argument"
   end
@@ -83,6 +84,7 @@ defmodule Inertia.Controller do
     raise ArgumentError, message: "inertia_defer/1 only accepts a function argument"
   end
 
+  @doc since: "1.0.0"
   @spec inertia_defer(fun :: fun(), group :: String.t()) :: defer()
   def inertia_defer(fun, group) when is_function(fun) and is_binary(group) do
     {:defer, {fun, group}}
@@ -144,6 +146,7 @@ defmodule Inertia.Controller do
     put_private(conn, :inertia_encrypt_history, true)
   end
 
+  @doc since: "1.0.0"
   @spec encrypt_history(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
   def encrypt_history(conn, true_or_false) when is_boolean(true_or_false) do
     put_private(conn, :inertia_encrypt_history, true_or_false)
@@ -158,6 +161,7 @@ defmodule Inertia.Controller do
     put_private(conn, :inertia_clear_history, true)
   end
 
+  @doc since: "1.0.0"
   @spec clear_history(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
   def clear_history(conn, true_or_false) when is_boolean(true_or_false) do
     put_private(conn, :inertia_clear_history, true_or_false)
@@ -192,6 +196,7 @@ defmodule Inertia.Controller do
     put_private(conn, :inertia_camelize_props, true)
   end
 
+  @doc since: "1.0.0"
   @spec camelize_props(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
   def camelize_props(conn, true_or_false) when is_boolean(true_or_false) do
     put_private(conn, :inertia_camelize_props, true_or_false)
@@ -341,16 +346,16 @@ defmodule Inertia.Controller do
     camelize_props = conn.private[:inertia_camelize_props] || false
     reset = conn.private[:inertia_reset] || []
 
-    props = Map.merge(shared_props, inline_props)
-    {props, merge_props} = resolve_merge_props(props)
-    {props, deferred_props} = resolve_deferred_props(props)
+    opts = Keyword.merge(opts, camelize_props: camelize_props, reset: reset)
 
-    merge_props = Enum.reject(merge_props, fn key -> to_string(key) in reset end)
+    props = Map.merge(shared_props, inline_props)
+    {props, merge_props} = resolve_merge_props(props, opts)
+    {props, deferred_props} = resolve_deferred_props(props)
 
     props =
       props
-      |> apply_filters(only, except, camelize_props: camelize_props)
-      |> resolve_props(camelize_props: camelize_props)
+      |> apply_filters(only, except, opts)
+      |> resolve_props(opts)
       |> maybe_put_flash(conn)
 
     conn
@@ -368,11 +373,32 @@ defmodule Inertia.Controller do
 
   # Private helpers
 
-  defp resolve_merge_props(props) do
+  # Runs a reduce operation over the top-level props and looks for values that
+  # were tagged via the `inertia_merge/1` helper. If the value is tagged, then
+  # place the key in an array (unless that key is included in the list of
+  # "reset" keys). Otherwise, make no modification.
+  defp resolve_merge_props(props, opts) do
     Enum.reduce(props, {[], []}, fn {key, value}, {props, keys} ->
+      transformed_key =
+        key
+        |> transform_key(opts)
+        |> to_string()
+
       case value do
-        {:merge, unwrapped_value} -> {[{key, unwrapped_value} | props], [key | keys]}
-        _ -> {[{key, value} | props], keys}
+        {:merge, unwrapped_value} ->
+          # Only include this key in the collection of merge prop keys
+          # if it's not in the "reset" list
+          merge_prop_keys =
+            if transformed_key in opts[:reset] do
+              keys
+            else
+              [key | keys]
+            end
+
+          {[{key, unwrapped_value} | props], merge_prop_keys}
+
+        _ ->
+          {[{key, value} | props], keys}
       end
     end)
   end
