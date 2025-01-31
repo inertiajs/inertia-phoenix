@@ -9,6 +9,7 @@
 ### Fixed
 
 - Ensure prop keys are compared in the proper casing (for partial reloads) when `camelize_props` is enabled.
+- Fix prop resolution for deferred/optional props.
 
 ## 2.1.0
 
