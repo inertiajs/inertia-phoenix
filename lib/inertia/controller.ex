@@ -371,6 +371,13 @@ defmodule Inertia.Controller do
     |> send_response()
   end
 
+  @doc """
+  Determines if a response has been rendered with Inertia.
+  """
+  @spec inertia_response?(Plug.Conn.t()) :: boolean()
+  def inertia_response?(%Plug.Conn{private: %{inertia_page: _}} = _conn), do: true
+  def inertia_response?(_), do: false
+
   # Private helpers
 
   # Runs a reduce operation over the top-level props and looks for values that

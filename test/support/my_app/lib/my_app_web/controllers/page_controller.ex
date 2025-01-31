@@ -7,6 +7,12 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", %{text: "Hello World"})
   end
 
+  def non_inertia(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render(:non_inertia)
+  end
+
   def shared(conn, _params) do
     conn
     |> assign(:page_title, "Home")

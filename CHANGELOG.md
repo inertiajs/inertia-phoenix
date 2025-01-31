@@ -5,6 +5,7 @@
 ### Added
 
 - Add `preserve_case` helper to prevent auto-camelization of specified prop keys.
+- Add `Inertia.Controller.inertia_response?/1` helper to determine if a response is Inertia-rendered.
 
 ### Fixed
 

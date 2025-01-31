@@ -15,6 +15,7 @@ defmodule MyAppWeb.Router do
     pipe_through(:browser)
 
     get "/", PageController, :index
+    get "/non_inertia", PageController, :non_inertia
     get "/shared", PageController, :shared
     get "/lazy", PageController, :lazy
     get "/nested", PageController, :nested
