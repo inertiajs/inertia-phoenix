@@ -744,6 +744,18 @@ defmodule InertiaTest do
            } = json_response(conn, 200)
   end
 
+  test "converts force redirects to 409", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/force_redirect")
+
+    assert html_response(conn, 409)
+    refute get_resp_header(conn, "x-inertia") == ["true"]
+    assert get_resp_header(conn, "x-inertia-location") == ["/"]
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

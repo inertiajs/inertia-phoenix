@@ -138,7 +138,7 @@ defmodule Inertia.Plug do
 
   defp external_redirect?(%{status: status} = conn) when status in 300..308 do
     [location] = get_resp_header(conn, "location")
-    !String.starts_with?(location, "/")
+    conn.private[:inertia_force_redirect] || !String.starts_with?(location, "/")
   end
 
   defp external_redirect?(_conn), do: false

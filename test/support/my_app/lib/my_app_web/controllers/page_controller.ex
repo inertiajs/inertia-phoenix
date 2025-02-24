@@ -161,6 +161,12 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def force_redirect(conn, _params) do
+    conn
+    |> force_inertia_redirect()
+    |> redirect(to: "/")
+  end
+
   def local_ssr(conn, _params) do
     conn
     |> assign(:page_title, "Home")

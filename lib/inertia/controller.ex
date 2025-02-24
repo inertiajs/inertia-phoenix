@@ -379,6 +379,32 @@ defmodule Inertia.Controller do
   def inertia_response?(%Plug.Conn{private: %{inertia_page: _}} = _conn), do: true
   def inertia_response?(_), do: false
 
+  @doc """
+  Forces the Inertia.js client side to perform a redirect. This can be used as a
+  plug or inline when building a response.
+
+  This plug modifies the response to be a 409 Conflict response and include the
+  destination URL in the `x-inertia-location` header, which will cause the
+  Inertia client to perform a `window.location = url` visit.
+
+  **Note**: we automatically convert regular external redirects (via the Phoenix
+  `redirect` helper), but this function is useful if you need to force redirect
+  to a non-external route that is not handled by Inertia.
+
+  See https://inertiajs.com/redirects#external-redirects
+
+  ## Examples
+
+      conn
+      |> force_inertia_redirect()
+      |> redirect(to: "/non-inertia-powered-page")
+
+  """
+  @spec force_inertia_redirect(Plug.Conn.t(), opts :: keyword()) :: Plug.Conn.t()
+  def force_inertia_redirect(conn, _opts \\ []) do
+    put_private(conn, :inertia_force_redirect, true)
+  end
+
   # Private helpers
 
   # Runs a reduce operation over the top-level props and looks for values that

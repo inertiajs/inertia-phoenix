@@ -36,6 +36,7 @@ defmodule MyAppWeb.Router do
     get "/camelized_deferred_props", PageController, :camelized_deferred_props
     get "/preserved_case_props", PageController, :preserved_case_props
     get "/local_ssr", PageController, :local_ssr
+    get "/force_redirect", PageController, :force_redirect
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete
