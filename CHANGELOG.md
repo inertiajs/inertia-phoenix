@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Define an `Inertia.Errors` protocol with default implementations for `Ecto.Changeset` and `Map`.
+
 ## 2.2.0
 
 ### Added
