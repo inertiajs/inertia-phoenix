@@ -7,9 +7,10 @@ defprotocol Inertia.Errors do
   and bare maps.
   """
 
-  @spec to_errors(term()) :: map()
-  @spec to_errors(term(), msg_func :: function()) :: map()
-  def to_errors(value, msg_func \\ nil)
+  @spec to_errors(term()) :: map() | no_return()
+  @spec to_errors(term(), msg_func :: function()) :: map() | no_return()
+  def to_errors(value)
+  def to_errors(value, msg_func)
 end
 
 defimpl Inertia.Errors, for: Ecto.Changeset do
@@ -19,7 +20,7 @@ defimpl Inertia.Errors, for: Ecto.Changeset do
 
   def to_errors(%Ecto.Changeset{} = changeset, msg_func) do
     changeset
-    |> Ecto.Changeset.traverse_errors(msg_func || (&default_msg_func/1))
+    |> Ecto.Changeset.traverse_errors(msg_func)
     |> process_changeset_errors()
     |> Map.new()
   end
