@@ -250,7 +250,7 @@ defmodule Inertia.Controller do
   def assign_errors(conn, map_or_changeset) do
     errors =
       map_or_changeset
-      |> Errors.compile_errors!()
+      |> Errors.to_errors()
       |> bag_errors(conn)
       |> inertia_always()
 
@@ -260,7 +260,7 @@ defmodule Inertia.Controller do
   def assign_errors(conn, %Ecto.Changeset{} = changeset, msg_func) do
     errors =
       changeset
-      |> Errors.compile_errors!(msg_func)
+      |> Errors.to_errors(msg_func)
       |> bag_errors(conn)
       |> inertia_always()
 

@@ -1,25 +1,74 @@
-defmodule Inertia.Errors do
-  @moduledoc false
+defprotocol Inertia.Errors do
+  @moduledoc """
+  Converts a value to Inertia.js-compatible [validation
+  errors](https://inertiajs.com/validation).
 
-  @doc """
-  Compiles errors for into a format compatible with Inertia.js.
+  This library includes a default implementation for `Ecto.Changeset` structs
+  and bare maps.
   """
-  @spec compile_errors!(map() | Ecto.Changeset.t()) :: map() | no_return()
-  @spec compile_errors!(Ecto.Changeset.t(), msg_func :: function()) ::
-          map() | no_return()
-  def compile_errors!(%Ecto.Changeset{} = changeset) do
-    compile_errors!(changeset, &default_msg_func/1)
+
+  @spec to_errors(term()) :: map()
+  @spec to_errors(term(), msg_func :: function()) :: map()
+  def to_errors(value, msg_func \\ nil)
+end
+
+defimpl Inertia.Errors, for: Ecto.Changeset do
+  def to_errors(%Ecto.Changeset{} = changeset) do
+    to_errors(changeset, &default_msg_func/1)
   end
 
-  def compile_errors!(map) when is_map(map) do
-    validate_error_map!(map)
-  end
-
-  def compile_errors!(%Ecto.Changeset{} = changeset, msg_func) do
+  def to_errors(%Ecto.Changeset{} = changeset, msg_func) do
     changeset
-    |> Ecto.Changeset.traverse_errors(msg_func)
+    |> Ecto.Changeset.traverse_errors(msg_func || (&default_msg_func/1))
     |> process_changeset_errors()
     |> Map.new()
+  end
+
+  defp process_changeset_errors(value, path \\ nil)
+
+  defp process_changeset_errors(%{} = map, path) do
+    map
+    |> Map.to_list()
+    |> Enum.map(fn {key, value} ->
+      path = if path, do: "#{path}.#{key}", else: key
+      process_changeset_errors(value, path)
+    end)
+    |> List.flatten()
+  end
+
+  defp process_changeset_errors([%{} | _] = maps, path) do
+    maps
+    |> Enum.with_index()
+    |> Enum.map(fn {map, idx} ->
+      path = "#{path}[#{idx}]"
+      process_changeset_errors(map, path)
+    end)
+    |> List.flatten()
+  end
+
+  defp process_changeset_errors([message], path) when is_binary(message) do
+    {path, message}
+  end
+
+  defp process_changeset_errors([first_message | _], path) when is_binary(first_message) do
+    {path, first_message}
+  end
+
+  # The default message function to call when traversing Ecto errors
+  defp default_msg_func({msg, opts}) do
+    Enum.reduce(opts, msg, fn {key, value}, acc ->
+      String.replace(acc, "%{#{key}}", fn _ -> to_string(value) end)
+    end)
+  end
+end
+
+defimpl Inertia.Errors, for: Map do
+  def to_errors(value) do
+    validate_error_map!(value)
+  end
+
+  def to_errors(value, _msg_func) do
+    validate_error_map!(value)
   end
 
   defp validate_error_map!(map) do
@@ -45,51 +94,5 @@ defmodule Inertia.Errors do
     end
 
     map
-  end
-
-  @doc """
-  Process a map of errors after calling `Ecto.Changeset.traverse_errors/2`.
-
-  Note: This function is not part of the official public API, but is public for
-  ease of unit testing.
-  """
-  @spec process_changeset_errors(value :: map(), path :: String.t() | nil) :: [
-          {String.t(), String.t()}
-        ]
-  def process_changeset_errors(value, path \\ nil)
-
-  def process_changeset_errors(%{} = map, path) do
-    map
-    |> Map.to_list()
-    |> Enum.map(fn {key, value} ->
-      path = if path, do: "#{path}.#{key}", else: key
-      process_changeset_errors(value, path)
-    end)
-    |> List.flatten()
-  end
-
-  def process_changeset_errors([%{} | _] = maps, path) do
-    maps
-    |> Enum.with_index()
-    |> Enum.map(fn {map, idx} ->
-      path = "#{path}[#{idx}]"
-      process_changeset_errors(map, path)
-    end)
-    |> List.flatten()
-  end
-
-  def process_changeset_errors([message], path) when is_binary(message) do
-    {path, message}
-  end
-
-  def process_changeset_errors([first_message | _], path) when is_binary(first_message) do
-    {path, first_message}
-  end
-
-  # The default message function to call when traversing Ecto errors
-  defp default_msg_func({msg, opts}) do
-    Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", fn _ -> to_string(value) end)
-    end)
   end
 end
