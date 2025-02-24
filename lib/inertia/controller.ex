@@ -203,11 +203,11 @@ defmodule Inertia.Controller do
   end
 
   @doc """
-  Assigns errors to the Inertia page data. This helper accepts an
-  `Ecto.Changeset` (and automatically serializes its errors into a shape
-  compatible with Inertia), or a bare map of errors.
+  Assigns errors to the Inertia page data. This helper accepts any data that
+  implements the `Inertia.Errors` protocol. By default, this library implements
+  error serializers for `Ecto.Changeset` and bare maps.
 
-  If you are serializing your own errors, they should take the following shape:
+  If you are serializing your own errors maps, they should take the following shape:
 
       %{
         "name" => "Name is required",
@@ -243,13 +243,14 @@ defmodule Inertia.Controller do
           Gettext.dgettext(MyAppWeb.Gettext, "errors", msg, opts)
         end
       end)
+
   """
-  @spec assign_errors(Plug.Conn.t(), data :: Ecto.Changeset.t() | map()) :: Plug.Conn.t()
-  @spec assign_errors(Plug.Conn.t(), data :: Ecto.Changeset.t(), msg_func :: function()) ::
+  @spec assign_errors(Plug.Conn.t(), data :: term()) :: Plug.Conn.t()
+  @spec assign_errors(Plug.Conn.t(), data :: term(), msg_func :: function()) ::
           Plug.Conn.t()
-  def assign_errors(conn, map_or_changeset) do
+  def assign_errors(conn, data) do
     errors =
-      map_or_changeset
+      data
       |> Errors.to_errors()
       |> bag_errors(conn)
       |> inertia_always()
@@ -257,9 +258,9 @@ defmodule Inertia.Controller do
     assign_prop(conn, :errors, errors)
   end
 
-  def assign_errors(conn, %Ecto.Changeset{} = changeset, msg_func) do
+  def assign_errors(conn, data, msg_func) do
     errors =
-      changeset
+      data
       |> Errors.to_errors(msg_func)
       |> bag_errors(conn)
       |> inertia_always()
