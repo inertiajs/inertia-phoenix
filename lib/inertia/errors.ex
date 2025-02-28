@@ -1,10 +1,76 @@
 defprotocol Inertia.Errors do
-  @moduledoc """
+  @moduledoc ~S"""
   Converts a value to Inertia.js-compatible [validation
   errors](https://inertiajs.com/validation).
 
-  This library includes a default implementation for `Ecto.Changeset` structs
-  and bare maps.
+  This protocol allows you to transform various error structures into the format
+  expected by Inertia.js for client-side validation. The protocol converts error
+  structures into a flat map where keys represent field paths and values are error
+  messages.
+
+  ## Built-in Implementations
+
+  This library includes default implementations for:
+
+  * `Ecto.Changeset` - Converts changeset errors to Inertia-compatible format
+  * `Map` - Validates and passes through properly formatted error maps
+
+  ## Usage with Ecto.Changeset
+
+  ```elixir
+  # In your controller action
+  def create(conn, %{"post" => post_params}) do
+    case Posts.create(post_params)
+      # Handle successful validation
+      {:ok, post} ->
+        redirect(conn, to: ~p"/posts/#{post}")
+
+      # Convert changeset errors and share them with Inertia
+      {:error, changeset} ->
+        conn
+        |> assign_errors(changeset)
+        |> redirect(conn, to: ~p"/posts/new")
+    end
+  end
+  ```
+
+  The `assign_errors/2` function is a convenience helper provided by `Inertia.Controller`
+  that internally uses `Inertia.Errors.to_errors/1` to serialize the changeset errors
+  and share them with the Inertia page under the `errors` key.
+
+  ## Custom Error Formatting
+
+  You can provide a custom message formatting function as the second argument to
+  `to_errors/2`:
+
+  ```elixir
+  Inertia.Errors.to_errors(changeset, fn {msg, opts} ->
+    # Custom error message formatting logic
+    Gettext.dgettext(MyApp.Gettext, "errors", msg, opts)
+  end)
+  ```
+
+  ## Implementing for Custom Types
+
+  You can implement this protocol for your own error types:
+
+  ```elixir
+  defimpl Inertia.Errors, for: MyApp.ValidationError do
+    def to_errors(validation_error) do
+      # Convert your custom error structure to a map of field paths to error
+      # messages
+      %{
+        "field_name" => validation_error.message,
+        "nested.field" => "Another error message"
+      }
+    end
+
+    def to_errors(validation_error, _msg_func) do
+      # Custom implementation with message function
+      to_errors(validation_error)
+    end
+  end
+  ```
   """
 
   @spec to_errors(term()) :: map() | no_return()
