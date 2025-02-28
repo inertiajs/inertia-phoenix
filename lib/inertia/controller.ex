@@ -400,6 +400,7 @@ defmodule Inertia.Controller do
       |> redirect(to: "/non-inertia-powered-page")
 
   """
+  @doc since: "2.3.0"
   @spec force_inertia_redirect(Plug.Conn.t(), opts :: keyword()) :: Plug.Conn.t()
   def force_inertia_redirect(conn, _opts \\ []) do
     put_private(conn, :inertia_force_redirect, true)

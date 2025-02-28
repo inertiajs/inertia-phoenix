@@ -25,7 +25,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 2.2.0"}
+    {:inertia, "~> 2.3.0"}
   ]
 end
 ```
@@ -381,7 +381,7 @@ Anywhere this plug is used, the serialized `user` prop will be passed to the Ine
 
 Validation errors follow some specific conventions to make wiring up with Inertia's form helpers seamless. The `errors` prop is managed by this library and is always included in the props object for Inertia components. (When there are no errors, the `errors` prop will be an empty object).
 
-The `assign_errors` function is how you tell Inertia what errors should be represented on the front-end. You can either pass an `Ecto.Changeset` struct or a bare map to the `assign_errors` function.
+The `assign_errors` function is how you tell Inertia what errors should be represented on the front-end. By default, you can either pass an `Ecto.Changeset` struct or a bare map to the `assign_errors` function. For other error data types, you may implement the `Inertia.Errors` protocol (see the `Inertia.Errors` module docs for more information).
 
 ```elixir
 def update(conn, params) do
