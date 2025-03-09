@@ -55,7 +55,7 @@ config :inertia,
   # conventional in JavaScript. Defaults to `false`.
   camelize_props: false,
 
-  # Instruct the client side whether to encrypt the page object in the window history 
+  # Instruct the client side whether to encrypt the page object in the window history
   # state. This can also be set/overridden on a per-request basis, using the `encrypt_history`
   # controller helper. Defaults to `false`.
   history: [encrypt: false],
@@ -313,7 +313,7 @@ conn
 
 ## Deferred props
 
-**Requires Inertia v2.x on the client-side**. 
+**Requires Inertia v2.x on the client-side**.
 
 If you have expensive data that you'd like to automatically fetch (from the client-side via an async background request) after the page is initially rendered, you can mark the prop as deferred:
 
@@ -361,7 +361,7 @@ defmodule MyApp.UserAuth do
 
   def authenticate_user(conn, _opts) do
     user = get_user_from_session(conn)
- 
+
     # Here we are storing the user in the conn assigns (so
     # we can use it for things like checking permissions later on),
     # AND we are assigning a serialized represention of the user
@@ -405,7 +405,7 @@ The `assign_errors` function will automatically convert the changeset errors int
 {
   "name" => "can't be blank",
 
-  // Nested errors keys are flattened with a dot separator (`.`) 
+  // Nested errors keys are flattened with a dot separator (`.`)
   "team.name" => "must be at least 3 characters long",
 
   // Nested arrays are zero-based and indexed using bracket notation (`[0]`)
@@ -714,7 +714,7 @@ Then, update your config to enable SSR (if you'd like to enable it globally).
     # assets using the `static_paths` config). Defaults to "1".
     default_version: "1",
 
-    # Enable server-side rendering for page responses (requires some additional setup, 
+    # Enable server-side rendering for page responses (requires some additional setup,
     # see instructions below). Defaults to `false`.
 -   ssr: false
 +   ssr: true
@@ -758,6 +758,29 @@ If you haven't installed node into your runner image, add the following command 
 
 > [!IMPORTANT]
 > **Be sure to set `NODE_ENV=production`**, so that the SSR script is cached in memory. Otherwise, your page rendering times will be very slow!
+
+> [!NOTE]
+This package supports generating JavaScript files using the **ECMAScript Module (ESM) format**. This is useful if your codebase or environment relies on native ESM imports rather than CommonJS.
+
+```elixir
+{Inertia.SSR,
+  path: Path.join([Application.app_dir(:my_app), "priv"]),
+  esm: true,
+  esm_cache_busting: Mix.env() != :prod,
+  esm_module_extension: "mjs" # No need to be set. This is the default value.
+}
+```
+`:esm_cache_busting` Useful for forcing reloads of your ssr.js file in environments that use dynamic imports. Defaults to false. In most cases, you’ll want to keep this set to false in production, since the generated JS file doesn't change frequently
+
+`:esm_module_extension` Sets the file extension for the generated ESM module. Defaults to "mjs". You’ll need to configure your JS bundler to output the ssr.js file with the .mjs extension so that Node.js recognizes it as an ESM module.
+Alternatively, you can keep the .js extension by passing "js" to the :esm_module_extension option and creating a package.json at the root of your Phoenix project with the following content:
+
+```json
+{
+  "type": "module"
+}
+```
+This tells Node.js to treat `.js` files as ESM.
 
 ### Client side hydration
 
