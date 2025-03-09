@@ -24,4 +24,9 @@ defmodule Inertia.SSR.Config do
   def handle_call(:module, _from, state) do
     {:reply, state[:module], state}
   end
+
+  @impl true
+  def handle_call(:esm, _from, state) do
+    {:reply, state[:esm], state}
+  end
 end
