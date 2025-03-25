@@ -46,4 +46,29 @@ defmodule Inertia.Testing do
     page = conn.private[:inertia_page] || %{}
     page[:props]
   end
+
+  @doc """
+  Fetches the Inertia errors (if applicable) for the current request.
+  This is useful for when asserting against a validation error after a redirect.
+
+  ## Example
+
+      use MyAppWeb.ConnCase
+
+      import Inertia.Testing
+
+      describe "POST /users" do
+        test "fails when name empty", %{conn: conn} do
+          conn = post("/users", %{"name" => ""})
+
+          assert %{user: %{id: 1}} = inertia_props(conn)
+          assert redirected_to(conn) == ~p"/users"
+          assert inertia_errors(conn) == %{"name" => "can't be blank"}
+        end
+      end
+  """
+  @spec inertia_errors(Plug.Conn.t()) :: map() | nil
+  def inertia_errors(conn) do
+    Plug.Conn.get_session(conn, "inertia_errors")
+  end
 end

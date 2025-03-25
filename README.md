@@ -55,7 +55,7 @@ config :inertia,
   # conventional in JavaScript. Defaults to `false`.
   camelize_props: false,
 
-  # Instruct the client side whether to encrypt the page object in the window history 
+  # Instruct the client side whether to encrypt the page object in the window history
   # state. This can also be set/overridden on a per-request basis, using the `encrypt_history`
   # controller helper. Defaults to `false`.
   history: [encrypt: false],
@@ -313,7 +313,7 @@ conn
 
 ## Deferred props
 
-**Requires Inertia v2.x on the client-side**. 
+**Requires Inertia v2.x on the client-side**.
 
 If you have expensive data that you'd like to automatically fetch (from the client-side via an async background request) after the page is initially rendered, you can mark the prop as deferred:
 
@@ -361,7 +361,7 @@ defmodule MyApp.UserAuth do
 
   def authenticate_user(conn, _opts) do
     user = get_user_from_session(conn)
- 
+
     # Here we are storing the user in the conn assigns (so
     # we can use it for things like checking permissions later on),
     # AND we are assigning a serialized represention of the user
@@ -405,7 +405,7 @@ The `assign_errors` function will automatically convert the changeset errors int
 {
   "name" => "can't be blank",
 
-  // Nested errors keys are flattened with a dot separator (`.`) 
+  // Nested errors keys are flattened with a dot separator (`.`)
   "team.name" => "must be at least 3 characters long",
 
   // Nested arrays are zero-based and indexed using bracket notation (`[0]`)
@@ -518,6 +518,22 @@ describe "GET /" do
     conn = get("/")
     assert inertia_component(conn) == "Home"
     assert %{user: %{id: 1}} = inertia_props(conn)
+  end
+end
+```
+
+```elixir
+use MyAppWeb.ConnCase
+
+import Inertia.Testing
+
+describe "POST /users" do
+  test "fails when name empty", %{conn: conn} do
+    conn = post("/users", %{"name" => ""})
+
+    assert %{user: %{id: 1}} = inertia_props(conn)
+    assert redirected_to(conn) == ~p"/users"
+    assert inertia_errors(conn) == %{"name" => "can't be blank"}
   end
 end
 ```
@@ -714,7 +730,7 @@ Then, update your config to enable SSR (if you'd like to enable it globally).
     # assets using the `static_paths` config). Defaults to "1".
     default_version: "1",
 
-    # Enable server-side rendering for page responses (requires some additional setup, 
+    # Enable server-side rendering for page responses (requires some additional setup,
     # see instructions below). Defaults to `false`.
 -   ssr: false
 +   ssr: true
