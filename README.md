@@ -55,7 +55,7 @@ config :inertia,
   # conventional in JavaScript. Defaults to `false`.
   camelize_props: false,
 
-  # Instruct the client side whether to encrypt the page object in the window history 
+  # Instruct the client side whether to encrypt the page object in the window history
   # state. This can also be set/overridden on a per-request basis, using the `encrypt_history`
   # controller helper. Defaults to `false`.
   history: [encrypt: false],
@@ -63,6 +63,10 @@ config :inertia,
   # Enable server-side rendering for page responses (requires some additional setup,
   # see instructions below). Defaults to `false`.
   ssr: false,
+
+  # By default the server side rendering is done by executing nodejs.
+  # you can use your own adapter following the spec.
+  ssr_adapter: MyAdapter
 
   # Whether to raise an exception when server-side rendering fails (only applies
   # when SSR is enabled). Defaults to `true`.
@@ -313,7 +317,7 @@ conn
 
 ## Deferred props
 
-**Requires Inertia v2.x on the client-side**. 
+**Requires Inertia v2.x on the client-side**.
 
 If you have expensive data that you'd like to automatically fetch (from the client-side via an async background request) after the page is initially rendered, you can mark the prop as deferred:
 
@@ -361,7 +365,7 @@ defmodule MyApp.UserAuth do
 
   def authenticate_user(conn, _opts) do
     user = get_user_from_session(conn)
- 
+
     # Here we are storing the user in the conn assigns (so
     # we can use it for things like checking permissions later on),
     # AND we are assigning a serialized represention of the user
@@ -405,7 +409,7 @@ The `assign_errors` function will automatically convert the changeset errors int
 {
   "name" => "can't be blank",
 
-  // Nested errors keys are flattened with a dot separator (`.`) 
+  // Nested errors keys are flattened with a dot separator (`.`)
   "team.name" => "must be at least 3 characters long",
 
   // Nested arrays are zero-based and indexed using bracket notation (`[0]`)
@@ -506,7 +510,6 @@ conn
 ## Testing
 
 The `Inertia.Testing` module includes helpers for testing your Inertia controller responses, such as the `inertia_component/1` and `inertia_props/1` functions.
-
 
 ```elixir
 use MyAppWeb.ConnCase
@@ -629,6 +632,7 @@ Add the `ssr` build to the watchers in your dev environment, alongside the other
     ]
 ```
 
+### Build and deploy with SSR
 Add the `ssr` build step to the asset build and deploy scripts.
 
 ```diff
@@ -714,7 +718,7 @@ Then, update your config to enable SSR (if you'd like to enable it globally).
     # assets using the `static_paths` config). Defaults to "1".
     default_version: "1",
 
-    # Enable server-side rendering for page responses (requires some additional setup, 
+    # Enable server-side rendering for page responses (requires some additional setup,
     # see instructions below). Defaults to `false`.
 -   ssr: false
 +   ssr: true
@@ -727,6 +731,20 @@ Then, update your config to enable SSR (if you'd like to enable it globally).
     # CSR).
     raise_on_ssr_failure: config_env() != :prod
 ```
+
+### Using ESM (EcmaScript Modules) on SSR entrypoint
+
+By default this library uses CommonJS modules for SSR. If you want to use ESM (EcmaScript Modules) set `esm: true` in your config.
+
+```elixir
+  {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"]), esm: true},
+```
+
+### Custom SSR adapter
+
+You can setup your own SSR adapter. This is a list of third party adapters.
+
+- [vitex](https://github.com/andresgutgon/vitex) is a package that helps with ViteJS development in Phoenix apps. It has a custom SSR adapter for this package (inertia-phoenix) so SSR can be handle in development through Vite Dev server instead of calling a NodeJS process like we do in production. You can see [how it's configured here](https://github.com/andresgutgon/vitex?tab=readme-ov-file#configuring-vitejs-in-your-phoenix-app)
 
 ### Installing Node.js in your production
 
