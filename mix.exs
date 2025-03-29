@@ -24,7 +24,8 @@ defmodule Inertia.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      # inets is used by ViteJS ssr adapter to fetch the page on the dev vite server
+      extra_applications: [:logger, :inets]
     ]
   end
 
@@ -71,7 +72,8 @@ defmodule Inertia.MixProject do
     [
       maintainers: ["Derrick Reimer"],
       licenses: ["MIT"],
-      links: links()
+      links: links(),
+      files: ~w(priv/vitejs/vitePlugin.js priv/vitejs/vitePlugin.d.ts package.json)
     ]
   end
 
