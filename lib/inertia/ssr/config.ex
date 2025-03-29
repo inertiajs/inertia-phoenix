@@ -1,27 +1,52 @@
 defmodule Inertia.SSR.Config do
   @moduledoc false
 
+  alias Inertia.SSR.Adapter
+
   use GenServer
 
-  # Client
+  @type state :: %{adapter: module(), config: struct()}
 
-  def start_link(init_arg) do
-    GenServer.start_link(__MODULE__, init_arg, name: __MODULE__)
+  def start_link(opts) do
+    adapter = Keyword.fetch!(opts, :adapter)
+    config = Keyword.fetch!(opts, :config)
+
+    GenServer.start_link(
+      __MODULE__,
+      %{
+        adapter: adapter,
+        config: config
+      },
+      name: __MODULE__
+    )
   end
 
-  def module(pid) do
-    GenServer.call(pid, :module)
+  @doc "Stores the adapter module and its config"
+  def set_adapter(adapter_module, config) do
+    GenServer.call(__MODULE__, {:set_adapter, adapter_module, config})
   end
 
-  # Server (callbacks)
+  @doc "Forwards the page call to the adapter"
+  def call(page) do
+    GenServer.call(__MODULE__, {:call, page})
+  end
 
   @impl true
-  def init(state) do
-    {:ok, state}
+  @spec init(state()) :: {:ok, state()}
+  def init(state), do: {:ok, state}
+
+  @impl true
+  @spec handle_call(
+          {:call, Adapter.page()},
+          GenServer.from(),
+          state()
+        ) :: {:reply, Adapter.ssr_result(), state()}
+  def handle_call({:call, page}, _from, %{adapter: adapter, config: config} = state) do
+    {:reply, adapter.call(page, config), state}
   end
 
   @impl true
-  def handle_call(:module, _from, state) do
-    {:reply, state[:module], state}
+  def handle_call({:set_adapter, adapter_module, config}, _from, _state) do
+    {:reply, :ok, %{adapter: adapter_module, config: config}}
   end
 end
