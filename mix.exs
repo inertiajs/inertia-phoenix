@@ -71,7 +71,8 @@ defmodule Inertia.MixProject do
     [
       maintainers: ["Derrick Reimer"],
       licenses: ["MIT"],
-      links: links()
+      links: links(),
+      files: ~w(priv/vitejs/vitePlugin.js priv/vitejs/vitePlugin.d.ts package.json)
     ]
   end
 

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler", // ← preferred for Vite & ESM
+    "lib": ["ESNext", "DOM"], // DOM for req/res types
+    "outDir": "../priv/vitejs",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules"],
+  "include": ["js/vitePlugin.ts"]
+}
+

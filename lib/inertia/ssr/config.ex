@@ -13,6 +13,8 @@ defmodule Inertia.SSR.Config do
     GenServer.call(pid, :module)
   end
 
+  def adapter, do: GenServer.call(__MODULE__, :ssr_adapter)
+
   # Server (callbacks)
 
   @impl true
@@ -23,5 +25,15 @@ defmodule Inertia.SSR.Config do
   @impl true
   def handle_call(:module, _from, state) do
     {:reply, state[:module], state}
+  end
+
+  @impl true
+  def handle_call(:esm, _from, state) do
+    {:reply, state[:esm], state}
+  end
+
+  @impl true
+  def handle_call(:ssr_adapter, _from, state) do
+    {:reply, state[:ssr_adapter], state}
   end
 end
