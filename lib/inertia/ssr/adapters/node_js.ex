@@ -1,9 +1,6 @@
 defmodule Inertia.SSR.NodeJS do
   @moduledoc """
-  SSR adapter using NodeJS. Invokes the `render` function from your `ssr.js` file.
-
-  The `ssr.js` must export a named `render` function that accepts the Inertia `page`
-  payload and returns `{ head: [], body: "..." }`.
+  SSR adapter using NodeJS. Invokes the `render` function from your `assets/ssr.jsx|tsx` file.
   """
 
   @behaviour Inertia.SSRAdapter

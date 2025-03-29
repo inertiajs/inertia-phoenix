@@ -25,7 +25,7 @@ defmodule Inertia.SSR do
   - `:path` - (required) the path to the directory where your `ssr.js` file lives.
   - `:module` - (optional) the name of the Node.js module file. Defaults to "#{@default_module}".
   - `:esm` - (optional) Use ESM for the generated ssr.js file. Defaults to #{@default_esm}.
-  - `:ssr_adapter` - (optional) the name of the Node.js module file. Defaults to "#{@default_ssr_adapter}
+  - `:ssr_adapter` - (optional) adapter determining how nodejs is executed in elixir. Defaults to "#{@default_ssr_adapter}
   - `:pool_size` - (optional) the number of Node.js workers. Defaults to #{@default_pool_size}.
   """
   def start_link(init_arg) do
@@ -52,8 +52,6 @@ defmodule Inertia.SSR do
   @doc false
   @spec call(Adapter.page()) :: Adapter.ssr_result()
   def call(page) do
-    ssr_adapter = GenServer.call(Config, :ssr_adapter)
-    ssr_adapter.render(page)
     Config.adapter().render(page)
   end
 
