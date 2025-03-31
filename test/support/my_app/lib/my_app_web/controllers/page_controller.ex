@@ -57,6 +57,7 @@ defmodule MyAppWeb.PageController do
     changeset = MyApp.User.changeset(%MyApp.User{}, %{settings: %{}})
 
     conn
+    |> assign(:page_title, "Home")
     |> assign_errors(changeset)
     |> render_inertia("Home")
   end
@@ -71,6 +72,7 @@ defmodule MyAppWeb.PageController do
 
   def bad_error_map(conn, _params) do
     conn
+    |> assign(:page_title, "Home")
     |> assign_errors(%{user: %{name: ["is required"]}})
     |> render_inertia("Home")
   end

@@ -49,7 +49,9 @@ defmodule Inertia.Testing do
 
   @doc """
   Fetches the Inertia errors (if applicable) for the current request.
-  This is useful for when asserting against a validation error after a redirect.
+
+  If there are errors available in the current page props, they will be returned.
+  Otherwise, errors that have been stored in the session will be retrieved.
 
   ## Example
 
@@ -67,7 +69,7 @@ defmodule Inertia.Testing do
         end
       end
   """
-  @spec inertia_errors(Plug.Conn.t()) :: map() | nil
+  @spec inertia_errors(Plug.Conn.t()) :: map()
   def inertia_errors(conn) do
     page = conn.private[:inertia_page] || %{}
 

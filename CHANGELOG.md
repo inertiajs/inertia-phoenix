@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add `inertia_errors/1` test helper to fetch Inertia errors ([#43](https://github.com/inertiajs/inertia-phoenix/pull/43)).
+
 ## 2.3.0
 
 ### Added
