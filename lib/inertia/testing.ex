@@ -69,6 +69,11 @@ defmodule Inertia.Testing do
   """
   @spec inertia_errors(Plug.Conn.t()) :: map() | nil
   def inertia_errors(conn) do
-    Plug.Conn.get_session(conn, "inertia_errors")
+    page = conn.private[:inertia_page] || %{}
+
+    case page[:props] do
+      %{errors: errors} -> errors
+      _ -> Plug.Conn.get_session(conn, "inertia_errors", %{})
+    end
   end
 end
