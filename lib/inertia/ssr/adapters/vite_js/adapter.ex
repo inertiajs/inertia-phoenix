@@ -1,6 +1,9 @@
-defmodule Inertia.SSR.ViteJS do
+defmodule Inertia.SSR.Adapters.ViteJS do
+  alias Inertia.SSR.Adapters.ViteJS.Config
+
   @moduledoc """
   SSR adapter that sends a POST request to the Vite dev server at `/ssr_render`.
+  Not recomended for production use, but useful for development.
 
   Example Vite config:
       import react from '@vitejs/plugin-react'
@@ -17,14 +20,19 @@ defmodule Inertia.SSR.ViteJS do
   By default it points to the Vite dev server to localhost:5173.
   """
 
-  @behaviour Inertia.SSRAdapter
-  @default_vite_host "http://localhost:5173"
+  use Inertia.SSR.Adapters.Macro, Inertia.SSR.Adapters.ViteJS.Config
 
   @impl true
-  def render(page) when is_map(page) do
+  def children(), do: []
+
+  @impl true
+  def call(page) when is_map(page) do
+    %Config{vite_host: vite_host} = config()
+    vite_path = "#{vite_host}/ssr_render"
     body = Jason.encode!(page)
+
     headers = [{~c"Content-Type", ~c"application/json"}]
-    request = {vite_path(), headers, ~c"application/json", body}
+    request = {vite_path, headers, ~c"application/json", body}
 
     case :httpc.request(:post, request, [], []) do
       {:ok, {{_, 200, _}, _headers, response_body}} ->
@@ -59,11 +67,5 @@ defmodule Inertia.SSR.ViteJS do
       _ ->
         {:error, "Unexpected 500 error from Vite SSR: #{body}"}
     end
-  end
-
-  defp vite_path() do
-    host = Application.get_env(:inertia, :vite_host, @default_vite_host)
-
-    String.to_charlist(Path.join(host, "/ssr_render"))
   end
 end
