@@ -4,11 +4,11 @@
   "license": "MIT",
   "description": "Inertia.js adapter for Phoenix LiveView",
   "author": "Derrick Reimer",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git://github.com/inertiajs/inertia-phoenix.git"
   },
-  "type": "module",
   "scripts": {
     "copyPackage": "cp package.json ../package.json",
     "dev": "npm run copyPackage && tsc --watch",
@@ -16,7 +16,7 @@
     "format": "npx prettier --write assets"
   },
   "devDependencies": {
-    "@types/node": "^22.9.1",
+    "@types/node": "^22.14.0",
     "prettier": "2.8.7",
     "typescript": "^5.6.2",
     "vite": "^5.4.8"

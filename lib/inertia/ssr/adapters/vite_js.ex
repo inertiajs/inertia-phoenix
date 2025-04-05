@@ -2,32 +2,29 @@ defmodule Inertia.SSR.ViteJS do
   @moduledoc """
   SSR adapter that sends a POST request to the Vite dev server at `/ssr_render`.
 
-  You must register a custom Vite plugin in your `vite.config.js` that exposes
-  a `/ssr_render` endpoint accepting the full Inertia page payload.
-
   Example Vite config:
-
       import react from '@vitejs/plugin-react'
       import inertiaVitePlugin from '@inertia-phoenix/vitePlugin'
 
       export default {
-        plugins: [react(), inertiaVitePlugin()],
+        plugins: [react(), inertiaVitePlugin({ entrypoint: './js/ssr.tsx' })],
       }
 
-  And in your `config/dev.exs`, set the host:
+  Optionaly you can change vite_host in your `config/dev.exs`, set the host:
 
-      config :inertia, :vite_host, "http://localhost:5173"
+      config :inertia, :vite_host, "http://localhost:5167"
+
+  By default it points to the Vite dev server to localhost:5173.
   """
 
   @behaviour Inertia.SSRAdapter
+  @default_vite_host "http://localhost:5173"
 
   @impl true
   def render(page) when is_map(page) do
-    url = vite_path("/ssr_render")
     body = Jason.encode!(page)
-
     headers = [{~c"Content-Type", ~c"application/json"}]
-    request = {String.to_charlist(url), headers, ~c"application/json", body}
+    request = {vite_path(), headers, ~c"application/json", body}
 
     case :httpc.request(:post, request, [], []) do
       {:ok, {{_, 200, _}, _headers, response_body}} ->
@@ -64,21 +61,9 @@ defmodule Inertia.SSR.ViteJS do
     end
   end
 
-  defp vite_path(path) do
-    case Application.get_env(:inertia, :vite_host) do
-      nil ->
-        raise """
-        ViteJS host is not configured.
+  defp vite_path() do
+    host = Application.get_env(:inertia, :vite_host, @default_vite_host)
 
-        Please add this to your `config/dev.exs`:
-
-            config :inertia, :vite_host, "http://localhost:5173"
-
-        and ensure Vite is running and has a /ssr_render endpoint.
-        """
-
-      host ->
-        Path.join(host, path)
-    end
+    String.to_charlist(Path.join(host, "/ssr_render"))
   end
 end
