@@ -24,3 +24,8 @@ inertia-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# ViteJS plugin compiled assets
+/assets/node_modules/
+package.json
+/priv/vitejs

@@ -64,6 +64,11 @@ config :inertia,
   # see instructions below). Defaults to `false`.
   ssr: false,
 
+  # By default the server side rendering is done by executing nodejs in an
+  # Elixir process. If you want to use vitejs set the ssr_adapter
+  # to "vitejs". This will use the dev vitejs server to do the SSR and HMR.
+  ssr_adapter: if config_env() == :prod, do: nil, else: "vitejs"
+
   # Whether to raise an exception when server-side rendering fails (only applies
   # when SSR is enabled). Defaults to `true`.
   #
