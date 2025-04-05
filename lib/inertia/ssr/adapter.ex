@@ -1,4 +1,6 @@
 defmodule Inertia.SSR.Adapter do
+  require Logger
+
   @moduledoc """
   Defines the contract for Server-Side Rendering (SSR) adapters in Inertia.
 
@@ -47,11 +49,9 @@ defmodule Inertia.SSR.Adapter do
           @default_adapter
 
         other ->
-          require Logger
-
           Logger.warning("""
           Unknown SSR adapter: #{inspect(other)}.
-          Falling back to Inertia.SSR.Adapters.NodeJS
+          Falling back to nodejs adapter
           """)
 
           @default_adapter
