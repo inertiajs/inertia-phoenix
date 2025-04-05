@@ -27,7 +27,6 @@ const jsonMiddleware = (req: ExtendedRequest, res: ServerResponse<IncomingMessag
   })
 }
 
-const SSR_DEV_SERVER_PATH = '/ssr_render'
 export default function inertiaPhoenixPlugin({ entrypoint }: { entrypoint: string }): Plugin {
   return {
     name: 'inertia-phoenix',
@@ -48,39 +47,39 @@ Example:
       process.stdin.resume()
 
       server.middlewares.use((req: ExtendedRequest, res, next) => {
-        if (req.method === 'POST' && req.url?.split('?', 1)[0] === SSR_DEV_SERVER_PATH) {
-          jsonMiddleware(req, res, async () => {
-            try {
-              const { render } = await server.ssrLoadModule(entrypoint)
-              const html = await render(req.body)
+        const path = req.url?.split('?', 1)[0]
+        const isInertiaRequest = req.method === 'POST' && path === '/ssr_render'
+        if (!isInertiaRequest) return next()
 
-              jsonResponse(res, 200, {
-                head: [], // optional preload links
-                body: html,
+        jsonMiddleware(req, res, async () => {
+          try {
+            const { render } = await server.ssrLoadModule(entrypoint)
+            const html = await render(req.body)
+
+            jsonResponse(res, 200, {
+              head: [],
+              body: html,
+            })
+          } catch (e) {
+            if (e instanceof Error) {
+              server.ssrFixStacktrace(e)
+
+              jsonResponse(res, 500, {
+                error: {
+                  message: e.message,
+                  stack: e.stack,
+                },
               })
-            } catch (e) {
-              if (e instanceof Error) {
-                server.ssrFixStacktrace(e)
-
-                jsonResponse(res, 500, {
-                  error: {
-                    message: e.message,
-                    stack: e.stack,
-                  },
-                })
-              } else {
-                jsonResponse(res, 500, {
-                  error: {
-                    message: 'Unknown error',
-                    detail: e,
-                  },
-                })
-              }
+            } else {
+              jsonResponse(res, 500, {
+                error: {
+                  message: 'Unknown error',
+                  detail: e,
+                },
+              })
             }
-          })
-        } else {
-          next()
-        }
+          }
+        })
       })
     },
   }
