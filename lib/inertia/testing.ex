@@ -69,6 +69,7 @@ defmodule Inertia.Testing do
         end
       end
   """
+  @doc since: "2.4.0"
   @spec inertia_errors(Plug.Conn.t()) :: map()
   def inertia_errors(conn) do
     page = conn.private[:inertia_page] || %{}
