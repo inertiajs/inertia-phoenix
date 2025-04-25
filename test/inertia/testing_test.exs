@@ -3,6 +3,12 @@ defmodule Inertia.TestingTest do
 
   import Inertia.Testing
 
+  setup do
+    # Disable SSR by default, selectively enable it when testing
+    Application.put_env(:inertia, :ssr, false)
+    :ok
+  end
+
   describe "inertia_component/1" do
     test "returns the component from the page", %{conn: conn} do
       conn = get(conn, "/")
