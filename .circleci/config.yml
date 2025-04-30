@@ -29,6 +29,7 @@ jobs:
             - elixir-plt-<< parameters.version >>-{{ checksum "mix.lock" }}
       - run: mix local.hex --force
       - run: mix local.rebar --force
+      - run: mix archive.install hex phx_new --force
       - run: mix deps.get
       - run: mix compile --warnings-as-errors
       - save_cache:
