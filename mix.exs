@@ -31,6 +31,7 @@ defmodule Inertia.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:phx_new, "~> 1.0", only: [:test]},
       {:phoenix, "~> 1.7"},
       {:phoenix_html, ">= 3.0.0"},
       {:phoenix_live_view, "~> 1.0"},
