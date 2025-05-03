@@ -17,7 +17,7 @@ defmodule Inertia.MixProject do
       docs: docs(),
       description: description(),
       package: package(),
-      dialyzer: [ignore_warnings: "dialyzer.ignore-warnings"]
+      dialyzer: [ignore_warnings: "dialyzer.ignore-warnings", plt_add_apps: [:mix]]
     ]
   end
 
