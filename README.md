@@ -20,6 +20,26 @@ The official Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 
 ## Installation
 
+### Using Igniter
+
+The easiest way to get started is to use the [Igniter](https://hexdocs.pm/igniter) installer.
+
+```sh
+mix archive.install hex igniter_new
+mix igniter.install inertia
+```
+
+The following options can be used to customize the installation:
+
+```sh
+--client-framework [react|vue|svelte] # Configures the client-side framework in `assets/package.json`
+--camelize-props                      # Sets `camelize_props: true` in `config.exs` (See below)
+--history-encrypt                     # Sets `history: [encrypt: true]` in `config.exs` (See below)
+--typescript                          # Creates a TypeScript config file and installs dev dependencies
+```
+
+### Manually
+
 The package can be installed by adding `inertia` to your list of dependencies in `mix.exs`:
 
 ```elixir
