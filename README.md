@@ -349,6 +349,13 @@ conn
 |> assign_prop(:paginated_list, inertia_defer(&calculate_next_page/0) |> inertia_merge())
 ```
 
+If you are working with complex data structures or nested objects you can use `inertia_deep_merge(value)`
+
+```elixir
+conn
+|> assign_prop(:complex_object, inertia_deep_merge(%{a: %{b: %{c: %{d: 1}}}}))
+```
+
 ## Shared data
 
 To share data on every request, you can use the `assign_prop/2` function inside of a shared plug in your response pipeline. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user and you want to be sure all your Inertia components receive that user data. Your plug might look something like this:

@@ -111,6 +111,16 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def deep_merge_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, inertia_deep_merge(%{a: %{b: %{c: 1}}}))
+    |> assign_prop(:b, inertia_deep_merge([:a, :b]))
+    |> assign_prop(:c, inertia_merge("c"))
+    |> assign_prop(:d, "d")
+    |> render_inertia("Home")
+  end
+
   def deferred_props(conn, _params) do
     conn
     |> assign(:page_title, "Home")

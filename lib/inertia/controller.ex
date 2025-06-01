@@ -19,6 +19,7 @@ defmodule Inertia.Controller do
   @opaque optional() :: {:optional, fun()}
   @opaque always() :: {:keep, any()}
   @opaque merge() :: {:merge, any()}
+  @opaque deep_merge() :: {:deep_merge, any()}
   @opaque defer() :: {:defer, {fun(), String.t()}}
   @opaque preserved_prop_key :: {:preserve, raw_prop_key()}
 
@@ -72,6 +73,13 @@ defmodule Inertia.Controller do
   @doc since: "1.0.0"
   @spec inertia_merge(value :: any()) :: merge()
   def inertia_merge(value), do: {:merge, value}
+
+  @doc """
+  Marks that a prop should be deeply merged with existing data on the client-side.
+  """
+  @doc since: "2.5.0"
+  @spec inertia_deep_merge(value :: any()) :: deep_merge()
+  def inertia_deep_merge(value), do: {:deep_merge, value}
 
   @doc """
   Marks that a prop should fetched immediately after the page is loaded on the client-side.
@@ -350,7 +358,7 @@ defmodule Inertia.Controller do
     opts = Keyword.merge(opts, camelize_props: camelize_props, reset: reset)
 
     props = Map.merge(shared_props, inline_props)
-    {props, merge_props} = resolve_merge_props(props, opts)
+    {props, merge_props, deep_merge_props} = resolve_merge_props(props, opts)
     {props, deferred_props} = resolve_deferred_props(props)
 
     props =
@@ -364,6 +372,7 @@ defmodule Inertia.Controller do
       component: component,
       props: props,
       merge_props: merge_props,
+      deep_merge_props: deep_merge_props,
       deferred_props: deferred_props,
       is_partial: is_partial
     })
@@ -409,31 +418,30 @@ defmodule Inertia.Controller do
   # Private helpers
 
   # Runs a reduce operation over the top-level props and looks for values that
-  # were tagged via the `inertia_merge/1` helper. If the value is tagged, then
+  # were tagged via the `inertia_merge/2` helper. If the value is tagged, then
   # place the key in an array (unless that key is included in the list of
   # "reset" keys). Otherwise, make no modification.
   defp resolve_merge_props(props, opts) do
-    Enum.reduce(props, {[], []}, fn {key, value}, {props, keys} ->
+    Enum.reduce(props, {[], [], []}, fn {key, value}, {props, merge_keys, deep_merge_keys} ->
       transformed_key =
         key
         |> transform_key(opts)
         |> to_string()
 
-      case value do
-        {:merge, unwrapped_value} ->
-          # Only include this key in the collection of merge prop keys
-          # if it's not in the "reset" list
-          merge_prop_keys =
-            if transformed_key in opts[:reset] do
-              keys
-            else
-              [key | keys]
-            end
+      # Only include this key in the collection of merge prop keys
+      # if it's not in the "reset" list
+      case {transformed_key in opts[:reset], value} do
+        {true, {tag, unwrapped_value}} when tag in [:merge, :deep_merge] ->
+          {[{key, unwrapped_value} | props], merge_keys, deep_merge_keys}
 
-          {[{key, unwrapped_value} | props], merge_prop_keys}
+        {_, {:merge, unwrapped_value}} ->
+          {[{key, unwrapped_value} | props], [key | merge_keys], deep_merge_keys}
+
+        {_, {:deep_merge, unwrapped_value}} ->
+          {[{key, unwrapped_value} | props], merge_keys, [key | deep_merge_keys]}
 
         _ ->
-          {[{key, value} | props], keys}
+          {[{key, value} | props], merge_keys, deep_merge_keys}
       end
     end)
   end
@@ -612,6 +620,7 @@ defmodule Inertia.Controller do
       clearHistory: conn.private.inertia_clear_history
     }
     |> maybe_put_merge_props(conn)
+    |> maybe_put_deep_merge_props(conn)
     |> maybe_put_deferred_props(conn)
   end
 
@@ -622,6 +631,16 @@ defmodule Inertia.Controller do
       assigns
     else
       Map.put(assigns, :mergeProps, merge_props)
+    end
+  end
+
+  defp maybe_put_deep_merge_props(assigns, conn) do
+    deep_merge_props = conn.private.inertia_page.deep_merge_props
+
+    if Enum.empty?(deep_merge_props) do
+      assigns
+    else
+      Map.put(assigns, :deepMergeProps, deep_merge_props)
     end
   end
 
