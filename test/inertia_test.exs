@@ -225,6 +225,8 @@ defmodule InertiaTest do
       conn
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
+      # Allows us to make sure the "unwrapping" in `resolve_merge_props` doesn't affect optional props.
+      |> put_req_header("x-inertia-reset", "a")
       |> get(~p"/lazy")
 
     assert %{
@@ -568,9 +570,12 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
              "url" => "/merge_props",
-             "mergeProps" => ["b", "a"],
+             "mergeProps" => merge_props,
              "version" => @current_version
            } = json_response(conn, 200)
+
+    # We need to assert prop keys separately because `Map` won't guarantee the expected order
+    assert ["a", "b"] = Enum.sort(merge_props)
   end
 
   test "excludes reset props from merge props", %{conn: conn} do
@@ -587,6 +592,59 @@ defmodule InertiaTest do
              "url" => "/merge_props",
              # Excludes "a", since it was passed in the x-inertia-reset header
              "mergeProps" => ["b"],
+             "version" => @current_version
+           } = json_response(conn, 200)
+  end
+
+  test "gathers deep merge prop keys", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/deep_merge_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{
+               "errors" => %{},
+               "flash" => %{},
+               "a" => %{"a" => %{"b" => %{"c" => 1}}},
+               "b" => ["a", "b"],
+               "c" => "c",
+               "d" => "d"
+             },
+             "url" => "/deep_merge_props",
+             "mergeProps" => ["c"],
+             "deepMergeProps" => deep_merge_props,
+             "version" => @current_version
+           } = json_response(conn, 200)
+
+    # We need to assert prop keys separately because `Map` won't guarantee the expected order
+    assert ["a", "b"] = Enum.sort(deep_merge_props)
+  end
+
+  test "excludes reset props from deep merge props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-reset", "a")
+      |> get(~p"/deep_merge_props")
+
+    assert %{
+             "component" => "Home",
+             "props" => %{
+               "errors" => %{},
+               "flash" => %{},
+               "a" => %{"a" => %{"b" => %{"c" => 1}}},
+               "b" => ["a", "b"],
+               "c" => "c",
+               "d" => "d"
+             },
+             "url" => "/deep_merge_props",
+             # Excludes "a", since it was passed in the x-inertia-reset header
+             "deepMergeProps" => ["b"],
+             "mergeProps" => ["c"],
              "version" => @current_version
            } = json_response(conn, 200)
   end
@@ -608,6 +666,8 @@ defmodule InertiaTest do
       |> recycle()
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
+      # Allows us to make sure the "unwrapping" in `resolve_merge_props` doesn't affect deferred props.
+      |> put_req_header("x-inertia-reset", "a")
       |> get(~p"/deferred_props")
 
     body = json_response(conn, 200)
