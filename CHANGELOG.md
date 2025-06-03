@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-### 2.4.0
+- Add `inertia_deep_merge/1` function to support deep merging props on the client side (https://github.com/inertiajs/inertia/pull/2069) ([#54](https://github.com/inertiajs/inertia-phoenix/pull/54))
+
+## 2.4.0
 
 ### Added
 
