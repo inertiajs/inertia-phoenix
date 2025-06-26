@@ -17,7 +17,7 @@ defmodule Inertia.MixProject do
       docs: docs(),
       description: description(),
       package: package(),
-      dialyzer: [ignore_warnings: "dialyzer.ignore-warnings"]
+      dialyzer: [ignore_warnings: "dialyzer.ignore-warnings", plt_add_apps: [:mix]]
     ]
   end
 
@@ -31,6 +31,7 @@ defmodule Inertia.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:phx_new, "~> 1.0", only: [:test]},
       {:phoenix, "~> 1.7"},
       {:phoenix_html, ">= 3.0.0"},
       {:phoenix_live_view, "~> 1.0"},
@@ -43,6 +44,7 @@ defmodule Inertia.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:igniter, "~> 0.5", optional: true},
       {:nodejs, "~> 3.0"},
       {:ecto, ">= 3.0.0"}
     ]
