@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.1
+
+### Fixed
+
+- Treat Igniter as an optional dependency in the `mix inertia.install` task definition. Previously, compilation would fail if Igniter was not installed.
+
 ## 2.5.0
 
 ### Added
