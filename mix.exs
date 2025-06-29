@@ -1,7 +1,7 @@
 defmodule Inertia.MixProject do
   use Mix.Project
 
-  @version "2.5.0"
+  @version "2.5.1"
 
   def project do
     [
