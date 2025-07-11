@@ -19,6 +19,7 @@ defmodule Mix.Tasks.Inertia.Install.Docs do
     3. Adds basic configuration in config.exs
     4. Updates esbuild and configures code splitting
     5. Set up the client-side integration packages
+    6. Creates the pages directory for your Inertia components
 
     ## Usage
 
@@ -73,6 +74,7 @@ if Code.ensure_loaded?(Igniter) do
       |> update_root_layout()
       |> update_esbuild_config()
       |> setup_client()
+      |> create_pages_directory()
       |> print_next_steps()
     end
 
@@ -251,6 +253,13 @@ if Code.ensure_loaded?(Igniter) do
         _ ->
           igniter
       end
+    end
+
+    @doc false
+    def create_pages_directory(igniter) do
+      Igniter.create_new_file(igniter, "assets/js/pages/.gitkeep", "",
+          on_exists: :skip
+        )
     end
 
     defp maybe_create_typescript_config(igniter) do
