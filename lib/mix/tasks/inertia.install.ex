@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Inertia.Install.Docs do
     3. Adds basic configuration in config.exs
     4. Updates esbuild and configures code splitting
     5. Set up the client-side integration packages
-    6. Creates the pages directory for your Inertia components
+    6. Creates the pages directory for your Inertia pages
 
     ## Usage
 
