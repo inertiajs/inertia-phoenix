@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Create an `assets/js/pages` directory in the Igniter install task and fix the documentation ([#57)(https://github.com/inertiajs/inertia-phoenix/pull/57)).
+
 ## 2.5.1
 
 ### Fixed
