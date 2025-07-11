@@ -378,7 +378,7 @@ if Code.ensure_loaded?(Igniter) do
         if client_framework do
           client_setup_steps = """
           To finish setting up the client side integration:
-          1. Create your Inertia pages in your assets/pages directory
+          1. Create your Inertia pages in the assets/js/pages directory
           2. Set up your entry point file to initialize Inertia and default layout
           """
 
