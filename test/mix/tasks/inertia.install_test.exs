@@ -233,4 +233,33 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       end)
     end
   end
+
+  describe "Pages directory creation" do
+    test "creates pages directory when client framework is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "react"]})
+        |> Install.create_pages_directory()
+
+      assert_creates(project, "assets/js/pages/.gitkeep")
+    end
+
+    test "creates pages directory for vue framework" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "vue"]})
+        |> Install.create_pages_directory()
+
+      assert_creates(project, "assets/js/pages/.gitkeep")
+    end
+
+    test "creates pages directory for svelte framework" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "svelte"]})
+        |> Install.create_pages_directory()
+
+      assert_creates(project, "assets/js/pages/.gitkeep")
+    end
+  end
 end
