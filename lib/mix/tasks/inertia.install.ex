@@ -257,9 +257,7 @@ if Code.ensure_loaded?(Igniter) do
 
     @doc false
     def create_pages_directory(igniter) do
-      Igniter.create_new_file(igniter, "assets/js/pages/.gitkeep", "",
-          on_exists: :skip
-        )
+      Igniter.create_new_file(igniter, "assets/js/pages/.gitkeep", "", on_exists: :skip)
     end
 
     defp maybe_create_typescript_config(igniter) do
