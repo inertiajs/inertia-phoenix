@@ -44,6 +44,7 @@ if Code.ensure_loaded?(Igniter) do
     @shortdoc __MODULE__.Docs.short_doc()
 
     @moduledoc __MODULE__.Docs.long_doc()
+    alias Sourceror.Zipper
 
     use Igniter.Mix.Task
     require Igniter.Code.Common
@@ -176,8 +177,8 @@ if Code.ensure_loaded?(Igniter) do
           "root.html.heex"
         ])
 
-      content = inertia_root_html()
-
+      framework = igniter.args.options[:client_framework] || "react"
+      content = inertia_root_html(framework)
       Igniter.create_new_file(igniter, file_path, content, on_exists: :overwrite)
     end
 
@@ -188,7 +189,13 @@ if Code.ensure_loaded?(Igniter) do
       |> Macro.underscore()
     end
 
-    defp inertia_root_html() do
+    defp inertia_root_html(framework) do
+      # svelte also generates a css file from the css in the components
+      svelte_css =
+        if framework == "svelte",
+          do: "\n<link phx-track-static rel=\"stylesheet\" href={~p\"/assets/app.css\"} />",
+          else: ""
+
       """
       <!DOCTYPE html>
       <html lang="en">
@@ -199,7 +206,7 @@ if Code.ensure_loaded?(Igniter) do
           <.inertia_title><%= assigns[:page_title] %></.inertia_title>
           <.inertia_head content={@inertia_head} />
           <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-          <script type="module" defer phx-track-static src={~p"/assets/app.js"} />
+          <script type="module" defer phx-track-static src={~p"/assets/app.js"} />#{svelte_css}
         </head>
         <body>
           {@inner_content}
@@ -210,28 +217,78 @@ if Code.ensure_loaded?(Igniter) do
 
     @doc false
     def update_esbuild_config(igniter) do
-      igniter
-      |> Igniter.Project.Config.configure(
-        "config.exs",
-        :esbuild,
-        [:version],
-        "0.21.5"
-      )
-      |> Igniter.Project.Config.configure(
-        "config.exs",
-        :esbuild,
-        [Igniter.Project.Application.app_name(igniter)],
-        {:code,
-         Sourceror.parse_string!("""
-         [
-          args:
-            ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-          cd: Path.expand("../assets", __DIR__),
-          env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-         ]
-         """)}
-      )
-      |> Igniter.add_task("esbuild.install")
+      case igniter.args.options[:client_framework] do
+        framework when framework in ["react", "vue"] ->
+          igniter
+          |> Igniter.Project.Config.configure(
+            "config.exs",
+            :esbuild,
+            [:version],
+            "0.25.4"
+          )
+          |> Igniter.Project.Config.configure(
+            "config.exs",
+            :esbuild,
+            [Igniter.Project.Application.app_name(igniter)],
+            {:code,
+             Sourceror.parse_string!("""
+             [
+              args:
+                ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+              cd: Path.expand("../assets", __DIR__),
+              env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+             ]
+             """)}
+          )
+          |> Igniter.add_task("esbuild.install")
+
+        "svelte" ->
+          {_, endpoint} = Igniter.Libs.Phoenix.select_endpoint(igniter)
+
+          igniter
+          |> Igniter.Project.Config.remove_application_configuration("config.exs", :esbuild)
+          |> Igniter.Project.Config.configure(
+            "dev.exs",
+            Igniter.Project.Application.app_name(igniter),
+            [endpoint, :watchers],
+            {:code,
+             Sourceror.parse_string!("""
+              [
+                node: ["esbuild.config.js", "--watch", cd: Path.expand("../assets", __DIR__)],
+                tailwind: {Tailwind, :install_and_run, [#{inspect(Igniter.Project.Application.app_name(igniter))}, ~w(--watch)]}
+              ]
+             """)}
+          )
+          |> Igniter.Project.Deps.remove_dep(:esbuild)
+          |> Igniter.Project.TaskAliases.modify_existing_alias("assets.setup", fn zipper ->
+            Zipper.update(zipper, fn _ ->
+              ["tailwind.install --if-missing", "cmd --cd assets npm install"]
+            end)
+          end)
+          |> Igniter.Project.TaskAliases.modify_existing_alias(
+            "assets.build",
+            fn zipper ->
+              Zipper.update(zipper, fn _ ->
+                ["compile", "tailwind demo", "cmd --cd assets node esbuild.config.js --deploy"]
+              end)
+            end
+          )
+          |> Igniter.Project.TaskAliases.modify_existing_alias(
+            "assets.deploy",
+            fn zipper ->
+              Zipper.update(zipper, fn _ ->
+                [
+                  "tailwind demo --minify",
+                  "cmd --cd assets node esbuild.config.js --deploy",
+                  "phx.digest"
+                ]
+              end)
+            end
+          )
+
+        _ ->
+          igniter
+      end
     end
 
     @doc false
@@ -240,15 +297,30 @@ if Code.ensure_loaded?(Igniter) do
         "react" ->
           igniter
           |> install_client_package()
-          |> maybe_create_typescript_config()
           |> Igniter.create_new_file("assets/js/app.jsx", inertia_app_jsx(),
             on_exists: :overwrite
           )
+          |> maybe_create_typescript_config()
 
-        framework when framework in ["vue", "svelte"] ->
+        "vue" ->
           igniter
           |> install_client_package()
           |> maybe_create_typescript_config()
+
+        "svelte" ->
+          typescript = igniter.args.options[:typescript] || false
+
+          igniter
+          |> install_client_package()
+          |> maybe_create_typescript_config()
+          |> Igniter.create_new_file("assets/js/app.js", inertia_app_svelte(),
+            on_exists: :overwrite
+          )
+          |> Igniter.create_new_file(
+            "assets/esbuild.config.js",
+            svelte_esbuild_config(typescript),
+            on_exists: :overwrite
+          )
 
         _ ->
           igniter
@@ -261,8 +333,11 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp maybe_create_typescript_config(igniter) do
-      if igniter.args.options[:typescript] do
-        Igniter.create_new_file(igniter, "assets/tsconfig.json", react_tsconfig_json(),
+      framework = igniter.args.options[:client_framework] || "react"
+      typescript = igniter.args.options[:typescript] || false
+
+      if typescript do
+        Igniter.create_new_file(igniter, "assets/tsconfig.json", tsconfig(framework),
           on_exists: :overwrite
         )
       else
@@ -292,7 +367,9 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp install_client_main_packages(igniter, "svelte") do
-      Igniter.add_task(igniter, "cmd", ["npm install --prefix assets @inertiajs/svelte svelte"])
+      Igniter.add_task(igniter, "cmd", [
+        "npm install --prefix assets svelte @inertiajs/svelte esbuild-svelte esbuild"
+      ])
     end
 
     defp maybe_install_typescript_deps(igniter, _, false), do: igniter
@@ -311,6 +388,44 @@ if Code.ensure_loaded?(Igniter) do
       Igniter.add_task(igniter, "cmd", [
         "npm install --prefix assets --save-dev svelte-loader svelte-preprocess typescript"
       ])
+    end
+
+    defp tsconfig(framework) do
+      case framework do
+        "react" -> react_tsconfig_json()
+        "svelte" -> svelte_tsconfig_json()
+        _ -> ""
+      end
+    end
+
+    defp svelte_tsconfig_json() do
+      """
+      {
+        "compilerOptions": {
+          "target": "ES2020",
+          "module": "ESNext",
+          "lib": ["ES2020", "DOM", "DOM.Iterable"],
+          "allowJs": true,
+          "checkJs": false,
+
+          "jsx": "preserve",
+          "moduleResolution": "bundler",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "noEmit": true,
+          "strict": true,
+          "noUnusedLocals": true,
+          "noUnusedParameters": true,
+          "noFallthroughCasesInSwitch": true,
+          "forceConsistentCasingInFileNames": true,
+          "esModuleInterop": true,
+          "skipLibCheck": true,
+          "baseUrl": ".",
+        },
+        "include": ["js/**/*.ts", "js/**/*.js", "js/**/*.svelte"],
+        "exclude": ["node_modules"]
+      }
+      """
     end
 
     defp react_tsconfig_json() do
@@ -364,6 +479,72 @@ if Code.ensure_loaded?(Igniter) do
           createRoot(el).render(<App {...props} />);
         },
       });
+      """
+    end
+
+    defp inertia_app_svelte() do
+      """
+      import { createInertiaApp } from '@inertiajs/svelte'
+      import { mount } from 'svelte'
+
+      createInertiaApp({
+        resolve: async (name) => {
+          let page = await import(`../js/pages/${name}.svelte`);
+          return page;
+        },
+        setup({ el, App, props }) {
+          mount(App, { target: el, props })
+        },
+      });
+      """
+    end
+
+    defp svelte_esbuild_config(typescript) do
+      additional =
+        if typescript do
+          """
+          tsconfig: "tsconfig.json",
+          """
+        else
+          ""
+        end
+
+      """
+      // esbuild.config.js
+      const esbuild = require("esbuild");
+      const sveltePlugin = require("esbuild-svelte");
+      const sveltePreprocess = require("svelte-preprocess");
+
+      const args = process.argv.slice(2);
+      const watch = args.includes("--watch");
+      const deploy = args.includes("--deploy");
+
+      const svelte = sveltePlugin({
+        preprocess: sveltePreprocess(),
+        compilerOptions: {
+          dev: watch,
+        },
+      });
+
+      const options = {
+        entryPoints: ['js/app.js'],
+        bundle: true,
+        outdir: '../priv/static/assets',
+        chunkNames: 'chunks/[name]-[hash]',
+        splitting: true,
+        format: 'esm',
+        target: ['es2020'],
+        external: ['/fonts/*', '/images/*'],
+        plugins: [svelte],
+        #{additional}
+        conditions: ['svelte', 'browser']
+      }
+
+      if (watch) {
+        esbuild.context(options).then((ctx) => ctx.watch());
+      } else {
+        esbuild.build(options);
+      }
       """
     end
 
