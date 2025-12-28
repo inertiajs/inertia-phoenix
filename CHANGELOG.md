@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add `inertia_once/2` function to support once props, which are cached on the client-side and reused across page navigations. Supports `fresh`, `until`, and `as` options for controlling refresh behavior, expiration, and custom keys ([#62](https://github.com/inertiajs/inertia-phoenix/issues/62)).
 - Create an `assets/js/pages` directory in the Igniter install task and fix the documentation ([#57](https://github.com/inertiajs/inertia-phoenix/pull/57)).
 
 ### Fixed
