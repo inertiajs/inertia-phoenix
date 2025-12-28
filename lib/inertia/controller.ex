@@ -229,7 +229,7 @@ defmodule Inertia.Controller do
         %{page_name: "p", current_page: 1, next_page: 2, previous_page: nil}
       end))
   """
-  @doc since: "2.7.0"
+  @doc since: "2.6.0"
   @spec inertia_scroll(value :: any()) :: scroll()
   @spec inertia_scroll(value :: any(), opts :: keyword()) :: scroll()
   def inertia_scroll(value, opts \\ [])
