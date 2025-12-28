@@ -10,6 +10,7 @@ The official Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Lazy data evaluation](#lazy-data-evaluation)
 - [Deferred props](#deferred-props)
 - [Merge props](#merge-props)
+- [Once props](#once-props)
 - [Shared data](#shared-data)
 - [Validations](#validations)
 - [Flash messages](#flash-messages)
@@ -374,6 +375,79 @@ If you are working with complex data structures or nested objects you can use `i
 ```elixir
 conn
 |> assign_prop(:complex_object, inertia_deep_merge(%{a: %{b: %{c: %{d: 1}}}}))
+```
+
+## Once props
+
+**Requires Inertia v2.x on the client-side**.
+
+Some data rarely changes, is expensive to compute, or is simply large. Rather than including this data in every response, you can use once props. These props are cached on the client-side and reused on subsequent pages that include the same prop, making them ideal for shared data like user roles or configuration.
+
+```elixir
+conn
+|> assign_prop(:plans, inertia_once(fn -> Plans.list_all() end))
+```
+
+The client will remember the prop value and reuse it on subsequent page visits. Navigating to a page without the once prop will clear the cached value.
+
+### Forcing a refresh
+
+You can force a once prop to be refreshed using the `fresh` option:
+
+```elixir
+conn
+|> assign_prop(:plans, inertia_once(fn -> Plans.list_all() end, fresh: true))
+```
+
+This also accepts a boolean condition:
+
+```elixir
+conn
+|> assign_prop(:plans, inertia_once(fn -> Plans.list_all() end, fresh: plans_changed?))
+```
+
+### Expiration
+
+You can set an expiration time using the `until` option. This accepts a `DateTime` or an integer representing seconds from now:
+
+```elixir
+conn
+# Expires in 1 hour
+|> assign_prop(:rates, inertia_once(fn -> ExchangeRates.current() end, until: 3600))
+
+# Expires at a specific time
+|> assign_prop(:rates, inertia_once(fn -> ExchangeRates.current() end,
+  until: DateTime.utc_now() |> DateTime.add(1, :day)
+))
+```
+
+### Custom keys
+
+You can assign a custom key using the `as` option. This is useful when you want to share data across multiple pages with different prop names:
+
+```elixir
+# Team member list page
+conn
+|> assign_prop(:member_roles, inertia_once(fn -> Roles.list_all() end, as: "roles"))
+
+# Invite form page
+conn
+|> assign_prop(:available_roles, inertia_once(fn -> Roles.list_all() end, as: "roles"))
+```
+
+Both pages share the same cached data because they use the same custom key.
+
+### Combining with other prop types
+
+Once props can be combined with deferred, merge, and optional props:
+
+```elixir
+conn
+# Deferred + once: loaded after initial render, then cached
+|> assign_prop(:permissions, inertia_once(inertia_defer(fn -> Permissions.for_user(user) end)))
+
+# Merge + once: merged with existing data and cached
+|> assign_prop(:activity, inertia_once(inertia_merge(fn -> Activity.recent(user) end)))
 ```
 
 ## Shared data
