@@ -783,6 +783,17 @@ defmodule InertiaTest do
            } = json_response(conn, 200)
   end
 
+  test "camelizes keys in deferredProps metadata on initial page load", %{conn: conn} do
+    conn =
+      conn
+      |> get(~p"/camelized_deferred_props")
+
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    assert props["deferredProps"]["default"] == ["items"]
+  end
+
   test "preserves tagged props from camelization", %{conn: conn} do
     conn =
       conn
