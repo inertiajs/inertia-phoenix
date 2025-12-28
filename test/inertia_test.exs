@@ -1024,6 +1024,115 @@ defmodule InertiaTest do
     assert body["props"]["permissions"] == ["read", "write"]
   end
 
+  # Scroll props tests
+
+  describe "scroll props" do
+    test "includes scroll props in initial page load", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      # Props should include the paginated data
+      assert props["props"]["users"] == %{
+               "data" => [%{"id" => 1, "name" => "Alice"}, %{"id" => 2, "name" => "Bob"}],
+               "meta" => %{"current_page" => 1, "next_page" => 2, "prev_page" => nil, "page_param" => "page"}
+             }
+
+      # Regular props should also be included
+      assert props["props"]["regular"] == "value"
+
+      # mergeProps should include the data path
+      assert "users.data" in props["mergeProps"]
+
+      # scrollProps should include pagination metadata
+      assert props["scrollProps"] == %{
+               "users" => %{
+                 "pageName" => "page",
+                 "currentPage" => 1,
+                 "previousPage" => nil,
+                 "nextPage" => 2
+               }
+             }
+    end
+
+    test "includes scroll props in XHR request", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/scroll_props")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["users"]["data"] == [
+               %{"id" => 1, "name" => "Alice"},
+               %{"id" => 2, "name" => "Bob"}
+             ]
+
+      assert "users.data" in body["mergeProps"]
+      assert body["scrollProps"]["users"]["currentPage"] == 1
+    end
+
+    test "supports custom wrapper key", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_with_custom_wrapper")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      # mergeProps should use the custom wrapper key
+      assert "users.items" in props["mergeProps"]
+    end
+
+    test "supports custom page_name option", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_with_custom_page_name")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      assert props["scrollProps"]["users"]["pageName"] == "users_page"
+    end
+
+    test "supports lazy evaluation with functions", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_lazy")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      assert props["props"]["users"]["data"] == [%{"id" => 1}]
+      assert "users.data" in props["mergeProps"]
+      assert props["scrollProps"]["users"]["currentPage"] == 1
+    end
+
+    test "camelizes scroll prop keys when camelize_props is enabled", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_camelized")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      # Prop key should be camelized
+      assert Map.has_key?(props["props"], "userList")
+      refute Map.has_key?(props["props"], "user_list")
+
+      # mergeProps should use camelized key
+      assert "userList.data" in props["mergeProps"]
+
+      # scrollProps should use camelized key
+      assert Map.has_key?(props["scrollProps"], "userList")
+    end
+
+    test "supports custom metadata function", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_with_custom_metadata")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      assert props["scrollProps"]["users"] == %{
+               "pageName" => "p",
+               "currentPage" => 5,
+               "previousPage" => 4,
+               "nextPage" => 6
+             }
+
+      # Custom wrapper should be used
+      assert "users.entries" in props["mergeProps"]
+    end
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

@@ -11,6 +11,7 @@ The official Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Deferred props](#deferred-props)
 - [Merge props](#merge-props)
 - [Once props](#once-props)
+- [Scroll props](#scroll-props)
 - [Shared data](#shared-data)
 - [Validations](#validations)
 - [Flash messages](#flash-messages)
@@ -448,6 +449,129 @@ conn
 
 # Merge + once: merged with existing data and cached
 |> assign_prop(:activity, inertia_once(inertia_merge(fn -> Activity.recent(user) end)))
+```
+
+## Scroll props
+
+**Requires Inertia v2.x on the client-side**.
+
+For infinite scroll pagination, you can use `inertia_scroll/1` to wrap paginated data. This automatically configures merge behavior so new data is appended to existing content, and extracts pagination metadata for the client-side `<InfiniteScroll>` component.
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(paginated_users))
+|> render_inertia("Users/Index")
+```
+
+The function expects paginated data with a structure like:
+
+```elixir
+%{
+  data: [%{id: 1, name: "Alice"}, %{id: 2, name: "Bob"}],
+  meta: %{
+    current_page: 1,
+    next_page: 2,
+    prev_page: nil,
+    page_param: "page"  # optional, defaults to "page"
+  }
+}
+```
+
+This will produce a response with:
+
+- The paginated data in `props`
+- The data path (e.g., `"users.data"`) added to `mergeProps`
+- Pagination metadata in `scrollProps`
+
+```json
+{
+  "props": {
+    "users": {
+      "data": [...],
+      "meta": {...}
+    }
+  },
+  "mergeProps": ["users.data"],
+  "scrollProps": {
+    "users": {
+      "pageName": "page",
+      "currentPage": 1,
+      "previousPage": null,
+      "nextPage": 2
+    }
+  }
+}
+```
+
+### Options
+
+The `inertia_scroll/2` function accepts the following options:
+
+- `:wrapper` - The key containing the data items (default: `"data"`)
+- `:page_name` - Override the page query parameter name
+- `:metadata` - Custom metadata extraction function
+
+```elixir
+# Custom wrapper key (for data structures that use "items" instead of "data")
+conn
+|> assign_prop(:users, inertia_scroll(data, wrapper: "items"))
+
+# Custom page name for multiple scroll containers on one page
+conn
+|> assign_prop(:users, inertia_scroll(users, page_name: "users_page"))
+|> assign_prop(:orders, inertia_scroll(orders, page_name: "orders_page"))
+```
+
+### Lazy evaluation
+
+Like other prop helpers, `inertia_scroll` supports lazy evaluation with functions:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(fn -> User.paginate(params) end))
+```
+
+### Custom metadata
+
+For pagination libraries that use different data structures, you can provide a custom metadata extraction function:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(scrivener_page,
+  wrapper: "entries",
+  metadata: fn page ->
+    %{
+      page_name: "page",
+      current_page: page.page_number,
+      previous_page: if(page.page_number > 1, do: page.page_number - 1),
+      next_page: if(page.page_number < page.total_pages, do: page.page_number + 1)
+    }
+  end
+))
+```
+
+### ScrollMetadata protocol
+
+For reusable metadata extraction, you can implement the `Inertia.ScrollMetadata` protocol for your pagination library's struct:
+
+```elixir
+defimpl Inertia.ScrollMetadata, for: Scrivener.Page do
+  def to_scroll_metadata(page) do
+    %{
+      page_name: "page",
+      current_page: page.page_number,
+      previous_page: if(page.page_number > 1, do: page.page_number - 1),
+      next_page: if(page.page_number < page.total_pages, do: page.page_number + 1)
+    }
+  end
+end
+```
+
+Then you can use `inertia_scroll` directly with the struct:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(scrivener_page, wrapper: "entries"))
 ```
 
 ## Shared data

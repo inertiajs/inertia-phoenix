@@ -25,6 +25,16 @@ defmodule Inertia.Controller do
     defstruct [:fun, :key, :expires_at, :fresh]
   end
 
+  defmodule Scroll do
+    @moduledoc false
+    @type t :: %__MODULE__{
+            fun: fun() | any(),
+            wrapper: String.t(),
+            metadata: (any() -> map()) | nil
+          }
+    defstruct [:fun, wrapper: "data", metadata: nil]
+  end
+
   @type raw_prop_key :: atom() | String.t()
 
   @opaque optional() :: {:optional, fun()}
@@ -33,6 +43,7 @@ defmodule Inertia.Controller do
   @opaque deep_merge() :: {:deep_merge, any()}
   @opaque defer() :: {:defer, {fun(), String.t()}}
   @opaque once() :: Once.t()
+  @opaque scroll() :: Scroll.t()
   @opaque preserved_prop_key :: {:preserve, raw_prop_key()}
 
   @type render_opt() :: {:ssr, boolean()}
@@ -190,6 +201,61 @@ defmodule Inertia.Controller do
 
   defp parse_expiration(seconds) when is_integer(seconds) do
     DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.to_unix(:millisecond)
+  end
+
+  @doc """
+  Marks a prop for infinite scroll pagination. Automatically configures
+  merge behavior for the data key and extracts pagination metadata.
+
+  ## Options
+
+  - `:wrapper` - The key containing the data items (default: "data")
+  - `:page_name` - Override the page query parameter name
+  - `:metadata` - Custom metadata extraction function
+
+  ## Examples
+
+      # Basic usage with auto-detected metadata
+      assign_prop(conn, :users, inertia_scroll(paginated_users))
+
+      # With lazy evaluation
+      assign_prop(conn, :users, inertia_scroll(fn -> User.paginate(params) end))
+
+      # Custom wrapper key
+      assign_prop(conn, :users, inertia_scroll(data, wrapper: "items"))
+
+      # Custom metadata
+      assign_prop(conn, :users, inertia_scroll(data, metadata: fn data ->
+        %{page_name: "p", current_page: 1, next_page: 2, previous_page: nil}
+      end))
+  """
+  @doc since: "2.7.0"
+  @spec inertia_scroll(value :: any()) :: scroll()
+  @spec inertia_scroll(value :: any(), opts :: keyword()) :: scroll()
+  def inertia_scroll(value, opts \\ [])
+
+  def inertia_scroll(fun, opts) when is_function(fun, 0) do
+    %Scroll{
+      fun: fun,
+      wrapper: Keyword.get(opts, :wrapper, "data"),
+      metadata: build_scroll_metadata_fun(opts)
+    }
+  end
+
+  def inertia_scroll(value, opts) do
+    %Scroll{
+      fun: value,
+      wrapper: Keyword.get(opts, :wrapper, "data"),
+      metadata: build_scroll_metadata_fun(opts)
+    }
+  end
+
+  defp build_scroll_metadata_fun(opts) do
+    cond do
+      fun = Keyword.get(opts, :metadata) -> fun
+      page_name = Keyword.get(opts, :page_name) -> fn _data -> %{page_name: page_name} end
+      true -> nil
+    end
   end
 
   @doc """
@@ -441,11 +507,18 @@ defmodule Inertia.Controller do
     opts = Keyword.merge(opts, camelize_props: camelize_props, reset: reset)
 
     props = Map.merge(shared_props, inline_props)
-    # Process once props first to unwrap %Once{} and expose any nested tags
+
+    # Process scroll props first (since they create merge entries and need early evaluation)
+    {props, scroll_props} = resolve_scroll_props(props, opts)
+
+    # Process once props to unwrap %Once{} and expose any nested tags
     # (like {:defer, ...} or {:merge, ...}) for subsequent resolution
     {props, once_props} = resolve_once_props(props, except_once_props, only, opts)
     {props, merge_props, deep_merge_props} = resolve_merge_props(props, opts)
     {props, deferred_props} = resolve_deferred_props(props, opts)
+
+    # Collect scroll merge paths to add to merge_props
+    scroll_merge_paths = collect_scroll_merge_paths(props)
 
     props =
       props
@@ -457,10 +530,11 @@ defmodule Inertia.Controller do
     |> put_private(:inertia_page, %{
       component: component,
       props: props,
-      merge_props: merge_props,
+      merge_props: merge_props ++ scroll_merge_paths,
       deep_merge_props: deep_merge_props,
       deferred_props: deferred_props,
       once_props: once_props,
+      scroll_props: scroll_props,
       is_partial: is_partial
     })
     |> detect_ssr(opts)
@@ -595,6 +669,66 @@ defmodule Inertia.Controller do
     end)
   end
 
+  defp resolve_scroll_props(props, opts) do
+    Enum.reduce(props, {[], %{}}, fn {key, value}, {props_acc, scroll_acc} ->
+      case value do
+        %Scroll{} = scroll ->
+          transformed_key =
+            key
+            |> transform_key(opts)
+            |> to_string()
+
+          # Evaluate the value if it's a function
+          resolved_value = if is_function(scroll.fun, 0), do: scroll.fun.(), else: scroll.fun
+
+          # Extract metadata using protocol or custom function
+          metadata = extract_scroll_metadata(resolved_value, scroll)
+
+          # Create the path for mergeProps (e.g., "users.data")
+          merge_path = "#{transformed_key}.#{scroll.wrapper}"
+
+          scroll_meta = %{
+            "pageName" => metadata.page_name,
+            "currentPage" => metadata.current_page,
+            "previousPage" => metadata.previous_page,
+            "nextPage" => metadata.next_page
+          }
+
+          {
+            [{key, {:scroll_merge, resolved_value, merge_path}} | props_acc],
+            Map.put(scroll_acc, transformed_key, scroll_meta)
+          }
+
+        _ ->
+          {[{key, value} | props_acc], scroll_acc}
+      end
+    end)
+  end
+
+  defp extract_scroll_metadata(data, scroll) do
+    base_metadata =
+      if scroll.metadata do
+        scroll.metadata.(data)
+      else
+        Inertia.ScrollMetadata.to_scroll_metadata(data)
+      end
+
+    # Ensure all required keys exist with defaults
+    %{
+      page_name: base_metadata[:page_name] || base_metadata["page_name"] || "page",
+      current_page: base_metadata[:current_page] || base_metadata["current_page"],
+      previous_page: base_metadata[:previous_page] || base_metadata["previous_page"],
+      next_page: base_metadata[:next_page] || base_metadata["next_page"]
+    }
+  end
+
+  defp collect_scroll_merge_paths(props) do
+    Enum.reduce(props, [], fn
+      {_key, {:scroll_merge, _value, merge_path}}, acc -> [merge_path | acc]
+      _, acc -> acc
+    end)
+  end
+
   defp apply_filters(props, only, _except, opts) when length(only) > 0 do
     props
     |> Enum.filter(fn {key, value} ->
@@ -659,6 +793,7 @@ defmodule Inertia.Controller do
   defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props({:scroll_merge, value, _merge_path}, opts), do: resolve_props(value, opts)
   defp resolve_props(fun, opts) when is_function(fun, 0), do: resolve_props(fun.(), opts)
   defp resolve_props(value, _opts), do: value
 
@@ -754,6 +889,7 @@ defmodule Inertia.Controller do
     |> maybe_put_deep_merge_props(conn)
     |> maybe_put_deferred_props(conn)
     |> maybe_put_once_props(conn)
+    |> maybe_put_scroll_props(conn)
   end
 
   defp maybe_put_merge_props(assigns, conn) do
@@ -794,6 +930,16 @@ defmodule Inertia.Controller do
       assigns
     else
       Map.put(assigns, :onceProps, once_props)
+    end
+  end
+
+  defp maybe_put_scroll_props(assigns, conn) do
+    scroll_props = conn.private.inertia_page.scroll_props
+
+    if Enum.empty?(scroll_props) do
+      assigns
+    else
+      Map.put(assigns, :scrollProps, scroll_props)
     end
   end
 
