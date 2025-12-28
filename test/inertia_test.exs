@@ -766,7 +766,7 @@ defmodule InertiaTest do
     conn =
       conn
       |> put_req_header("x-inertia", "true")
-      |> put_req_header("x-inertia-partial-data", "items")
+      |> put_req_header("x-inertia-partial-data", "deferredItems")
       |> put_req_header("x-inertia-partial-component", "Home")
       |> put_req_header("x-inertia-version", @current_version)
       |> get(~p"/camelized_deferred_props")
@@ -776,7 +776,7 @@ defmodule InertiaTest do
              "props" => %{
                "errors" => %{},
                "flash" => %{},
-               "items" => [%{"itemName" => "Foo"}]
+               "deferredItems" => [%{"itemName" => "Foo"}]
              },
              "url" => "/camelized_deferred_props",
              "version" => @current_version
@@ -791,7 +791,7 @@ defmodule InertiaTest do
     body = html_response(conn, 200)
     props = extract_page_data_from_html(body)
 
-    assert props["deferredProps"]["default"] == ["items"]
+    assert props["deferredProps"]["default"] == ["deferredItems"]
   end
 
   test "preserves tagged props from camelization", %{conn: conn} do
