@@ -827,6 +827,203 @@ defmodule InertiaTest do
     assert get_resp_header(conn, "x-inertia-location") == ["/"]
   end
 
+  # Once Props Tests
+
+  test "includes once props on initial page load", %{conn: conn} do
+    conn =
+      conn
+      |> get(~p"/once_props")
+
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    assert props["props"]["plans"] == ["basic", "pro"]
+    assert props["props"]["regular"] == "value"
+
+    assert props["onceProps"] == %{
+             "plans" => %{"prop" => "plans", "expiresAt" => nil}
+           }
+  end
+
+  test "includes once props on Inertia request without except header", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/once_props")
+
+    body = json_response(conn, 200)
+
+    assert body["props"]["plans"] == ["basic", "pro"]
+    assert body["props"]["regular"] == "value"
+
+    assert body["onceProps"] == %{
+             "plans" => %{"prop" => "plans", "expiresAt" => nil}
+           }
+  end
+
+  test "excludes once props when key is in X-Inertia-Except-Once-Props header", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-except-once-props", "plans")
+      |> get(~p"/once_props")
+
+    body = json_response(conn, 200)
+
+    # plans should be excluded from props but metadata should still be present
+    refute Map.has_key?(body["props"], "plans")
+    assert body["props"]["regular"] == "value"
+
+    assert body["onceProps"] == %{
+             "plans" => %{"prop" => "plans", "expiresAt" => nil}
+           }
+  end
+
+  test "includes once props when fresh: true is set", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-except-once-props", "plans")
+      |> get(~p"/once_props_fresh")
+
+    body = json_response(conn, 200)
+
+    # plans should be included despite being in except header because fresh: true
+    assert body["props"]["plans"] == ["basic", "pro"]
+
+    assert body["onceProps"] == %{
+             "plans" => %{"prop" => "plans", "expiresAt" => nil}
+           }
+  end
+
+  test "includes once props when explicitly requested in partial reload", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "plans")
+      |> put_req_header("x-inertia-except-once-props", "plans")
+      |> get(~p"/once_props")
+
+    body = json_response(conn, 200)
+
+    # plans should be included because it's explicitly requested
+    assert body["props"]["plans"] == ["basic", "pro"]
+  end
+
+  test "includes expiration timestamp in onceProps", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/once_props_with_expiration")
+
+    body = json_response(conn, 200)
+
+    assert body["props"]["rates"] == [1.0, 1.5]
+
+    # expiresAt should be a timestamp in milliseconds (approximately 1 hour from now)
+    expires_at = body["onceProps"]["rates"]["expiresAt"]
+    assert is_integer(expires_at)
+
+    now_ms = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
+    one_hour_ms = 3600 * 1000
+
+    # Allow 10 seconds of tolerance
+    assert expires_at > now_ms + one_hour_ms - 10_000
+    assert expires_at < now_ms + one_hour_ms + 10_000
+  end
+
+  test "uses custom key from as: option", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/once_props_with_custom_key")
+
+    body = json_response(conn, 200)
+
+    assert body["props"]["member_roles"] == ["admin", "user"]
+
+    # The key in onceProps should be "roles" (the custom key)
+    # but the prop name should still be "member_roles"
+    assert body["onceProps"] == %{
+             "roles" => %{"prop" => "member_roles", "expiresAt" => nil}
+           }
+  end
+
+  test "excludes once prop when custom key is in except header", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-except-once-props", "roles")
+      |> get(~p"/once_props_with_custom_key")
+
+    body = json_response(conn, 200)
+
+    # member_roles should be excluded because "roles" (the custom key) is in except header
+    refute Map.has_key?(body["props"], "member_roles")
+
+    assert body["onceProps"] == %{
+             "roles" => %{"prop" => "member_roles", "expiresAt" => nil}
+           }
+  end
+
+  test "camelizes keys in onceProps metadata", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/once_props_camelized")
+
+    body = json_response(conn, 200)
+
+    assert body["props"]["userPlans"] == ["basic", "pro"]
+
+    assert body["onceProps"] == %{
+             "userPlans" => %{"prop" => "userPlans", "expiresAt" => nil}
+           }
+  end
+
+  test "handles once prop combined with deferred", %{conn: conn} do
+    conn =
+      conn
+      |> get(~p"/once_props_with_deferred")
+
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    # Deferred props are not included on initial load
+    refute Map.has_key?(props["props"], "permissions")
+
+    # But onceProps metadata should be present
+    assert props["onceProps"] == %{
+             "permissions" => %{"prop" => "permissions", "expiresAt" => nil}
+           }
+
+    # And deferredProps should list it
+    assert props["deferredProps"]["default"] == ["permissions"]
+  end
+
+  test "resolves deferred once prop when requested in partial reload", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "permissions")
+      |> get(~p"/once_props_with_deferred")
+
+    body = json_response(conn, 200)
+
+    assert body["props"]["permissions"] == ["read", "write"]
+  end
+
   defp html_escape(content) do
     content
     |> Phoenix.HTML.html_escape()

@@ -54,6 +54,7 @@ defmodule Inertia.Plug do
         |> put_private(:inertia_request, true)
         |> detect_partial_reload()
         |> detect_reset()
+        |> detect_except_once_props()
         |> convert_redirects()
         |> check_version()
 
@@ -86,6 +87,19 @@ defmodule Inertia.Plug do
       end
 
     put_private(conn, :inertia_reset, resets)
+  end
+
+  defp detect_except_once_props(conn) do
+    except_once =
+      case get_req_header(conn, "x-inertia-except-once-props") do
+        [stringified_list] when is_binary(stringified_list) ->
+          String.split(stringified_list, ",")
+
+        _ ->
+          []
+      end
+
+    put_private(conn, :inertia_except_once_props, except_once)
   end
 
   defp get_partial_only(conn) do

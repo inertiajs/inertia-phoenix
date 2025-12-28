@@ -203,6 +203,50 @@ defmodule MyAppWeb.PageController do
     |> redirect(to: "/")
   end
 
+  def once_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:plans, inertia_once(fn -> ["basic", "pro"] end))
+    |> assign_prop(:regular, "value")
+    |> render_inertia("Home")
+  end
+
+  def once_props_fresh(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:plans, inertia_once(fn -> ["basic", "pro"] end, fresh: true))
+    |> render_inertia("Home")
+  end
+
+  def once_props_with_expiration(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:rates, inertia_once(fn -> [1.0, 1.5] end, until: 3600))
+    |> render_inertia("Home")
+  end
+
+  def once_props_with_custom_key(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:member_roles, inertia_once(fn -> ["admin", "user"] end, as: "roles"))
+    |> render_inertia("Home")
+  end
+
+  def once_props_camelized(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:user_plans, inertia_once(fn -> ["basic", "pro"] end))
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def once_props_with_deferred(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:permissions, inertia_once(inertia_defer(fn -> ["read", "write"] end)))
+    |> render_inertia("Home")
+  end
+
   defp lazy_3 do
     "lazy_3"
   end

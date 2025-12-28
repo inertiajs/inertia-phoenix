@@ -38,6 +38,12 @@ defmodule MyAppWeb.Router do
     get "/preserved_case_props", PageController, :preserved_case_props
     get "/local_ssr", PageController, :local_ssr
     get "/force_redirect", PageController, :force_redirect
+    get "/once_props", PageController, :once_props
+    get "/once_props_fresh", PageController, :once_props_fresh
+    get "/once_props_with_expiration", PageController, :once_props_with_expiration
+    get "/once_props_with_custom_key", PageController, :once_props_with_custom_key
+    get "/once_props_camelized", PageController, :once_props_camelized
+    get "/once_props_with_deferred", PageController, :once_props_with_deferred
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete
