@@ -54,8 +54,8 @@ defimpl Inertia.ScrollMetadata, for: Map do
         meta: %{
           current_page: 1,
           next_page: 2,
-          prev_page: nil,
-          page_param: "page"
+          previous_page: nil,
+          page_name: "page"
         }
       }
   """
@@ -63,9 +63,9 @@ defimpl Inertia.ScrollMetadata, for: Map do
     meta = data[:meta] || data["meta"] || %{}
 
     %{
-      page_name: meta[:page_param] || meta["page_param"] || meta[:page_name] || meta["page_name"] || "page",
+      page_name: meta[:page_name] || meta["page_name"] || "page",
       current_page: meta[:current_page] || meta["current_page"],
-      previous_page: meta[:prev_page] || meta["prev_page"] || meta[:previous_page] || meta["previous_page"],
+      previous_page: meta[:previous_page] || meta["previous_page"],
       next_page: meta[:next_page] || meta["next_page"]
     }
   end

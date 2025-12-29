@@ -1035,7 +1035,12 @@ defmodule InertiaTest do
       # Props should include the paginated data
       assert props["props"]["users"] == %{
                "data" => [%{"id" => 1, "name" => "Alice"}, %{"id" => 2, "name" => "Bob"}],
-               "meta" => %{"current_page" => 1, "next_page" => 2, "prev_page" => nil, "page_param" => "page"}
+               "meta" => %{
+                 "current_page" => 1,
+                 "next_page" => 2,
+                 "previous_page" => nil,
+                 "page_name" => "page"
+               }
              }
 
       # Regular props should also be included

@@ -471,8 +471,8 @@ The function expects paginated data with a structure like:
   meta: %{
     current_page: 1,
     next_page: 2,
-    prev_page: nil,
-    page_param: "page"  # optional, defaults to "page"
+    previous_page: nil,
+    page_name: "page"  # optional, defaults to "page"
   }
 }
 ```
