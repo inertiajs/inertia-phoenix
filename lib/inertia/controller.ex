@@ -6,8 +6,8 @@ defmodule Inertia.Controller do
   require Logger
 
   alias Inertia.Errors
-  alias Inertia.SSR.RenderError
   alias Inertia.SSR
+  alias Inertia.SSR.RenderError
 
   import Phoenix.Controller
   import Plug.Conn
