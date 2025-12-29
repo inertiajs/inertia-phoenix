@@ -44,7 +44,7 @@ defmodule Inertia.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:igniter, "~> 0.5", optional: true},
+      {:igniter, "~> 0.6", optional: true},
       {:nodejs, "~> 3.0"},
       {:ecto, ">= 3.0.0"}
     ]
