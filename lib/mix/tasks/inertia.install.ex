@@ -19,6 +19,7 @@ defmodule Mix.Tasks.Inertia.Install.Docs do
     3. Adds basic configuration in config.exs
     4. Updates esbuild and configures code splitting
     5. Set up the client-side integration packages
+    6. Creates the pages directory for your Inertia pages
 
     ## Usage
 
@@ -73,6 +74,7 @@ if Code.ensure_loaded?(Igniter) do
       |> update_root_layout()
       |> update_esbuild_config()
       |> setup_client()
+      |> create_pages_directory()
       |> print_next_steps()
     end
 
@@ -253,6 +255,11 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
+    @doc false
+    def create_pages_directory(igniter) do
+      Igniter.create_new_file(igniter, "assets/js/pages/.gitkeep", "", on_exists: :skip)
+    end
+
     defp maybe_create_typescript_config(igniter) do
       if igniter.args.options[:typescript] do
         Igniter.create_new_file(igniter, "assets/tsconfig.json", react_tsconfig_json(),
@@ -369,7 +376,7 @@ if Code.ensure_loaded?(Igniter) do
         if client_framework do
           client_setup_steps = """
           To finish setting up the client side integration:
-          1. Create your Inertia pages in your assets/pages directory
+          1. Create your Inertia pages in the assets/js/pages directory
           2. Set up your entry point file to initialize Inertia and default layout
           """
 

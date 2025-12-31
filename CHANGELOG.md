@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add `inertia_scroll/2` function to support infinite scroll pagination. Automatically configures merge behavior and extracts pagination metadata for the client-side `InfiniteScroll` component. Includes `Inertia.ScrollMetadata` protocol for extensible pagination library support ([#63](https://github.com/inertiajs/inertia-phoenix/issues/63)).
+- Add `inertia_once/2` function to support once props, which are cached on the client-side and reused across page navigations. Supports `fresh`, `until`, and `as` options for controlling refresh behavior, expiration, and custom keys ([#62](https://github.com/inertiajs/inertia-phoenix/issues/62)).
+- Create an `assets/js/pages` directory in the Igniter install task and fix the documentation ([#57](https://github.com/inertiajs/inertia-phoenix/pull/57)).
+
+### Fixed
+
+- Properly camelize keys in `deferredProps` metadata when `camelize_props` is enabled.
+
 ## 2.5.1
 
 ### Fixed

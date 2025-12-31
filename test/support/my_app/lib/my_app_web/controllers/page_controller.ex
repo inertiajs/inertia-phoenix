@@ -158,7 +158,7 @@ defmodule MyAppWeb.PageController do
     conn
     |> assign(:page_title, "Home")
     |> assign_prop(:first_name, "Bob")
-    |> assign_prop(:items, inertia_defer(fn -> [%{item_name: "Foo"}] end))
+    |> assign_prop(:deferred_items, inertia_defer(fn -> [%{item_name: "Foo"}] end))
     |> camelize_props()
     |> render_inertia("Home")
   end
@@ -201,6 +201,143 @@ defmodule MyAppWeb.PageController do
     conn
     |> put_flash(:info, "Deleted")
     |> redirect(to: "/")
+  end
+
+  def once_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:plans, inertia_once(fn -> ["basic", "pro"] end))
+    |> assign_prop(:regular, "value")
+    |> render_inertia("Home")
+  end
+
+  def once_props_fresh(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:plans, inertia_once(fn -> ["basic", "pro"] end, fresh: true))
+    |> render_inertia("Home")
+  end
+
+  def once_props_with_expiration(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:rates, inertia_once(fn -> [1.0, 1.5] end, until: 3600))
+    |> render_inertia("Home")
+  end
+
+  def once_props_with_custom_key(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:member_roles, inertia_once(fn -> ["admin", "user"] end, as: "roles"))
+    |> render_inertia("Home")
+  end
+
+  def once_props_camelized(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:user_plans, inertia_once(fn -> ["basic", "pro"] end))
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def once_props_with_deferred(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:permissions, inertia_once(inertia_defer(fn -> ["read", "write"] end)))
+    |> render_inertia("Home")
+  end
+
+  def scroll_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(%{
+        data: [%{id: 1, name: "Alice"}, %{id: 2, name: "Bob"}],
+        meta: %{current_page: 1, next_page: 2, previous_page: nil, page_name: "page"}
+      })
+    )
+    |> assign_prop(:regular, "value")
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_with_custom_wrapper(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(
+        %{
+          items: [%{id: 1, name: "Alice"}],
+          meta: %{current_page: 1, next_page: 2, previous_page: nil}
+        },
+        wrapper: "items"
+      )
+    )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_with_custom_page_name(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(
+        %{
+          data: [%{id: 1}],
+          meta: %{current_page: 1}
+        },
+        page_name: "users_page"
+      )
+    )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_lazy(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(fn ->
+        %{
+          data: [%{id: 1}],
+          meta: %{current_page: 1, next_page: nil, previous_page: nil, page_name: "page"}
+        }
+      end)
+    )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_camelized(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :user_list,
+      inertia_scroll(%{
+        data: [%{id: 1}],
+        meta: %{current_page: 1, next_page: 2, previous_page: nil}
+      })
+    )
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_with_custom_metadata(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(
+        %{
+          entries: [%{id: 1}]
+        },
+        wrapper: "entries",
+        metadata: fn _data ->
+          %{page_name: "p", current_page: 5, next_page: 6, previous_page: 4}
+        end
+      )
+    )
+    |> render_inertia("Home")
   end
 
   defp lazy_3 do
