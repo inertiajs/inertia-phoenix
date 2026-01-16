@@ -6,8 +6,8 @@ jobs:
       version:
         type: string
 
-    # The resource_class feature allows configuring CPU and RAM resources for each job. 
-    # Different resource classes are available for different executors. 
+    # The resource_class feature allows configuring CPU and RAM resources for each job.
+    # Different resource classes are available for different executors.
     # https://circleci.com/docs/2.0/configuration-reference/#resourceclass
     resource_class: "large"
 
@@ -21,6 +21,8 @@ jobs:
     steps:
       - checkout
       - run: mix --version
+      - run: node -v
+      - run: npm -v
       - restore_cache:
           keys:
             - elixir-build-<< parameters.version >>-{{ checksum "mix.lock" }}

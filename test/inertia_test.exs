@@ -99,6 +99,27 @@ defmodule InertiaTest do
     assert body =~ ~s(<div id="ssr"></div>)
   end
 
+  test "renders ssr response for ESM module", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js/esm")
+
+    start_supervised({Inertia.SSR, path: path, esm: true})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    conn =
+      conn
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+
+    assert body =~ ~r/<title inertia>(\s*)New title from ESM(\s*)<\/title>/
+    assert body =~ ~s(<meta name="description" content="Head stuff" />)
+    assert body =~ ~s(<div id="ssr"></div>)
+  end
+
   test "renders ssr response when locally specified", %{conn: conn} do
     path =
       __ENV__.file
