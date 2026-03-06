@@ -94,9 +94,9 @@ config :inertia,
   # CSR).
   raise_on_ssr_failure: config_env() != :prod,
 
-  # Whether to use the script tag for the json payload on the initial load. When set to false, the
-  # json data will be injected into a `data-page` attribute on the container div element. Otherwise
-  # the json data will be injected into a script tag. Defaults to `false`.
+  # Whether to use the script tag for the json payload on the initial load. When set to false,
+  # the json data will be injected into a `data-page` attribute on the container div element.
+  # Otherwise the json data will be injected into a script tag. Defaults to `false`.
   #
   # In inertia v3 you will have to use the script tag to get the json data. In v2 it is present
   # under a future flag.
