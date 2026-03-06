@@ -92,7 +92,15 @@ config :inertia,
   # Recommended: enable in non-production environments and disable in production,
   # so that SSR failures will not cause 500 errors (but instead will fallback to
   # CSR).
-  raise_on_ssr_failure: config_env() != :prod
+  raise_on_ssr_failure: config_env() != :prod,
+
+  # Whether to use the script tag for the json payload on the initial load. When set to false, the
+  # json data will be injected into a `data-page` attribute on the container div element. Otherwise
+  # the json data will be injected into a script tag. Defaults to `false`.
+  #
+  # In inertia v3 you will have to use the script tag to get the json data. In v2 it is present
+  # under a future flag.
+  use_script_tag: false
 ```
 
 This library includes a few modules to help render Inertia responses:
@@ -239,12 +247,8 @@ The example above assumes your pages live in the `assets/js/pages` directory and
 import React from "react";
 
 const Dashboard = () => {
-  return (
-    <div>
-      {/* ... page contents ...*/}
-    </div>
-  );
-}
+  return <div>{/* ... page contents ...*/}</div>;
+};
 
 export default Dashboard;
 ```
@@ -731,7 +735,6 @@ conn
 ## Testing
 
 The `Inertia.Testing` module includes helpers for testing your Inertia controller responses, such as the `inertia_component/1` and `inertia_props/1` functions.
-
 
 ```elixir
 use MyAppWeb.ConnCase

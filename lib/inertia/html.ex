@@ -57,9 +57,15 @@ defmodule Inertia.HTML do
   end
 
   @doc false
-  def inertia_page(assigns) do
+  def inertia_page(%{use_script_tag: false} = assigns) do
     ~H"""
     <div id="app" data-page={json_library().encode!(@page)}></div>
+    """
+  end
+
+  def inertia_page(%{use_script_tag: true} = assigns) do
+    ~H"""
+    <script id="app" type="application/json">{json_library().encode!(@page)}</script>
     """
   end
 
