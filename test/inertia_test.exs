@@ -9,6 +9,7 @@ defmodule InertiaTest do
   setup do
     # Disable SSR by default, selectively enable it when testing
     Application.put_env(:inertia, :ssr, false)
+    Application.delete_env(:inertia, :history)
     :ok
   end
 
@@ -256,9 +257,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"errors" => %{}, "flash" => %{}, "b" => "b", "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -275,9 +274,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}, "important" => "stuff"},
              "url" => "/always",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -294,9 +291,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}, "flash" => %{}},
              "url" => "/always",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -319,9 +314,7 @@ defmodule InertiaTest do
                "important" => "stuff"
              },
              "url" => "/always",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -336,9 +329,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"b" => "b", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -355,9 +346,7 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}},
              "url" => "/tagged_lazy",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -375,9 +364,7 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -401,9 +388,7 @@ defmodule InertiaTest do
                "flash" => %{}
              },
              "url" => "/changeset_errors",
-             "version" => @current_version,
-             "encryptHistory" => false,
-             "clearHistory" => false
+             "version" => @current_version
            }
   end
 
@@ -720,8 +705,7 @@ defmodule InertiaTest do
              "props" => %{"errors" => %{}, "flash" => %{}},
              "url" => "/encrypted_history",
              "version" => @current_version,
-             "encryptHistory" => true,
-             "clearHistory" => false
+             "encryptHistory" => true
            } = json_response(conn, 200)
   end
 
@@ -737,7 +721,6 @@ defmodule InertiaTest do
              "props" => %{"errors" => %{}, "flash" => %{}},
              "url" => "/cleared_history",
              "version" => @current_version,
-             "encryptHistory" => false,
              "clearHistory" => true
            } = json_response(conn, 200)
   end
