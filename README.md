@@ -92,15 +92,7 @@ config :inertia,
   # Recommended: enable in non-production environments and disable in production,
   # so that SSR failures will not cause 500 errors (but instead will fallback to
   # CSR).
-  raise_on_ssr_failure: config_env() != :prod,
-
-  # Whether to use the script tag for the json payload on the initial load. When set to false,
-  # the json data will be injected into a `data-page` attribute on the container div element.
-  # Otherwise the json data will be injected into a script tag. Defaults to `false`.
-  #
-  # In inertia v3 you will have to use the script tag to get the json data. In v2 it is present
-  # under a future flag.
-  use_script_tag: false
+  raise_on_ssr_failure: config_env() != :prod
 ```
 
 This library includes a few modules to help render Inertia responses:

@@ -11,8 +11,6 @@ defmodule Inertia.Controller do
   import Phoenix.Controller
   import Plug.Conn
 
-  @use_script_tag? Application.compile_env(:inertia, :use_script_tag, false)
-
   @title_regex ~r/<title inertia>(.*?)<\/title>/
 
   defmodule Once do
@@ -874,7 +872,7 @@ defmodule Inertia.Controller do
   defp send_csr_response(conn) do
     conn
     |> put_view(Inertia.HTML)
-    |> render(:inertia_page, %{page: inertia_assigns(conn), use_script_tag: @use_script_tag?})
+    |> render(:inertia_page, %{page: inertia_assigns(conn)})
   end
 
   defp inertia_assigns(conn) do
