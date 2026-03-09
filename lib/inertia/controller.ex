@@ -84,11 +84,6 @@ defmodule Inertia.Controller do
     raise ArgumentError, message: "inertia_optional/1 only accepts a function argument"
   end
 
-  @doc false
-  @spec inertia_lazy(fun :: fun()) :: optional()
-  @deprecated "Use inertia_optional/1 instead"
-  def inertia_lazy(fun), do: inertia_optional(fun)
-
   @doc """
   Marks that a prop should be merged with existing data on the client-side.
   """
