@@ -65,8 +65,8 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    assert body =~ ~s("component":"Home") |> html_escape()
-    assert body =~ ~s("version":"db137d38dc4b6ee57d5eedcf0182de8a") |> html_escape()
+    assert body =~ ~s("component":"Home")
+    assert body =~ ~s("version":"db137d38dc4b6ee57d5eedcf0182de8a")
   end
 
   test "tags the <title> tag with inertia", %{conn: conn} do
@@ -159,7 +159,7 @@ defmodule InertiaTest do
       |> get(~p"/")
 
     body = html_response(conn, 200)
-    assert body =~ ~s("component":"Home") |> html_escape()
+    assert body =~ ~s("component":"Home")
   end
 
   test "raises on SSR failure when failure mode is set to raise", %{conn: conn} do
@@ -404,11 +404,11 @@ defmodule InertiaTest do
 
     # The next request should have the errors carried over
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ ~s("errors":{"groceries") |> html_escape()
+    assert html_response(conn, 200) =~ ~s("errors":{"groceries")
 
     # Subsequent requests should now have the errors
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ ~s("errors":{}) |> html_escape()
+    assert html_response(conn, 200) =~ ~s("errors":{})
   end
 
   test "validates error maps", %{conn: conn} do
@@ -477,7 +477,7 @@ defmodule InertiaTest do
       |> recycle()
       |> get("/")
 
-    assert html_response(conn, 200) =~ ~s("flash":{"info":"Patched") |> html_escape()
+    assert html_response(conn, 200) =~ ~s("flash":{"info":"Patched")
   end
 
   test "does not clobber the flash prop if manually set", %{conn: conn} do
@@ -485,7 +485,7 @@ defmodule InertiaTest do
       conn
       |> get(~p"/overridden_flash")
 
-    assert html_response(conn, 200) =~ ~s("flash":{"foo":"bar") |> html_escape()
+    assert html_response(conn, 200) =~ ~s("flash":{"foo":"bar")
   end
 
   test "forwards flash across forced refreshes", %{conn: conn} do
@@ -512,7 +512,7 @@ defmodule InertiaTest do
       |> recycle()
       |> get("/")
 
-    assert html_response(conn, 200) =~ ~s("flash":{"info":"Patched") |> html_escape()
+    assert html_response(conn, 200) =~ ~s("flash":{"info":"Patched")
   end
 
   test "includes XSRF-TOKEN cookie", %{conn: conn} do
@@ -1121,19 +1121,13 @@ defmodule InertiaTest do
     end
   end
 
-  defp html_escape(content) do
-    content
-    |> Phoenix.HTML.html_escape()
-    |> Phoenix.HTML.safe_to_string()
-  end
-
   defp extract_page_data_from_html(raw_html) do
     {:ok, html} = Floki.parse_document(raw_html)
 
-    [json_data] =
+    json_data =
       html
-      |> Floki.find("div[data-page]")
-      |> Floki.attribute("data-page")
+      |> Floki.find("script[data-page=app]")
+      |> Floki.text(js: true)
 
     Jason.decode!(json_data)
   end
