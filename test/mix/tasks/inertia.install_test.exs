@@ -195,14 +195,15 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       """)
     end
 
-    test "creates tsconfig.json when typescript option is specified" do
+    test "overwrites tsconfig.json when typescript option is specified" do
       project =
         phx_test_project()
         |> Map.put(:args, %{options: [client_framework: "react", typescript: true]})
         |> Install.setup_client()
 
-      # Assert that the tsconfig.json file is created
-      assert_creates(project, "assets/tsconfig.json")
+      # Assert that tsconfig.json is overwritten with our config
+      source = project.rewrite.sources["assets/tsconfig.json"]
+      assert source != nil
 
       # Assert that @types/react is installed as a dev dependency
       assert_has_task(project, "cmd", [
@@ -210,7 +211,7 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       ])
     end
 
-    test "does not create tsconfig.json when typescript option is not specified" do
+    test "does not modify tsconfig.json when typescript option is not specified" do
       project =
         phx_test_project()
         |> Map.put(:args, %{options: [client_framework: "react"]})
@@ -224,9 +225,8 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       # Verify app.jsx is created (confirming setup is working)
       assert_creates(project, "assets/js/app.jsx")
 
-      # Check that no file creation for tsconfig.json is in the creates
-      source = project.rewrite.sources["assets/tsconfig.json"]
-      assert source == nil
+      # Assert that tsconfig.json is not modified
+      assert_unchanged(project, "assets/tsconfig.json")
 
       # Assert that @types/react is NOT installed as a dev dependency
       Enum.each(project.tasks, fn {_task, [args]} ->
