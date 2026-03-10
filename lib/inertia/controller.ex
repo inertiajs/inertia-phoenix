@@ -2,7 +2,6 @@ defmodule Inertia.Controller do
   @moduledoc """
   Controller functions for rendering Inertia.js responses.
   """
-
   require Logger
 
   alias Inertia.Errors
@@ -84,11 +83,6 @@ defmodule Inertia.Controller do
   def inertia_optional(_) do
     raise ArgumentError, message: "inertia_optional/1 only accepts a function argument"
   end
-
-  @doc false
-  @spec inertia_lazy(fun :: fun()) :: optional()
-  @deprecated "Use inertia_optional/1 instead"
-  def inertia_lazy(fun), do: inertia_optional(fun)
 
   @doc """
   Marks that a prop should be merged with existing data on the client-side.
@@ -729,7 +723,7 @@ defmodule Inertia.Controller do
     end)
   end
 
-  defp apply_filters(props, only, _except, opts) when length(only) > 0 do
+  defp apply_filters(props, [_ | _] = only, _except, opts) do
     props
     |> Enum.filter(fn {key, value} ->
       case value do
@@ -748,7 +742,7 @@ defmodule Inertia.Controller do
     |> Map.new()
   end
 
-  defp apply_filters(props, _only, except, opts) when length(except) > 0 do
+  defp apply_filters(props, _only, [_ | _] = except, opts) do
     props
     |> Enum.filter(fn {key, value} ->
       case value do
@@ -881,15 +875,31 @@ defmodule Inertia.Controller do
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: conn.private.inertia_version,
-      encryptHistory: conn.private.inertia_encrypt_history,
-      clearHistory: conn.private.inertia_clear_history
+      version: conn.private.inertia_version
     }
+    |> maybe_put_clear_history(conn)
+    |> maybe_put_encrypt_history(conn)
     |> maybe_put_merge_props(conn)
     |> maybe_put_deep_merge_props(conn)
     |> maybe_put_deferred_props(conn)
     |> maybe_put_once_props(conn)
     |> maybe_put_scroll_props(conn)
+  end
+
+  defp maybe_put_encrypt_history(assigns, conn) do
+    if conn.private.inertia_encrypt_history do
+      Map.put(assigns, :encryptHistory, true)
+    else
+      assigns
+    end
+  end
+
+  defp maybe_put_clear_history(assigns, conn) do
+    if conn.private.inertia_clear_history do
+      Map.put(assigns, :clearHistory, true)
+    else
+      assigns
+    end
   end
 
   defp maybe_put_merge_props(assigns, conn) do

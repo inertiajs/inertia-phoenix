@@ -178,7 +178,7 @@ defmodule Inertia.Plug do
   end
 
   defp compute_version do
-    if is_atom(endpoint()) and length(static_paths()) > 0 do
+    if is_atom(endpoint()) and static_paths() != [] do
       hash_static_paths(endpoint(), static_paths())
     else
       default_version()

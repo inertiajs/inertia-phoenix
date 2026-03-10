@@ -59,7 +59,10 @@ defmodule Inertia.HTML do
   @doc false
   def inertia_page(assigns) do
     ~H"""
-    <div id="app" data-page={json_library().encode!(@page)}></div>
+    <div id="app"></div>
+    <script data-page="app" type="application/json">
+      <%= Phoenix.HTML.raw(json_library().encode!(@page)) %>
+    </script>
     """
   end
 
