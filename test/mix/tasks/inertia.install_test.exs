@@ -194,48 +194,44 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       """)
     end
 
-    # With the new version of phoenix, a typescript config is already created
+    test "overwrites tsconfig.json when typescript option is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "react", typescript: true]})
+        |> Install.setup_client()
 
-    # test "creates tsconfig.json when typescript option is specified" do
-    #   project =
-    #     phx_test_project()
-    #     |> Map.put(:args, %{options: [client_framework: "react", typescript: true]})
-    #     |> Install.setup_client()
+      # Assert that tsconfig.json is overwritten with our config
+      source = project.rewrite.sources["assets/tsconfig.json"]
+      assert source != nil
 
-    #   # Assert that the tsconfig.json file is created
-    #   assert_creates(project, "assets/tsconfig.json")
+      # Assert that @types/react is installed as a dev dependency
+      assert_has_task(project, "cmd", [
+        "npm install --prefix assets --save-dev @types/react"
+      ])
+    end
 
-    #   # Assert that @types/react is installed as a dev dependency
-    #   assert_has_task(project, "cmd", [
-    #     "npm install --prefix assets --save-dev @types/react"
-    #   ])
-    # end
+    test "does not modify tsconfig.json when typescript option is not specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "react"]})
+        |> Install.setup_client()
 
-    # Commenting test, since with phoenix 1.8 a tsconfig is created by default
+      # Check that the React client setup task is added (as a control)
+      assert_has_task(project, "cmd", [
+        "npm install --prefix assets @inertiajs/react react react-dom"
+      ])
 
-    #   test "does not create tsconfig.json when typescript option is not specified" do
-    #     project =
-    #       phx_test_project()
-    #       |> Map.put(:args, %{options: [client_framework: "react"]})
-    #       |> Install.setup_client()
+      # Verify app.jsx is created (confirming setup is working)
+      assert_creates(project, "assets/js/app.jsx")
 
-    #     # Check that the React client setup task is added (as a control)
-    #     assert_has_task(project, "cmd", [
-    #       "npm install --prefix assets @inertiajs/react react react-dom"
-    #     ])
+      # Assert that tsconfig.json is not modified
+      assert_unchanged(project, "assets/tsconfig.json")
 
-    #     # Verify app.jsx is created (confirming setup is working)
-    #     assert_creates(project, "assets/js/app.jsx")
-
-    #     # Check that no file creation for tsconfig.json is in the creates
-    #     source = project.rewrite.sources["assets/tsconfig.json"]
-    #     assert source == nil
-
-    #     # Assert that @types/react is NOT installed as a dev dependency
-    #     Enum.each(project.tasks, fn {_task, [args]} ->
-    #       refute args =~ ~r[@types/react]
-    #     end)
-    #   end
+      # Assert that @types/react is NOT installed as a dev dependency
+      Enum.each(project.tasks, fn {_task, [args]} ->
+        refute args =~ ~r[@types/react]
+      end)
+    end
   end
 
   describe "Pages directory creation" do
