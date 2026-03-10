@@ -3,6 +3,7 @@ defmodule MyAppWeb.PageHTML do
 
   def non_inertia(assigns) do
     ~H"""
+
     """
   end
 end

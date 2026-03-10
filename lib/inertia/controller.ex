@@ -875,7 +875,7 @@ defmodule Inertia.Controller do
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: conn.private.inertia_version,
+      version: conn.private.inertia_version
     }
     |> maybe_put_clear_history(conn)
     |> maybe_put_encrypt_history(conn)
