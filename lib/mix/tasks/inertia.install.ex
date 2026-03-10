@@ -46,7 +46,15 @@ if Code.ensure_loaded?(Igniter) do
     @moduledoc __MODULE__.Docs.long_doc()
 
     use Igniter.Mix.Task
-    require Igniter.Code.Common
+
+    alias Igniter.Code.Common
+    alias Igniter.Code.Function
+    alias Igniter.Libs.Phoenix
+    alias Igniter.Project.Application
+    alias Igniter.Project.Config
+    alias Igniter.Project.Module
+
+    require Common
 
     @impl Igniter.Mix.Task
     def info(_argv, _parent) do
@@ -84,7 +92,7 @@ if Code.ensure_loaded?(Igniter) do
         import_code = "import Inertia.Controller"
 
         with {:ok, zipper} <- move_to_last_import(zipper) do
-          {:ok, Igniter.Code.Common.add_code(zipper, import_code)}
+          {:ok, Common.add_code(zipper, import_code)}
         end
       end)
     end
@@ -97,7 +105,7 @@ if Code.ensure_loaded?(Igniter) do
         """
 
         with {:ok, zipper} <- move_to_last_import(zipper) do
-          {:ok, Igniter.Code.Common.add_code(zipper, import_code)}
+          {:ok, Common.add_code(zipper, import_code)}
         end
       end)
     end
@@ -105,29 +113,29 @@ if Code.ensure_loaded?(Igniter) do
     # Run an update function within the quote do ... end block inside a *web.ex helper function
     # update_fun must return {:ok, zipper} or :error.
     defp update_web_ex_helper(igniter, helper_name, update_fun) do
-      web_module = Igniter.Libs.Phoenix.web_module(igniter)
+      web_module = Phoenix.web_module(igniter)
 
-      Igniter.Project.Module.find_and_update_module!(igniter, web_module, fn zipper ->
-        with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, helper_name, 0),
-             {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper) do
-          Igniter.Code.Common.within(zipper, update_fun)
+      Module.find_and_update_module!(igniter, web_module, fn zipper ->
+        with {:ok, zipper} <- Function.move_to_def(zipper, helper_name, 0),
+             {:ok, zipper} <- Common.move_to_do_block(zipper) do
+          Common.within(zipper, update_fun)
         end
       end)
     end
 
     defp move_to_last_import(zipper) do
-      Igniter.Code.Common.move_to_last(zipper, &Igniter.Code.Function.function_call?(&1, :import))
+      Common.move_to_last(zipper, &Function.function_call?(&1, :import))
     end
 
     @doc false
     def setup_router(igniter) do
-      Igniter.Libs.Phoenix.append_to_pipeline(igniter, :browser, "plug Inertia.Plug")
+      Phoenix.append_to_pipeline(igniter, :browser, "plug Inertia.Plug")
     end
 
     @doc false
     def add_inertia_config(igniter) do
       # Get endpoint module name based on app name
-      {igniter, endpoint_module} = Igniter.Libs.Phoenix.select_endpoint(igniter)
+      {igniter, endpoint_module} = Phoenix.select_endpoint(igniter)
 
       # Determine configuration based on options
       camelize_props = igniter.args.options[:camelize_props] || false
@@ -155,13 +163,7 @@ if Code.ensure_loaded?(Igniter) do
 
       # Add the configuration to config.exs
       Enum.reduce(config_options, igniter, fn {key, value}, igniter ->
-        Igniter.Project.Config.configure(
-          igniter,
-          "config.exs",
-          :inertia,
-          [key],
-          value
-        )
+        Config.configure(igniter, "config.exs", :inertia, [key], value)
       end)
     end
 
@@ -183,12 +185,12 @@ if Code.ensure_loaded?(Igniter) do
 
     defp web_dir(igniter) do
       igniter
-      |> Igniter.Libs.Phoenix.web_module()
+      |> Phoenix.web_module()
       |> inspect()
       |> Macro.underscore()
     end
 
-    defp inertia_root_html() do
+    defp inertia_root_html do
       """
       <!DOCTYPE html>
       <html lang="en">
@@ -211,16 +213,11 @@ if Code.ensure_loaded?(Igniter) do
     @doc false
     def update_esbuild_config(igniter) do
       igniter
-      |> Igniter.Project.Config.configure(
+      |> Config.configure("config.exs", :esbuild, [:version], "0.27.3")
+      |> Config.configure(
         "config.exs",
         :esbuild,
-        [:version],
-        "0.27.3"
-      )
-      |> Igniter.Project.Config.configure(
-        "config.exs",
-        :esbuild,
-        [Igniter.Project.Application.app_name(igniter)],
+        [Application.app_name(igniter)],
         {:code,
          Sourceror.parse_string!("""
          [
@@ -313,7 +310,7 @@ if Code.ensure_loaded?(Igniter) do
       ])
     end
 
-    defp react_tsconfig_json() do
+    defp react_tsconfig_json do
       """
       {
         "compilerOptions": {
@@ -346,7 +343,7 @@ if Code.ensure_loaded?(Igniter) do
       """
     end
 
-    defp inertia_app_jsx() do
+    defp inertia_app_jsx do
       """
       import React from "react";
 
