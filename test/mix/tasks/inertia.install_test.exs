@@ -119,15 +119,14 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       ...|
          |# Configure esbuild (the version is required)
          |config :esbuild,
-       - |  version: "0.17.11",
+       - |  version: "0.25.4",
        + |  version: "0.27.3",
          |  test: [
          |    args:
-       - |      ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+       - |      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
        + |      ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
          |    cd: Path.expand("../assets", __DIR__),
-       - |    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-       + |    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+         |    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
       ...|
       """)
 
