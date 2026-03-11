@@ -288,7 +288,7 @@ defmodule Inertia.Controller do
   end
 
   @doc """
-  Instuct the client-side to encrypt history for this page.
+  Instruct the client-side to encrypt history for this page.
   """
   @doc since: "1.0.0"
   @spec encrypt_history(Plug.Conn.t()) :: Plug.Conn.t()
@@ -303,7 +303,7 @@ defmodule Inertia.Controller do
   end
 
   @doc """
-  Instuct the client-side to clear the history.
+  Instruct the client-side to clear the history.
   """
   @doc since: "1.0.0"
   @spec clear_history(Plug.Conn.t()) :: Plug.Conn.t()
