@@ -43,6 +43,7 @@ defmodule Inertia.Controller do
   @opaque defer() :: {:defer, {fun(), String.t()}}
   @opaque once() :: Once.t()
   @opaque scroll() :: Scroll.t()
+  @opaque shared() :: {:shared, any()}
   @opaque preserved_prop_key :: {:preserve, raw_prop_key()}
 
   @type render_opt() :: {:ssr, boolean()}
@@ -126,6 +127,16 @@ defmodule Inertia.Controller do
   """
   @spec inertia_always(value :: any()) :: always()
   def inertia_always(value), do: {:keep, value}
+
+  @doc """
+  Marks a prop value as shared, causing its key to appear in the `sharedProps` page metadata.
+
+  This tells the frontend which props are "shared" (set globally in plugs/middleware)
+  so it can carry them forward optimistically during instant visits.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_share(value :: any()) :: shared()
+  def inertia_share(value), do: {:shared, value}
 
   @doc """
   Marks a prop as a "once" prop, which is cached on the client-side and
@@ -285,6 +296,19 @@ defmodule Inertia.Controller do
   def assign_prop(conn, key, value) do
     shared = conn.private[:inertia_shared] || %{}
     put_private(conn, :inertia_shared, Map.put(shared, key, value))
+  end
+
+  @doc """
+  Assigns a shared prop value to the Inertia page data.
+
+  This is a convenience for `assign_prop(conn, key, inertia_share(value))`.
+  Shared props have their keys included in the `sharedProps` page metadata,
+  which tells the frontend to carry them forward during instant visits.
+  """
+  @doc since: "3.0.0"
+  @spec assign_shared_prop(Plug.Conn.t(), prop_key(), any()) :: Plug.Conn.t()
+  def assign_shared_prop(conn, key, value) do
+    assign_prop(conn, key, inertia_share(value))
   end
 
   @doc """
@@ -514,6 +538,9 @@ defmodule Inertia.Controller do
 
     props = Map.merge(shared_props, inline_props)
 
+    # Unwrap {:shared, _} tags and collect shared prop keys
+    {props, shared_prop_keys} = resolve_shared_props(props, opts)
+
     # Process scroll props first (since they create merge entries and need early evaluation)
     {props, scroll_props} = resolve_scroll_props(props, opts)
 
@@ -541,6 +568,7 @@ defmodule Inertia.Controller do
       deferred_props: deferred_props,
       once_props: once_props,
       scroll_props: scroll_props,
+      shared_props: shared_prop_keys,
       is_partial: is_partial
     })
     |> detect_ssr(opts)
@@ -583,6 +611,19 @@ defmodule Inertia.Controller do
   end
 
   # Private helpers
+
+  defp resolve_shared_props(props, opts) do
+    Enum.reduce(props, {[], []}, fn {key, value}, {props_acc, shared_acc} ->
+      case value do
+        {:shared, inner} ->
+          transformed_key = key |> transform_key(opts) |> to_string()
+          {[{key, inner} | props_acc], [transformed_key | shared_acc]}
+
+        _ ->
+          {[{key, value} | props_acc], shared_acc}
+      end
+    end)
+  end
 
   # Runs a reduce operation over the top-level props and looks for values that
   # were tagged via the `inertia_merge/2` helper. If the value is tagged, then
@@ -798,6 +839,7 @@ defmodule Inertia.Controller do
 
   defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
+  defp resolve_props({:shared, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
   defp resolve_props({:scroll_merge, value, _merge_path}, opts), do: resolve_props(value, opts)
   defp resolve_props(fun, opts) when is_function(fun, 0), do: resolve_props(fun.(), opts)
@@ -896,6 +938,7 @@ defmodule Inertia.Controller do
     |> maybe_put_deferred_props(conn)
     |> maybe_put_once_props(conn)
     |> maybe_put_scroll_props(conn)
+    |> maybe_put_shared_props(conn)
     |> maybe_put_preserve_fragment(conn)
   end
 
@@ -963,6 +1006,16 @@ defmodule Inertia.Controller do
       assigns
     else
       Map.put(assigns, :scrollProps, scroll_props)
+    end
+  end
+
+  defp maybe_put_shared_props(assigns, conn) do
+    shared_props = conn.private.inertia_page.shared_props
+
+    if Enum.empty?(shared_props) do
+      assigns
+    else
+      Map.put(assigns, :sharedProps, shared_props)
     end
   end
 

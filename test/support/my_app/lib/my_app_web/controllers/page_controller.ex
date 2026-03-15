@@ -348,6 +348,52 @@ defmodule MyAppWeb.PageController do
     conn |> preserve_fragment() |> redirect(to: ~p"/")
   end
 
+  def shared_props_via_assign(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:current_user, %{id: 1, name: "Alice"})
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def shared_props_via_inline(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render_inertia("Home", %{current_user: inertia_share(%{id: 1}), other: "value"})
+  end
+
+  def shared_props_with_merge(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:items, inertia_merge(["a", "b"]))
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def shared_props_with_defer(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:items, inertia_defer(fn -> ["a", "b"] end))
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def shared_props_camelized(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:current_user, %{id: 1})
+    |> assign_prop(:other_thing, "value")
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def shared_props_empty(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
   defp lazy_3 do
     "lazy_3"
   end

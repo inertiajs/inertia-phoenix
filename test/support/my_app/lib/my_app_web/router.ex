@@ -52,6 +52,12 @@ defmodule MyAppWeb.Router do
     get "/scroll_props_lazy", PageController, :scroll_props_lazy
     get "/scroll_props_camelized", PageController, :scroll_props_camelized
     get "/scroll_props_with_custom_metadata", PageController, :scroll_props_with_custom_metadata
+    get "/shared_props_via_assign", PageController, :shared_props_via_assign
+    get "/shared_props_via_inline", PageController, :shared_props_via_inline
+    get "/shared_props_with_merge", PageController, :shared_props_with_merge
+    get "/shared_props_with_defer", PageController, :shared_props_with_defer
+    get "/shared_props_camelized", PageController, :shared_props_camelized
+    get "/shared_props_empty", PageController, :shared_props_empty
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

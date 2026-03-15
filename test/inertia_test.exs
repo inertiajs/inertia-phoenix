@@ -1122,6 +1122,110 @@ defmodule InertiaTest do
     end
   end
 
+  # Shared Props Tests
+
+  describe "shared props" do
+    test "assign_shared_prop tags props and they appear in sharedProps JSON response", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/shared_props_via_assign")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["current_user"] == %{"id" => 1, "name" => "Alice"}
+      assert body["props"]["other"] == "value"
+      assert body["sharedProps"] == ["current_user"]
+    end
+
+    test "inertia_share in inline prop maps", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/shared_props_via_inline")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["current_user"] == %{"id" => 1}
+      assert body["props"]["other"] == "value"
+      assert body["sharedProps"] == ["current_user"]
+    end
+
+    test "sharedProps appears in HTML (CSR) page data", %{conn: conn} do
+      conn = get(conn, ~p"/shared_props_via_assign")
+      body = html_response(conn, 200)
+      props = extract_page_data_from_html(body)
+
+      assert props["props"]["current_user"] == %{"id" => 1, "name" => "Alice"}
+      assert props["sharedProps"] == ["current_user"]
+    end
+
+    test "composability with inertia_merge", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/shared_props_with_merge")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["items"] == ["a", "b"]
+      assert body["sharedProps"] == ["items"]
+      assert body["mergeProps"] == ["items"]
+    end
+
+    test "composability with inertia_defer", %{conn: conn} do
+      conn = get(conn, ~p"/shared_props_with_defer")
+      body = html_response(conn, 200)
+      props = extract_page_data_from_html(body)
+
+      assert props["sharedProps"] == ["items"]
+      assert props["deferredProps"]["default"] == ["items"]
+    end
+
+    test "sharedProps respects camelization of keys", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/shared_props_camelized")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["currentUser"] == %{"id" => 1}
+      assert body["props"]["otherThing"] == "value"
+      assert body["sharedProps"] == ["currentUser"]
+    end
+
+    test "sharedProps is omitted from response when empty", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/shared_props_empty")
+
+      body = json_response(conn, 200)
+
+      refute Map.has_key?(body, "sharedProps")
+    end
+
+    test "inertia_shared_props/1 test helper", %{conn: conn} do
+      conn = get(conn, ~p"/shared_props_via_assign")
+
+      assert Inertia.Testing.inertia_shared_props(conn) == ["current_user"]
+    end
+
+    test "inertia_shared_props/1 returns empty list when no shared props", %{conn: conn} do
+      conn = get(conn, ~p"/shared_props_empty")
+
+      assert Inertia.Testing.inertia_shared_props(conn) == []
+    end
+  end
+
   # Preserve Fragment Tests
 
   test "includes preserveFragment in JSON response when preserve_fragment is called", %{

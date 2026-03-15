@@ -572,7 +572,9 @@ conn
 
 ## Shared data
 
-To share data on every request, you can use the `assign_prop/2` function inside of a shared plug in your response pipeline. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user and you want to be sure all your Inertia components receive that user data. Your plug might look something like this:
+To share data on every request, you can use the `assign_shared_prop/3` function inside of a shared plug in your response pipeline. This marks the prop as "shared", which tells the Inertia.js client which props are set globally so it can carry them forward optimistically during instant visits.
+
+For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user and you want to be sure all your Inertia components receive that user data. Your plug might look something like this:
 
 ```elixir
 defmodule MyApp.UserAuth do
@@ -583,20 +585,39 @@ defmodule MyApp.UserAuth do
   def authenticate_user(conn, _opts) do
     user = get_user_from_session(conn)
 
-    # Here we are storing the user in the conn assigns (so
-    # we can use it for things like checking permissions later on),
-    # AND we are assigning a serialized represention of the user
-    # to our Inertia props.
     conn
     |> assign(:user, user)
-    |> assign_prop(:user, serialize_user(user))
+    |> assign_shared_prop(:user, serialize_user(user))
   end
 
   # ...
 end
 ```
 
-Anywhere this plug is used, the serialized `user` prop will be passed to the Inertia component.
+Anywhere this plug is used, the serialized `user` prop will be passed to the Inertia component, and the key `"user"` will appear in the `sharedProps` array in the page response.
+
+You can also use `inertia_share/1` to mark a prop as shared when using inline prop maps:
+
+```elixir
+conn
+|> render_inertia("Home", %{
+  current_user: inertia_share(serialize_user(user)),
+  other: "value"
+})
+```
+
+Shared props are composable with other prop types like `inertia_merge/1` and `inertia_defer/1`:
+
+```elixir
+conn
+|> assign_shared_prop(:notifications, inertia_merge(notifications))
+|> assign_shared_prop(:permissions, inertia_defer(fn -> fetch_permissions() end))
+```
+
+> [!NOTE]
+> You can still use `assign_prop/3` for shared data if you don't need the `sharedProps` metadata.
+> The `assign_shared_prop/3` function is a convenience wrapper that additionally tags the prop
+> for inclusion in the `sharedProps` page metadata.
 
 ## Validations
 

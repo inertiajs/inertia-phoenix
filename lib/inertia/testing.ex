@@ -79,4 +79,29 @@ defmodule Inertia.Testing do
       _ -> Plug.Conn.get_session(conn, "inertia_errors", %{})
     end
   end
+
+  @doc """
+  Fetches the shared prop keys (if applicable) for the current request.
+
+  Returns the list of string keys that were marked as shared props.
+
+  ## Example
+
+      use MyAppWeb.ConnCase
+
+      import Inertia.Testing
+
+      describe "GET /" do
+        test "includes shared props", %{conn: conn} do
+          conn = get("/")
+          assert "currentUser" in inertia_shared_props(conn)
+        end
+      end
+  """
+  @doc since: "3.0.0"
+  @spec inertia_shared_props(Plug.Conn.t()) :: list(String.t())
+  def inertia_shared_props(conn) do
+    page = conn.private[:inertia_page] || %{}
+    page[:shared_props] || []
+  end
 end
