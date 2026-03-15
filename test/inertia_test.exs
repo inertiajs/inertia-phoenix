@@ -1293,12 +1293,6 @@ defmodule InertiaTest do
     assert props["preserveFragment"] == true
   end
 
-  defp html_escape(content) do
-    content
-    |> Phoenix.HTML.html_escape()
-    |> Phoenix.HTML.safe_to_string()
-  end
-
   defp extract_page_data_from_html(raw_html) do
     {:ok, html} = Floki.parse_document(raw_html)
 
