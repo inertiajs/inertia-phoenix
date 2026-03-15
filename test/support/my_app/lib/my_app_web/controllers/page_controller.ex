@@ -394,6 +394,153 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  # Nested prop test actions
+
+  def nested_optional(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        token: inertia_optional(fn -> "secret-token" end)
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_defer(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        permissions: inertia_defer(fn -> ["read", "write"] end)
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_merge(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:feed, fn ->
+      %{
+        posts: inertia_merge(["post1", "post2"]),
+        meta: "info"
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_deep_merge(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:feed, fn ->
+      %{
+        posts: inertia_deep_merge(%{items: [1, 2]}),
+        meta: "info"
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_always(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        role: inertia_always("admin")
+      }
+    end)
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_partial_dot_path(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        permissions: ["read", "write"],
+        token: "secret"
+      }
+    end)
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_parent_resolved(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        token: "secret"
+      }
+    end)
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_two_level_unwrap(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:stats, fn -> inertia_defer(fn -> "data" end) |> inertia_merge() end)
+    |> render_inertia("Home")
+  end
+
+  def nested_once(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        plans: inertia_once(fn -> ["basic", "pro"] end)
+      }
+    end)
+    |> assign_prop(:regular, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_camelized(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:user_profile, fn ->
+      %{
+        full_name: "Alice",
+        access_level: inertia_defer(fn -> "admin" end)
+      }
+    end)
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def nested_scroll(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:feed, fn ->
+      %{
+        posts:
+          inertia_scroll(%{
+            data: [%{id: 1}],
+            meta: %{current_page: 1, next_page: 2, previous_page: nil, page_name: "page"}
+          }),
+        title: "My Feed"
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_plain_map_partial(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, %{user: "Alice", token: "secret"})
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
   defp lazy_3 do
     "lazy_3"
   end
