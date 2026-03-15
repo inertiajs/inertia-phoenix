@@ -1122,6 +1122,79 @@ defmodule InertiaTest do
     end
   end
 
+  # Preserve Fragment Tests
+
+  test "includes preserveFragment in JSON response when preserve_fragment is called", %{
+    conn: conn
+  } do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/preserved_fragment")
+
+    body = json_response(conn, 200)
+    assert body["preserveFragment"] == true
+  end
+
+  test "does not include preserveFragment by default", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    body = json_response(conn, 200)
+    refute Map.has_key?(body, "preserveFragment")
+  end
+
+  test "preserveFragment survives redirect and is consumed after one use", %{conn: conn} do
+    # First, trigger a redirect with preserve_fragment
+    conn =
+      conn
+      |> get(~p"/redirect_with_preserved_fragment")
+
+    assert redirected_to(conn) == ~p"/"
+
+    # After the redirect, the session flag should carry over
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    body = json_response(conn, 200)
+    assert body["preserveFragment"] == true
+
+    # On the next request, the flag should be consumed (one-shot)
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    body = json_response(conn, 200)
+    refute Map.has_key?(body, "preserveFragment")
+  end
+
+  test "includes preserveFragment in HTML response when preserve_fragment is called", %{
+    conn: conn
+  } do
+    conn = get(conn, ~p"/preserved_fragment")
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    assert props["preserveFragment"] == true
+  end
+
+  defp html_escape(content) do
+    content
+    |> Phoenix.HTML.html_escape()
+    |> Phoenix.HTML.safe_to_string()
+  end
+
   defp extract_page_data_from_html(raw_html) do
     {:ok, html} = Floki.parse_document(raw_html)
 

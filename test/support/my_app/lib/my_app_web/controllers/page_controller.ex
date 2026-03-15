@@ -340,6 +340,14 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def preserved_fragment(conn, _params) do
+    conn |> assign(:page_title, "Home") |> preserve_fragment() |> render_inertia("Home")
+  end
+
+  def redirect_with_preserved_fragment(conn, _params) do
+    conn |> preserve_fragment() |> redirect(to: ~p"/")
+  end
+
   defp lazy_3 do
     "lazy_3"
   end

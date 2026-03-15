@@ -33,6 +33,8 @@ defmodule MyAppWeb.Router do
     get "/deferred_props", PageController, :deferred_props
     get "/encrypted_history", PageController, :encrypted_history
     get "/cleared_history", PageController, :cleared_history
+    get "/preserved_fragment", PageController, :preserved_fragment
+    get "/redirect_with_preserved_fragment", PageController, :redirect_with_preserved_fragment
     get "/camelized_props", PageController, :camelized_props
     get "/camelized_deferred_props", PageController, :camelized_deferred_props
     get "/preserved_case_props", PageController, :preserved_case_props

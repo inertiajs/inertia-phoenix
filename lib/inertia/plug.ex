@@ -17,9 +17,11 @@ defmodule Inertia.Plug do
     |> put_private(:inertia_error_bag, get_error_bag(conn))
     |> put_private(:inertia_encrypt_history, default_encrypt_history())
     |> put_private(:inertia_clear_history, false)
+    |> put_private(:inertia_preserve_fragment, false)
     |> put_private(:inertia_camelize_props, default_camelize_props())
     |> merge_forwarded_flash()
     |> fetch_inertia_errors()
+    |> fetch_preserve_fragment()
     |> detect_inertia()
   end
 
@@ -42,6 +44,23 @@ defmodule Inertia.Plug do
         put_session(conn, "inertia_errors", errors)
       else
         delete_session(conn, "inertia_errors")
+      end
+    end)
+  end
+
+  defp fetch_preserve_fragment(conn) do
+    conn =
+      if get_session(conn, "inertia_preserve_fragment") do
+        put_private(conn, :inertia_preserve_fragment, true)
+      else
+        conn
+      end
+
+    register_before_send(conn, fn %{status: status} = conn ->
+      if (status in 300..308 or status == 409) and conn.private[:inertia_preserve_fragment] do
+        put_session(conn, "inertia_preserve_fragment", true)
+      else
+        delete_session(conn, "inertia_preserve_fragment")
       end
     end)
   end

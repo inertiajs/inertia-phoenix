@@ -318,6 +318,18 @@ defmodule Inertia.Controller do
   end
 
   @doc """
+  Instruct the client-side to preserve the URL fragment across this navigation.
+  """
+  @doc since: "3.0.0"
+  @spec preserve_fragment(Plug.Conn.t()) :: Plug.Conn.t()
+  def preserve_fragment(conn), do: put_private(conn, :inertia_preserve_fragment, true)
+
+  @doc since: "3.0.0"
+  @spec preserve_fragment(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def preserve_fragment(conn, val) when is_boolean(val),
+    do: put_private(conn, :inertia_preserve_fragment, val)
+
+  @doc """
   Enable (or disable) automatic conversion of prop keys from snake case (e.g.
   `inserted_at`), which is conventional in Elixir, to camel case (e.g.
   `insertedAt`), which is conventional in JavaScript.
@@ -884,6 +896,7 @@ defmodule Inertia.Controller do
     |> maybe_put_deferred_props(conn)
     |> maybe_put_once_props(conn)
     |> maybe_put_scroll_props(conn)
+    |> maybe_put_preserve_fragment(conn)
   end
 
   defp maybe_put_encrypt_history(assigns, conn) do
@@ -950,6 +963,14 @@ defmodule Inertia.Controller do
       assigns
     else
       Map.put(assigns, :scrollProps, scroll_props)
+    end
+  end
+
+  defp maybe_put_preserve_fragment(assigns, conn) do
+    if conn.private[:inertia_preserve_fragment] do
+      Map.put(assigns, :preserveFragment, true)
+    else
+      assigns
     end
   end
 

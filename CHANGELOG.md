@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add `preserve_fragment/1` and `preserve_fragment/2` functions to instruct the client-side to preserve the URL fragment across server-side redirects ([#68](https://github.com/inertiajs/inertia-phoenix/issues/68)).
+
 ## 2.6.0
 
 ### Added
