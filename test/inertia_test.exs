@@ -31,7 +31,8 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"text" => "Hello World", "errors" => %{}, "flash" => %{}},
+             "props" => %{"text" => "Hello World", "errors" => %{}},
+             "flash" => %{},
              "url" => "/",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -51,9 +52,9 @@ defmodule InertiaTest do
              "props" => %{
                "text" => "Hello World",
                "foo" => "bar",
-               "errors" => %{},
-               "flash" => %{}
+               "errors" => %{}
              },
+             "flash" => %{},
              "url" => "/shared",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -237,9 +238,9 @@ defmodule InertiaTest do
                "lazy_1" => "lazy_1",
                "lazy_3" => "lazy_3",
                "nested" => %{"lazy_2" => "lazy_2"},
-               "errors" => %{},
-               "flash" => %{}
+               "errors" => %{}
              },
+             "flash" => %{},
              "url" => "/lazy",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -256,7 +257,8 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}, "b" => "b", "important" => "stuff"},
+             "props" => %{"errors" => %{}, "b" => "b", "important" => "stuff"},
+             "flash" => %{},
              "url" => "/always",
              "version" => @current_version
            }
@@ -273,7 +275,8 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}, "important" => "stuff"},
+             "props" => %{"a" => "a", "errors" => %{}, "important" => "stuff"},
+             "flash" => %{},
              "url" => "/always",
              "version" => @current_version
            }
@@ -290,7 +293,8 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}, "flash" => %{}},
+             "props" => %{"a" => "a", "important" => "stuff", "errors" => %{}},
+             "flash" => %{},
              "url" => "/always",
              "version" => @current_version
            }
@@ -310,10 +314,10 @@ defmodule InertiaTest do
              "props" => %{
                "a" => "a",
                "errors" => %{},
-               "flash" => %{},
                "b" => "b",
                "important" => "stuff"
              },
+             "flash" => %{},
              "url" => "/always",
              "version" => @current_version
            }
@@ -328,7 +332,8 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"b" => "b", "errors" => %{}, "flash" => %{}},
+             "props" => %{"b" => "b", "errors" => %{}},
+             "flash" => %{},
              "url" => "/tagged_lazy",
              "version" => @current_version
            }
@@ -345,7 +350,8 @@ defmodule InertiaTest do
 
     assert json_response(conn, 200) == %{
              "component" => "Home",
-             "props" => %{"a" => "a", "errors" => %{}, "flash" => %{}},
+             "props" => %{"a" => "a", "errors" => %{}},
+             "flash" => %{},
              "url" => "/tagged_lazy",
              "version" => @current_version
            }
@@ -361,9 +367,9 @@ defmodule InertiaTest do
     assert json_response(conn, 200) == %{
              "component" => "Home",
              "props" => %{
-               "errors" => %{"settings.theme" => "can't be blank", "name" => "can't be blank"},
-               "flash" => %{}
+               "errors" => %{"settings.theme" => "can't be blank", "name" => "can't be blank"}
              },
+             "flash" => %{},
              "url" => "/changeset_errors",
              "version" => @current_version
            }
@@ -385,9 +391,9 @@ defmodule InertiaTest do
                    "settings.theme" => "can't be blank",
                    "name" => "can't be blank"
                  }
-               },
-               "flash" => %{}
+               }
              },
+             "flash" => %{},
              "url" => "/changeset_errors",
              "version" => @current_version
            }
@@ -554,7 +560,8 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "props" => %{"errors" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "flash" => %{},
              "url" => "/merge_props",
              "mergeProps" => merge_props,
              "version" => @current_version
@@ -574,7 +581,8 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "props" => %{"errors" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "flash" => %{},
              "url" => "/merge_props",
              # Excludes "a", since it was passed in the x-inertia-reset header
              "mergeProps" => ["b"],
@@ -593,12 +601,12 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{
                "errors" => %{},
-               "flash" => %{},
                "a" => %{"a" => %{"b" => %{"c" => 1}}},
                "b" => ["a", "b"],
                "c" => "c",
                "d" => "d"
              },
+             "flash" => %{},
              "url" => "/deep_merge_props",
              "mergeProps" => ["c"],
              "deepMergeProps" => deep_merge_props,
@@ -621,12 +629,12 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{
                "errors" => %{},
-               "flash" => %{},
                "a" => %{"a" => %{"b" => %{"c" => 1}}},
                "b" => ["a", "b"],
                "c" => "c",
                "d" => "d"
              },
+             "flash" => %{},
              "url" => "/deep_merge_props",
              # Excludes "a", since it was passed in the x-inertia-reset header
              "deepMergeProps" => ["b"],
@@ -660,7 +668,8 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}, "d" => "d"},
+             "props" => %{"errors" => %{}, "d" => "d"},
+             "flash" => %{},
              "url" => "/deferred_props",
              "mergeProps" => ["c"],
              "version" => @current_version
@@ -684,7 +693,8 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "props" => %{"errors" => %{}, "a" => "a", "b" => "b", "c" => "c"},
+             "flash" => %{},
              "url" => "/deferred_props",
              "mergeProps" => ["c"],
              "version" => @current_version
@@ -703,7 +713,8 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}},
+             "props" => %{"errors" => %{}},
+             "flash" => %{},
              "url" => "/encrypted_history",
              "version" => @current_version,
              "encryptHistory" => true
@@ -719,7 +730,8 @@ defmodule InertiaTest do
 
     assert %{
              "component" => "Home",
-             "props" => %{"errors" => %{}, "flash" => %{}},
+             "props" => %{"errors" => %{}},
+             "flash" => %{},
              "url" => "/cleared_history",
              "version" => @current_version,
              "clearHistory" => true
@@ -737,10 +749,10 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{
                "errors" => %{},
-               "flash" => %{},
                "firstName" => "Bob",
                "items" => [%{"itemName" => "Foo"}]
              },
+             "flash" => %{},
              "url" => "/camelized_props",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -759,9 +771,9 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{
                "errors" => %{},
-               "flash" => %{},
                "deferredItems" => [%{"itemName" => "Foo"}]
              },
+             "flash" => %{},
              "url" => "/camelized_deferred_props",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -789,11 +801,11 @@ defmodule InertiaTest do
              "component" => "Home",
              "props" => %{
                "errors" => %{},
-               "flash" => %{},
                "first_name" => "Bob",
                "lastName" => "Jones",
                "profile" => %{"birth_year" => "Foo"}
              },
+             "flash" => %{},
              "url" => "/preserved_case_props",
              "version" => @current_version
            } = json_response(conn, 200)
@@ -1637,6 +1649,320 @@ defmodule InertiaTest do
 
       assert body["props"]["stats"] == "data"
     end
+  end
+
+  # Vary header tests
+
+  test "sets Vary: X-Inertia header on all responses", %{conn: conn} do
+    # Non-Inertia HTML response
+    conn = get(conn, ~p"/")
+    assert "X-Inertia" in get_resp_header(conn, "vary")
+  end
+
+  test "sets Vary: X-Inertia on Inertia JSON responses", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    assert "X-Inertia" in get_resp_header(conn, "vary")
+  end
+
+  test "sets Vary: X-Inertia on non-Inertia responses", %{conn: conn} do
+    conn = get(conn, ~p"/non_inertia")
+    assert "X-Inertia" in get_resp_header(conn, "vary")
+  end
+
+  # clearHistory session persistence tests
+
+  test "clearHistory survives redirect and is consumed after one use", %{conn: conn} do
+    conn = get(conn, ~p"/redirect_with_clear_history")
+    assert redirected_to(conn) == ~p"/"
+
+    # After the redirect, clearHistory should carry over
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    body = json_response(conn, 200)
+    assert body["clearHistory"] == true
+
+    # On the next request, the flag should be consumed (one-shot)
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    body = json_response(conn, 200)
+    refute Map.has_key?(body, "clearHistory")
+  end
+
+  # Flash as top-level key tests
+
+  test "flash appears at top level of JSON response", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    body = json_response(conn, 200)
+    assert body["flash"] == %{}
+    refute Map.has_key?(body["props"], "flash")
+  end
+
+  test "flash appears at top level of HTML response", %{conn: conn} do
+    conn = get(conn, ~p"/")
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    assert props["flash"] == %{}
+    refute Map.has_key?(props["props"], "flash")
+  end
+
+  test "overridden flash prop is extracted to top level", %{conn: conn} do
+    conn = get(conn, ~p"/overridden_flash")
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    assert props["flash"] == %{"foo" => "bar"}
+    refute Map.has_key?(props["props"], "flash")
+  end
+
+  test "inertia_flash/1 testing helper", %{conn: conn} do
+    conn = get(conn, ~p"/")
+    assert Inertia.Testing.inertia_flash(conn) == %{}
+  end
+
+  # Hash fragment redirect tests
+
+  test "redirects with fragment return 409 with X-Inertia-Redirect header", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/redirect_with_fragment")
+
+    assert response(conn, 409)
+    assert get_resp_header(conn, "x-inertia-redirect") == ["/page#section"]
+  end
+
+  test "fragment redirect skipped for prefetch requests", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-purpose", "prefetch")
+      |> get(~p"/redirect_with_fragment")
+
+    # Should be a normal 303 redirect (PUT/PATCH/DELETE) or 302 (GET)
+    assert response(conn, 302)
+  end
+
+  # Empty response handling tests
+
+  test "empty Inertia response redirects back to referer path", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("referer", "http://localhost/previous")
+      |> get(~p"/empty_response")
+
+    assert response(conn, 303)
+    assert get_resp_header(conn, "location") == ["/previous"]
+  end
+
+  test "empty Inertia response redirects to / when no referer", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/empty_response")
+
+    assert response(conn, 303)
+    assert get_resp_header(conn, "location") == ["/"]
+  end
+
+  test "non-Inertia empty response is not redirected", %{conn: conn} do
+    conn = get(conn, ~p"/empty_response")
+    assert response(conn, 200)
+  end
+
+  # Prepend merge support tests
+
+  test "prepend props appear in both mergeProps and prependProps", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/prepend_props")
+
+    body = json_response(conn, 200)
+
+    assert body["props"]["a"] == "a"
+    assert body["props"]["b"] == "b"
+    assert body["props"]["c"] == "c"
+
+    merge_props = body["mergeProps"]
+    assert "a" in merge_props
+    assert "b" in merge_props
+
+    assert body["prependProps"] == ["a"]
+  end
+
+  # matchPropsOn tests
+
+  test "matchPropsOn includes match keys for merge/prepend/deep_merge props", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/match_props_on")
+
+    body = json_response(conn, 200)
+
+    assert body["props"]["users"] == [%{"id" => 1}]
+    assert body["props"]["items"] == [%{"id" => 2}]
+    assert body["props"]["data"] == %{"a" => 1}
+
+    assert body["matchPropsOn"] == %{
+             "users" => "id",
+             "items" => "id",
+             "data" => "key"
+           }
+  end
+
+  # Scroll prop reset field tests
+
+  test "scroll props include reset: true when data path is in reset header", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-reset", "users.data")
+      |> get(~p"/scroll_props_with_reset")
+
+    body = json_response(conn, 200)
+
+    # Reset should be present in scroll metadata
+    assert body["scrollProps"]["users"]["reset"] == true
+
+    # mergeProps should NOT include the reset path
+    refute body["mergeProps"]
+  end
+
+  test "scroll props do not include reset when data path is not in reset header", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/scroll_props_with_reset")
+
+    body = json_response(conn, 200)
+
+    refute Map.has_key?(body["scrollProps"]["users"], "reset")
+    assert "users.data" in body["mergeProps"]
+  end
+
+  # SSR path exclusion tests
+
+  test "excludes paths from SSR based on string prefix config", %{conn: conn} do
+    Application.put_env(:inertia, :ssr_exclude_paths, ["/ssr_excluded"])
+
+    on_exit(fn -> Application.delete_env(:inertia, :ssr_exclude_paths) end)
+
+    # Since SSR server isn't running, this verifies that SSR detection is disabled
+    # for excluded paths (no SSR error raised)
+    conn = get(conn, ~p"/ssr_excluded")
+    assert html_response(conn, 200)
+  end
+
+  test "excludes paths from SSR based on regex pattern config", %{conn: conn} do
+    Application.put_env(:inertia, :ssr_exclude_paths, [~r/^\/ssr_/])
+
+    on_exit(fn -> Application.delete_env(:inertia, :ssr_exclude_paths) end)
+
+    conn = get(conn, ~p"/ssr_excluded")
+    assert html_response(conn, 200)
+  end
+
+  # Scroll props with prepend merge intent
+
+  test "scroll props use prependProps when merge intent is prepend", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-infinite-scroll-merge-intent", "prepend")
+      |> get(~p"/scroll_props_prepend")
+
+    body = json_response(conn, 200)
+
+    assert "users.data" in body["mergeProps"]
+    assert "users.data" in body["prependProps"]
+  end
+
+  test "scroll props do not use prependProps when merge intent is append", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-infinite-scroll-merge-intent", "append")
+      |> get(~p"/scroll_props_prepend")
+
+    body = json_response(conn, 200)
+
+    assert "users.data" in body["mergeProps"]
+    refute body["prependProps"]
+  end
+
+  # Testing utilities tests
+
+  test "inertia_page/1 returns the full page object", %{conn: conn} do
+    conn = get(conn, ~p"/")
+    page = Inertia.Testing.inertia_page(conn)
+
+    assert page[:component] == "Home"
+    assert is_map(page[:props])
+    assert page[:flash] == %{}
+  end
+
+  test "inertia_deferred_props/1 returns deferred prop groups", %{conn: conn} do
+    conn = get(conn, ~p"/deferred_props")
+    deferred = Inertia.Testing.inertia_deferred_props(conn)
+
+    assert Map.has_key?(deferred, "default")
+  end
+
+  test "inertia_merge_props/1 returns merge prop keys", %{conn: conn} do
+    conn = get(conn, ~p"/merge_props")
+    merge = Inertia.Testing.inertia_merge_props(conn)
+
+    assert "a" in merge
+    assert "b" in merge
+  end
+
+  test "inertia_scroll_props/1 returns scroll metadata", %{conn: conn} do
+    conn = get(conn, ~p"/scroll_props")
+    scroll = Inertia.Testing.inertia_scroll_props(conn)
+
+    assert Map.has_key?(scroll, "users")
+    assert scroll["users"]["currentPage"] == 1
+  end
+
+  test "inertia_once_props/1 returns once prop metadata", %{conn: conn} do
+    conn = get(conn, ~p"/once_props")
+    once = Inertia.Testing.inertia_once_props(conn)
+
+    assert Map.has_key?(once, "plans")
+    assert once["plans"]["prop"] == "plans"
   end
 
   defp extract_page_data_from_html(raw_html) do

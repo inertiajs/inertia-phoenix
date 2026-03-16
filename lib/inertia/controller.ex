@@ -37,7 +37,9 @@ defmodule Inertia.Controller do
   defmodule PropsMeta do
     @moduledoc false
     defstruct merge_props: [],
+              prepend_props: [],
               deep_merge_props: [],
+              match_props_on: %{},
               deferred_props: %{},
               once_props: %{},
               scroll_props: %{}
@@ -52,8 +54,9 @@ defmodule Inertia.Controller do
 
   @opaque optional() :: {:optional, fun()}
   @opaque always() :: {:keep, any()}
-  @opaque merge() :: {:merge, any()}
-  @opaque deep_merge() :: {:deep_merge, any()}
+  @opaque merge() :: {:merge, any()} | {:merge, any(), String.t()}
+  @opaque prepend() :: {:prepend, any()} | {:prepend, any(), String.t()}
+  @opaque deep_merge() :: {:deep_merge, any()} | {:deep_merge, any(), String.t()}
   @opaque defer() :: {:defer, {fun(), String.t()}}
   @opaque once() :: Once.t()
   @opaque scroll() :: Scroll.t()
@@ -101,17 +104,55 @@ defmodule Inertia.Controller do
 
   @doc """
   Marks that a prop should be merged with existing data on the client-side.
+
+  ## Options
+
+  - `:match_on` - A string key used for client-side deduplication of merged items.
   """
   @doc since: "1.0.0"
   @spec inertia_merge(value :: any()) :: merge()
-  def inertia_merge(value), do: {:merge, value}
+  @spec inertia_merge(value :: any(), opts :: keyword()) :: merge()
+  def inertia_merge(value, opts \\ []) do
+    case Keyword.get(opts, :match_on) do
+      nil -> {:merge, value}
+      key -> {:merge, value, key}
+    end
+  end
+
+  @doc """
+  Marks that a prop should be prepended (instead of appended) when merging
+  with existing data on the client-side.
+
+  ## Options
+
+  - `:match_on` - A string key used for client-side deduplication of merged items.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_prepend(value :: any()) :: prepend()
+  @spec inertia_prepend(value :: any(), opts :: keyword()) :: prepend()
+  def inertia_prepend(value, opts \\ []) do
+    case Keyword.get(opts, :match_on) do
+      nil -> {:prepend, value}
+      key -> {:prepend, value, key}
+    end
+  end
 
   @doc """
   Marks that a prop should be deeply merged with existing data on the client-side.
+
+  ## Options
+
+  - `:match_on` - A string key used for client-side deduplication of merged items.
   """
   @doc since: "2.5.0"
   @spec inertia_deep_merge(value :: any()) :: deep_merge()
-  def inertia_deep_merge(value), do: {:deep_merge, value}
+  @spec inertia_deep_merge(value :: any(), opts :: keyword()) :: deep_merge()
+  def inertia_deep_merge(value, opts \\ []) do
+    case Keyword.get(opts, :match_on) do
+      nil -> {:deep_merge, value}
+      key -> {:deep_merge, value, key}
+    end
+  end
 
   @doc """
   Marks that a prop should fetched immediately after the page is loaded on the client-side.
@@ -188,10 +229,11 @@ defmodule Inertia.Controller do
       assign_prop(conn, :permissions, inertia_once(inertia_defer(fn -> Permission.all() end)))
   """
   @doc since: "2.6.0"
-  @spec inertia_once(fun_or_tagged :: fun() | defer() | merge() | deep_merge() | optional()) ::
-          once()
   @spec inertia_once(
-          fun_or_tagged :: fun() | defer() | merge() | deep_merge() | optional(),
+          fun_or_tagged :: fun() | defer() | merge() | prepend() | deep_merge() | optional()
+        ) :: once()
+  @spec inertia_once(
+          fun_or_tagged :: fun() | defer() | merge() | prepend() | deep_merge() | optional(),
           opts :: keyword()
         ) :: once()
   def inertia_once(fun, opts \\ [])
@@ -206,7 +248,17 @@ defmodule Inertia.Controller do
   end
 
   def inertia_once({tag, _} = tagged, opts)
-      when tag in [:defer, :optional, :merge, :deep_merge] do
+      when tag in [:defer, :optional, :merge, :prepend, :deep_merge] do
+    %Once{
+      fun: tagged,
+      key: Keyword.get(opts, :as),
+      expires_at: parse_expiration(Keyword.get(opts, :until)),
+      fresh: Keyword.get(opts, :fresh, false)
+    }
+  end
+
+  def inertia_once({tag, _, _} = tagged, opts)
+      when tag in [:merge, :prepend, :deep_merge] do
     %Once{
       fun: tagged,
       key: Keyword.get(opts, :as),
@@ -548,7 +600,14 @@ defmodule Inertia.Controller do
     reset = conn.private[:inertia_reset] || []
     except_once_props = conn.private[:inertia_except_once_props] || []
 
-    opts = Keyword.merge(opts, camelize_props: camelize_props, reset: reset)
+    scroll_merge_intent = conn.private[:inertia_scroll_merge_intent] || "append"
+
+    opts =
+      Keyword.merge(opts,
+        camelize_props: camelize_props,
+        reset: reset,
+        scroll_merge_intent: scroll_merge_intent
+      )
 
     props = Map.merge(shared_props, inline_props)
 
@@ -565,14 +624,23 @@ defmodule Inertia.Controller do
     }
 
     {resolved_props, meta} = resolve_props(props, ctx, %PropsMeta{}, "", false)
-    resolved_props = maybe_put_flash(resolved_props, conn)
+
+    # Extract flash from props if explicitly assigned, otherwise use conn.assigns.flash
+    {flash, resolved_props} =
+      case Map.pop(resolved_props, :flash) do
+        {nil, _} -> {conn.assigns.flash, resolved_props}
+        {f, p} -> {f, p}
+      end
 
     conn
     |> put_private(:inertia_page, %{
       component: component,
       props: resolved_props,
+      flash: flash,
       merge_props: meta.merge_props,
+      prepend_props: meta.prepend_props,
       deep_merge_props: meta.deep_merge_props,
+      match_props_on: meta.match_props_on,
       deferred_props: meta.deferred_props,
       once_props: meta.once_props,
       scroll_props: meta.scroll_props,
@@ -809,21 +877,33 @@ defmodule Inertia.Controller do
     scroll_metadata = extract_scroll_metadata(resolved_value, scroll)
     merge_path = "#{path}.#{scroll.wrapper}"
 
-    scroll_meta = %{
-      "pageName" => scroll_metadata.page_name,
-      "currentPage" => scroll_metadata.current_page,
-      "previousPage" => scroll_metadata.previous_page,
-      "nextPage" => scroll_metadata.next_page
-    }
+    is_reset = merge_path in ctx.reset
+
+    scroll_meta =
+      %{
+        "pageName" => scroll_metadata.page_name,
+        "currentPage" => scroll_metadata.current_page,
+        "previousPage" => scroll_metadata.previous_page,
+        "nextPage" => scroll_metadata.next_page
+      }
+      |> then(fn meta_map ->
+        if is_reset, do: Map.put(meta_map, "reset", true), else: meta_map
+      end)
 
     meta = %{meta | scroll_props: Map.put(meta.scroll_props, path, scroll_meta)}
 
-    # Add merge path unless reset
+    # Add merge path unless reset; use prepend list when intent is "prepend"
     meta =
-      if merge_path in ctx.reset do
+      if is_reset do
         meta
       else
-        %{meta | merge_props: [merge_path | meta.merge_props]}
+        meta = %{meta | merge_props: [merge_path | meta.merge_props]}
+
+        if ctx.opts[:scroll_merge_intent] == "prepend" do
+          %{meta | prepend_props: [merge_path | meta.prepend_props]}
+        else
+          meta
+        end
       end
 
     {resolved_value, meta}
@@ -853,7 +933,31 @@ defmodule Inertia.Controller do
     {resolved, meta, was_resolved or was_resolved2}
   end
 
+  defp unwrap_second_level({:merge, _, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:prepend, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:prepend, _, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
   defp unwrap_second_level({:deep_merge, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:deep_merge, _, _} = tagged, path, _tk, ctx, meta, was_resolved) do
     {inner, meta} = collect_metadata(tagged, path, ctx, meta)
     {resolved, was_resolved2} = resolve_value(inner)
     {resolved, meta, was_resolved or was_resolved2}
@@ -903,12 +1007,73 @@ defmodule Inertia.Controller do
     {inner, meta}
   end
 
+  defp collect_metadata({:merge, inner, match_key}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | merge_props: [path | meta.merge_props],
+            match_props_on: Map.put(meta.match_props_on, path, match_key)
+        }
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:prepend, inner}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | merge_props: [path | meta.merge_props],
+            prepend_props: [path | meta.prepend_props]
+        }
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:prepend, inner, match_key}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | merge_props: [path | meta.merge_props],
+            prepend_props: [path | meta.prepend_props],
+            match_props_on: Map.put(meta.match_props_on, path, match_key)
+        }
+      end
+
+    {inner, meta}
+  end
+
   defp collect_metadata({:deep_merge, inner}, path, ctx, meta) do
     meta =
       if path in ctx.reset do
         meta
       else
         %{meta | deep_merge_props: [path | meta.deep_merge_props]}
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:deep_merge, inner, match_key}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | deep_merge_props: [path | meta.deep_merge_props],
+            match_props_on: Map.put(meta.match_props_on, path, match_key)
+        }
       end
 
     {inner, meta}
@@ -929,7 +1094,11 @@ defmodule Inertia.Controller do
   defp unwrap_tags({:optional, v}), do: v
   defp unwrap_tags({:keep, v}), do: v
   defp unwrap_tags({:merge, v}), do: v
+  defp unwrap_tags({:merge, v, _}), do: v
+  defp unwrap_tags({:prepend, v}), do: v
+  defp unwrap_tags({:prepend, v, _}), do: v
   defp unwrap_tags({:deep_merge, v}), do: v
+  defp unwrap_tags({:deep_merge, v, _}), do: v
   defp unwrap_tags({:shared, v}), do: v
   defp unwrap_tags(v), do: v
 
@@ -991,16 +1160,15 @@ defmodule Inertia.Controller do
   defp atomize_if(value, true), do: String.to_atom(value)
   defp atomize_if(value, false), do: value
 
-  # Skip putting flash in the props if there's already `:flash` key assigned.
-  # Otherwise, put the flash in the props.
-  defp maybe_put_flash(%{flash: _} = props, _conn), do: props
-  defp maybe_put_flash(props, conn), do: Map.put(props, :flash, conn.assigns.flash)
+  # Put flash as a top-level page object key (pre-extracted during build_inertia_response).
+  defp maybe_put_flash(assigns, conn) do
+    Map.put(assigns, :flash, conn.private.inertia_page.flash)
+  end
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
     conn
     |> put_status(200)
     |> put_resp_header("x-inertia", "true")
-    |> put_resp_header("vary", "X-Inertia")
     |> json(inertia_assigns(conn))
   end
 
@@ -1059,10 +1227,13 @@ defmodule Inertia.Controller do
       url: request_path(conn),
       version: conn.private.inertia_version
     }
+    |> maybe_put_flash(conn)
     |> maybe_put_clear_history(conn)
     |> maybe_put_encrypt_history(conn)
     |> maybe_put_merge_props(conn)
+    |> maybe_put_prepend_props(conn)
     |> maybe_put_deep_merge_props(conn)
+    |> maybe_put_match_props_on(conn)
     |> maybe_put_deferred_props(conn)
     |> maybe_put_once_props(conn)
     |> maybe_put_scroll_props(conn)
@@ -1096,6 +1267,16 @@ defmodule Inertia.Controller do
     end
   end
 
+  defp maybe_put_prepend_props(assigns, conn) do
+    prepend_props = conn.private.inertia_page.prepend_props
+
+    if Enum.empty?(prepend_props) do
+      assigns
+    else
+      Map.put(assigns, :prependProps, prepend_props)
+    end
+  end
+
   defp maybe_put_deep_merge_props(assigns, conn) do
     deep_merge_props = conn.private.inertia_page.deep_merge_props
 
@@ -1103,6 +1284,16 @@ defmodule Inertia.Controller do
       assigns
     else
       Map.put(assigns, :deepMergeProps, deep_merge_props)
+    end
+  end
+
+  defp maybe_put_match_props_on(assigns, conn) do
+    match_props_on = conn.private.inertia_page.match_props_on
+
+    if Enum.empty?(match_props_on) do
+      assigns
+    else
+      Map.put(assigns, :matchPropsOn, match_props_on)
     end
   end
 
@@ -1167,7 +1358,18 @@ defmodule Inertia.Controller do
   end
 
   defp detect_ssr(conn, opts) do
-    put_private(conn, :inertia_ssr, opts[:ssr] || ssr_enabled_globally?())
+    enabled = opts[:ssr] || ssr_enabled_globally?()
+    put_private(conn, :inertia_ssr, enabled and not ssr_excluded_path?(conn.request_path))
+  end
+
+  defp ssr_excluded_path?(path) do
+    Enum.any?(Application.get_env(:inertia, :ssr_exclude_paths, []), fn pattern ->
+      case pattern do
+        %Regex{} -> Regex.match?(pattern, path)
+        prefix when is_binary(prefix) -> String.starts_with?(path, prefix)
+        _ -> false
+      end
+    end)
   end
 
   defp ssr_enabled_globally? do

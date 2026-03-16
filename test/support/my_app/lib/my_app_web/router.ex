@@ -70,6 +70,14 @@ defmodule MyAppWeb.Router do
     get "/nested_camelized", PageController, :nested_camelized
     get "/nested_scroll", PageController, :nested_scroll
     get "/nested_plain_map_partial", PageController, :nested_plain_map_partial
+    get "/redirect_with_clear_history", PageController, :redirect_with_clear_history
+    get "/redirect_with_fragment", PageController, :redirect_with_fragment
+    get "/empty_response", PageController, :empty_response
+    get "/prepend_props", PageController, :prepend_props
+    get "/match_props_on", PageController, :match_props_on
+    get "/scroll_props_with_reset", PageController, :scroll_props_with_reset
+    get "/ssr_excluded", PageController, :ssr_excluded
+    get "/scroll_props_prepend", PageController, :scroll_props_prepend
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

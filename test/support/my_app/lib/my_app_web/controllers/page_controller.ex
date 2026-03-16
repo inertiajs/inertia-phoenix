@@ -541,6 +541,76 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  # clearHistory across redirect
+  def redirect_with_clear_history(conn, _params) do
+    conn |> clear_history() |> redirect(to: ~p"/")
+  end
+
+  # Hash fragment redirect
+  def redirect_with_fragment(conn, _params) do
+    redirect(conn, to: "/page#section")
+  end
+
+  # Empty response
+  def empty_response(conn, _params) do
+    send_resp(conn, 200, "")
+  end
+
+  # Prepend merge
+  def prepend_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, inertia_prepend("a"))
+    |> assign_prop(:b, inertia_merge("b"))
+    |> assign_prop(:c, "c")
+    |> render_inertia("Home")
+  end
+
+  # matchPropsOn
+  def match_props_on(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:users, inertia_merge([%{id: 1}], match_on: "id"))
+    |> assign_prop(:items, inertia_prepend([%{id: 2}], match_on: "id"))
+    |> assign_prop(:data, inertia_deep_merge(%{a: 1}, match_on: "key"))
+    |> render_inertia("Home")
+  end
+
+  # Scroll prop with reset
+  def scroll_props_with_reset(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(%{
+        data: [%{id: 1}],
+        meta: %{current_page: 1, next_page: 2, previous_page: nil, page_name: "page"}
+      })
+    )
+    |> render_inertia("Home")
+  end
+
+  # SSR path exclusion test
+  def ssr_excluded(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render_inertia("Home", ssr: true)
+  end
+
+  # Scroll props with prepend merge intent
+  def scroll_props_prepend(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(%{
+        data: [%{id: 1}],
+        meta: %{current_page: 1, next_page: 2, previous_page: nil, page_name: "page"}
+      })
+    )
+    |> render_inertia("Home")
+  end
+
   defp lazy_3 do
     "lazy_3"
   end

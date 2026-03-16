@@ -19,7 +19,7 @@ defmodule Inertia.TestingTest do
   describe "inertia_props/1" do
     test "returns the props from the page", %{conn: conn} do
       conn = get(conn, "/")
-      assert %{errors: %{}, flash: %{}, text: "Hello World"} = inertia_props(conn)
+      assert %{errors: %{}, text: "Hello World"} = inertia_props(conn)
     end
 
     test "returns nil if there are no page props", %{conn: conn} do

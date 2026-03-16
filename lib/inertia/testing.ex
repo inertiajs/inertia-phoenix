@@ -81,6 +81,34 @@ defmodule Inertia.Testing do
   end
 
   @doc """
+  Fetches the Inertia flash data (if applicable) for the current request.
+
+  Returns the flash map from the top-level page object, or falls back
+  to the conn flash assigns.
+
+  ## Example
+
+      use MyAppWeb.ConnCase
+
+      import Inertia.Testing
+
+      describe "PUT /" do
+        test "flashes a success message", %{conn: conn} do
+          conn = put("/")
+          assert %{"info" => "Updated"} = inertia_flash(conn)
+        end
+      end
+  """
+  @doc since: "3.0.0"
+  @spec inertia_flash(Plug.Conn.t()) :: map()
+  def inertia_flash(conn) do
+    case conn.private[:inertia_page] do
+      %{flash: flash} -> flash
+      _ -> conn.assigns[:flash] || %{}
+    end
+  end
+
+  @doc """
   Fetches the shared prop keys (if applicable) for the current request.
 
   Returns the list of string keys that were marked as shared props.
@@ -103,5 +131,65 @@ defmodule Inertia.Testing do
   def inertia_shared_props(conn) do
     page = conn.private[:inertia_page] || %{}
     page[:shared_props] || []
+  end
+
+  @doc """
+  Fetches the full Inertia page object map for the current request.
+
+  Returns the complete page data including component, props, url, version,
+  and any metadata like mergeProps, deferredProps, etc.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_page(Plug.Conn.t()) :: map() | nil
+  def inertia_page(conn) do
+    conn.private[:inertia_page]
+  end
+
+  @doc """
+  Fetches the deferred prop groups for the current request.
+
+  Returns a map of group name to list of deferred prop paths.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_deferred_props(Plug.Conn.t()) :: map()
+  def inertia_deferred_props(conn) do
+    page = conn.private[:inertia_page] || %{}
+    page[:deferred_props] || %{}
+  end
+
+  @doc """
+  Fetches the merge prop keys for the current request.
+
+  Returns the list of prop paths that are configured for client-side merging.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_merge_props(Plug.Conn.t()) :: list(String.t())
+  def inertia_merge_props(conn) do
+    page = conn.private[:inertia_page] || %{}
+    page[:merge_props] || []
+  end
+
+  @doc """
+  Fetches the scroll prop metadata for the current request.
+
+  Returns a map of prop paths to their scroll pagination metadata.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_scroll_props(Plug.Conn.t()) :: map()
+  def inertia_scroll_props(conn) do
+    page = conn.private[:inertia_page] || %{}
+    page[:scroll_props] || %{}
+  end
+
+  @doc """
+  Fetches the once prop metadata for the current request.
+
+  Returns a map of once-prop keys to their metadata (prop path and expiration).
+  """
+  @doc since: "3.0.0"
+  @spec inertia_once_props(Plug.Conn.t()) :: map()
+  def inertia_once_props(conn) do
+    page = conn.private[:inertia_page] || %{}
+    page[:once_props] || %{}
   end
 end

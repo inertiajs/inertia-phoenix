@@ -10,6 +10,7 @@ The official Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Lazy data evaluation](#lazy-data-evaluation)
 - [Deferred props](#deferred-props)
 - [Merge props](#merge-props)
+- [Prepend props](#prepend-props)
 - [Once props](#once-props)
 - [Scroll props](#scroll-props)
 - [Shared data](#shared-data)
@@ -374,6 +375,35 @@ conn
 |> assign_prop(:complex_object, inertia_deep_merge(%{a: %{b: %{c: %{d: 1}}}}))
 ```
 
+### Deduplication with `match_on`
+
+When merging list data, you can provide a `match_on` key to enable client-side deduplication of items. This is useful for infinite scroll interfaces where the same item might appear in multiple pages of data:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_merge(users, match_on: "id"))
+```
+
+The `match_on` option is also supported by `inertia_prepend/2` and `inertia_deep_merge/2`. The key is included in the `matchPropsOn` metadata in the page response.
+
+## Prepend props
+
+If you want merged data to be prepended (instead of appended) to the existing client-side data, use `inertia_prepend/1`:
+
+```elixir
+conn
+|> assign_prop(:messages, inertia_prepend(new_messages))
+```
+
+Prepend props appear in both `mergeProps` and `prependProps` in the page response. This is useful for scenarios like chat interfaces where new messages should appear at the top.
+
+Like `inertia_merge`, prepend props also support the `match_on` option for deduplication:
+
+```elixir
+conn
+|> assign_prop(:messages, inertia_prepend(new_messages, match_on: "id"))
+```
+
 ## Once props
 
 **Requires Inertia v2.x on the client-side**.
@@ -669,7 +699,7 @@ conn
 
 ## Flash messages
 
-This library automatically includes Phoenix flash data in Inertia props, under the `flash` key.
+This library automatically includes Phoenix flash data in the Inertia page object as a top-level `flash` key (alongside `component`, `props`, `url`, and `version`).
 
 For example, given the following controller action:
 
@@ -689,19 +719,21 @@ def update(conn, params) do
 end
 ```
 
-When Inertia (or the browser) redirects to the `/settings` page, the Inertia component will receive the flash props:
+When Inertia (or the browser) redirects to the `/settings` page, the Inertia component will receive the flash data:
 
 ```javascript
 {
   "component": "...",
   "props": {
-    "flash": {
-      "info": "Settings updated"
-    },
     // ...
+  },
+  "flash": {
+    "info": "Settings updated"
   }
 }
 ```
+
+On the client-side, you can access flash data via `usePage().flash`.
 
 ## CSRF protection
 
@@ -747,7 +779,20 @@ conn
 
 ## Testing
 
-The `Inertia.Testing` module includes helpers for testing your Inertia controller responses, such as the `inertia_component/1` and `inertia_props/1` functions.
+The `Inertia.Testing` module includes helpers for testing your Inertia controller responses. The following helpers are available:
+
+| Helper | Description |
+|--------|-------------|
+| `inertia_component/1` | Returns the component name |
+| `inertia_props/1` | Returns the props map |
+| `inertia_errors/1` | Returns validation errors (from props or session) |
+| `inertia_flash/1` | Returns the flash map |
+| `inertia_page/1` | Returns the full page object |
+| `inertia_shared_props/1` | Returns shared prop keys |
+| `inertia_deferred_props/1` | Returns deferred prop groups |
+| `inertia_merge_props/1` | Returns merge prop paths |
+| `inertia_scroll_props/1` | Returns scroll pagination metadata |
+| `inertia_once_props/1` | Returns once prop metadata |
 
 ```elixir
 use MyAppWeb.ConnCase
@@ -759,6 +804,7 @@ describe "GET /" do
     conn = get("/")
     assert inertia_component(conn) == "Home"
     assert %{user: %{id: 1}} = inertia_props(conn)
+    assert inertia_flash(conn) == %{}
   end
 end
 ```
@@ -772,7 +818,6 @@ describe "POST /users" do
   test "fails when name empty", %{conn: conn} do
     conn = post("/users", %{"name" => ""})
 
-    assert %{user: %{id: 1}} = inertia_props(conn)
     assert redirected_to(conn) == ~p"/users"
     assert inertia_errors(conn) == %{"name" => "can't be blank"}
   end
@@ -983,6 +1028,19 @@ Then, update your config to enable SSR (if you'd like to enable it globally).
     # so that SSR failures will not cause 500 errors (but instead will fallback to
     # CSR).
     raise_on_ssr_failure: config_env() != :prod
+```
+
+### Excluding paths from SSR
+
+If you want to disable SSR for certain paths (e.g. pages that don't need SEO or are too expensive to server-render), you can configure `ssr_exclude_paths`:
+
+```elixir
+config :inertia,
+  ssr: true,
+  ssr_exclude_paths: [
+    "/admin",             # String prefix: matches /admin, /admin/users, etc.
+    ~r/^\/dashboard\//    # Regex: matches /dashboard/stats, /dashboard/reports, etc.
+  ]
 ```
 
 ### Installing Node.js in your production
