@@ -1293,6 +1293,352 @@ defmodule InertiaTest do
     assert props["preserveFragment"] == true
   end
 
+  # Nested Prop Tests
+
+  describe "nested prop types" do
+    test "nested optional inside closure is excluded on initial load", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/nested_optional")
+
+      body = json_response(conn, 200)
+
+      # User should be included, but nested optional token should be excluded
+      assert body["props"]["auth"]["user"] == "Alice"
+      refute Map.has_key?(body["props"]["auth"], "token")
+    end
+
+    test "nested optional is included when explicitly requested in partial reload", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth.token")
+        |> get(~p"/nested_optional")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["token"] == "secret-token"
+      refute Map.has_key?(body["props"]["auth"], "user")
+    end
+
+    test "nested defer inside closure generates deferredProps with dot-path", %{conn: conn} do
+      conn = get(conn, ~p"/nested_defer")
+      body = html_response(conn, 200)
+      props = extract_page_data_from_html(body)
+
+      # User should be present, permissions should be deferred
+      assert props["props"]["auth"]["user"] == "Alice"
+      refute Map.has_key?(props["props"]["auth"], "permissions")
+      assert props["deferredProps"]["default"] == ["auth.permissions"]
+    end
+
+    test "nested defer is resolved on partial reload", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth.permissions")
+        |> get(~p"/nested_defer")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["permissions"] == ["read", "write"]
+      refute Map.has_key?(body["props"]["auth"], "user")
+    end
+
+    test "nested merge inside closure generates mergeProps with dot-path", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/nested_merge")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["feed"]["posts"] == ["post1", "post2"]
+      assert body["props"]["feed"]["meta"] == "info"
+      assert body["mergeProps"] == ["feed.posts"]
+    end
+
+    test "nested deep_merge inside closure generates deepMergeProps with dot-path", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/nested_deep_merge")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["feed"]["posts"] == %{"items" => [1, 2]}
+      assert body["props"]["feed"]["meta"] == "info"
+      assert body["deepMergeProps"] == ["feed.posts"]
+    end
+
+    test "nested always prop is included when requesting specific sibling in partial", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth.user")
+        |> get(~p"/nested_always")
+
+      body = json_response(conn, 200)
+
+      # The requested child
+      assert body["props"]["auth"]["user"] == "Alice"
+      # The always prop should be included even though only auth.user was requested
+      assert body["props"]["auth"]["role"] == "admin"
+      refute Map.has_key?(body["props"], "other")
+    end
+
+    test "dot-path partial filtering returns only the requested nested key", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth.permissions")
+        |> get(~p"/nested_partial_dot_path")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["permissions"] == ["read", "write"]
+      refute Map.has_key?(body["props"]["auth"], "user")
+      refute Map.has_key?(body["props"]["auth"], "token")
+    end
+
+    test "requesting parent key returns full map including all children", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth")
+        |> get(~p"/nested_partial_dot_path")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"] == %{
+               "user" => "Alice",
+               "permissions" => ["read", "write"],
+               "token" => "secret"
+             }
+
+      refute Map.has_key?(body["props"], "other")
+    end
+
+    test "parent_was_resolved: closure returns all children without individual listing", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth")
+        |> get(~p"/nested_parent_resolved")
+
+      body = json_response(conn, 200)
+
+      # Since auth is a closure, requesting "auth" should return ALL children
+      assert body["props"]["auth"] == %{"user" => "Alice", "token" => "secret"}
+      refute Map.has_key?(body["props"], "other")
+    end
+
+    test "two-level unwrapping generates both deferred and merge metadata", %{conn: conn} do
+      conn = get(conn, ~p"/nested_two_level_unwrap")
+      body = html_response(conn, 200)
+      props = extract_page_data_from_html(body)
+
+      assert props["deferredProps"]["default"] == ["stats"]
+      assert "stats" in props["mergeProps"]
+    end
+
+    test "nested once prop generates onceProps with dot-path", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/nested_once")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["user"] == "Alice"
+      assert body["props"]["auth"]["plans"] == ["basic", "pro"]
+
+      assert body["onceProps"] == %{
+               "auth.plans" => %{"prop" => "auth.plans", "expiresAt" => nil}
+             }
+    end
+
+    test "camelization with nested prop types uses camelized dot-paths", %{conn: conn} do
+      conn = get(conn, ~p"/nested_camelized")
+      body = html_response(conn, 200)
+      props = extract_page_data_from_html(body)
+
+      assert props["props"]["userProfile"]["fullName"] == "Alice"
+      refute Map.has_key?(props["props"]["userProfile"], "accessLevel")
+      assert props["deferredProps"]["default"] == ["userProfile.accessLevel"]
+    end
+
+    test "nested scroll prop generates correct dot-path merge paths", %{conn: conn} do
+      conn = get(conn, ~p"/nested_scroll")
+      body = html_response(conn, 200)
+      props = extract_page_data_from_html(body)
+
+      assert props["props"]["feed"]["posts"]["data"] == [%{"id" => 1}]
+      assert props["props"]["feed"]["title"] == "My Feed"
+      assert "feed.posts.data" in props["mergeProps"]
+
+      assert props["scrollProps"] == %{
+               "feed.posts" => %{
+                 "pageName" => "page",
+                 "currentPage" => 1,
+                 "previousPage" => nil,
+                 "nextPage" => 2
+               }
+             }
+    end
+
+    test "plain nested map does NOT set parent_was_resolved", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth.user")
+        |> get(~p"/nested_plain_map_partial")
+
+      body = json_response(conn, 200)
+
+      # Only the specifically requested nested key should be present
+      assert body["props"]["auth"]["user"] == "Alice"
+      refute Map.has_key?(body["props"]["auth"], "token")
+    end
+
+    test "nested except filtering with dot-paths excludes only the specified key", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-except", "auth.token")
+        |> get(~p"/nested_partial_dot_path")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["user"] == "Alice"
+      assert body["props"]["auth"]["permissions"] == ["read", "write"]
+      refute Map.has_key?(body["props"]["auth"], "token")
+    end
+
+    test "reset with nested merge props excludes path from mergeProps", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-reset", "feed.posts")
+        |> get(~p"/nested_merge")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["feed"]["posts"] == ["post1", "post2"]
+      refute body["mergeProps"]
+    end
+
+    test "nested once with except-once-props dot-path excludes value but keeps metadata", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-except-once-props", "auth.plans")
+        |> get(~p"/nested_once")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["user"] == "Alice"
+      refute Map.has_key?(body["props"]["auth"], "plans")
+
+      assert body["onceProps"] == %{
+               "auth.plans" => %{"prop" => "auth.plans", "expiresAt" => nil}
+             }
+    end
+
+    test "partial reload excluding nested once parent preserves once metadata", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "regular")
+        |> get(~p"/nested_once")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["regular"] == "value"
+      refute Map.has_key?(body["props"], "auth")
+
+      assert body["onceProps"] == %{
+               "auth.plans" => %{"prop" => "auth.plans", "expiresAt" => nil}
+             }
+    end
+
+    test "except-once-props bypassed when parent path is in partial data", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth")
+        |> put_req_header("x-inertia-except-once-props", "auth.plans")
+        |> get(~p"/nested_once")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["user"] == "Alice"
+      assert body["props"]["auth"]["plans"] == ["basic", "pro"]
+    end
+
+    test "except-once-props bypassed when exact path is in partial data", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth.plans")
+        |> put_req_header("x-inertia-except-once-props", "auth.plans")
+        |> get(~p"/nested_once")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"]["plans"] == ["basic", "pro"]
+    end
+
+    test "two-level unwrap resolves deferred value on partial reload", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "stats")
+        |> get(~p"/nested_two_level_unwrap")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["stats"] == "data"
+    end
+  end
+
   defp extract_page_data_from_html(raw_html) do
     {:ok, html} = Floki.parse_document(raw_html)
 

@@ -58,6 +58,18 @@ defmodule MyAppWeb.Router do
     get "/shared_props_with_defer", PageController, :shared_props_with_defer
     get "/shared_props_camelized", PageController, :shared_props_camelized
     get "/shared_props_empty", PageController, :shared_props_empty
+    get "/nested_optional", PageController, :nested_optional
+    get "/nested_defer", PageController, :nested_defer
+    get "/nested_merge", PageController, :nested_merge
+    get "/nested_deep_merge", PageController, :nested_deep_merge
+    get "/nested_always", PageController, :nested_always
+    get "/nested_partial_dot_path", PageController, :nested_partial_dot_path
+    get "/nested_parent_resolved", PageController, :nested_parent_resolved
+    get "/nested_two_level_unwrap", PageController, :nested_two_level_unwrap
+    get "/nested_once", PageController, :nested_once
+    get "/nested_camelized", PageController, :nested_camelized
+    get "/nested_scroll", PageController, :nested_scroll
+    get "/nested_plain_map_partial", PageController, :nested_plain_map_partial
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

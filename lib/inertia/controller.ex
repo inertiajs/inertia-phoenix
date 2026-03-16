@@ -34,6 +34,20 @@ defmodule Inertia.Controller do
     defstruct [:fun, wrapper: "data", metadata: nil]
   end
 
+  defmodule PropsMeta do
+    @moduledoc false
+    defstruct merge_props: [],
+              deep_merge_props: [],
+              deferred_props: %{},
+              once_props: %{},
+              scroll_props: %{}
+  end
+
+  defmodule ResolveContext do
+    @moduledoc false
+    defstruct [:is_partial, :only, :except, :reset, :except_once_props, :opts]
+  end
+
   @type raw_prop_key :: atom() | String.t()
 
   @opaque optional() :: {:optional, fun()}
@@ -541,33 +555,27 @@ defmodule Inertia.Controller do
     # Unwrap {:shared, _} tags and collect shared prop keys
     {props, shared_prop_keys} = resolve_shared_props(props, opts)
 
-    # Process scroll props first (since they create merge entries and need early evaluation)
-    {props, scroll_props} = resolve_scroll_props(props, opts)
+    ctx = %ResolveContext{
+      is_partial: is_partial,
+      only: only,
+      except: except,
+      reset: reset,
+      except_once_props: except_once_props,
+      opts: opts
+    }
 
-    # Process once props to unwrap %Once{} and expose any nested tags
-    # (like {:defer, ...} or {:merge, ...}) for subsequent resolution
-    {props, once_props} = resolve_once_props(props, except_once_props, only, opts)
-    {props, merge_props, deep_merge_props} = resolve_merge_props(props, opts)
-    {props, deferred_props} = resolve_deferred_props(props, opts)
-
-    # Collect scroll merge paths to add to merge_props
-    scroll_merge_paths = collect_scroll_merge_paths(props)
-
-    props =
-      props
-      |> apply_filters(only, except, opts)
-      |> resolve_props(opts)
-      |> maybe_put_flash(conn)
+    {resolved_props, meta} = resolve_props(props, ctx, %PropsMeta{}, "", false)
+    resolved_props = maybe_put_flash(resolved_props, conn)
 
     conn
     |> put_private(:inertia_page, %{
       component: component,
-      props: props,
-      merge_props: merge_props ++ scroll_merge_paths,
-      deep_merge_props: deep_merge_props,
-      deferred_props: deferred_props,
-      once_props: once_props,
-      scroll_props: scroll_props,
+      props: resolved_props,
+      merge_props: meta.merge_props,
+      deep_merge_props: meta.deep_merge_props,
+      deferred_props: meta.deferred_props,
+      once_props: meta.once_props,
+      scroll_props: meta.scroll_props,
       shared_props: shared_prop_keys,
       is_partial: is_partial
     })
@@ -625,132 +633,328 @@ defmodule Inertia.Controller do
     end)
   end
 
-  # Runs a reduce operation over the top-level props and looks for values that
-  # were tagged via the `inertia_merge/2` helper. If the value is tagged, then
-  # place the key in an array (unless that key is included in the list of
-  # "reset" keys). Otherwise, make no modification.
-  defp resolve_merge_props(props, opts) do
-    Enum.reduce(props, {[], [], []}, fn {key, value}, {props, merge_keys, deep_merge_keys} ->
-      transformed_key =
-        key
-        |> transform_key(opts)
-        |> to_string()
+  # Path-matching helpers for nested partial filtering
 
-      # Only include this key in the collection of merge prop keys
-      # if it's not in the "reset" list
-      case {transformed_key in opts[:reset], value} do
-        {true, {tag, unwrapped_value}} when tag in [:merge, :deep_merge] ->
-          {[{key, unwrapped_value} | props], merge_keys, deep_merge_keys}
+  # Returns true if `path` equals or is a descendant of any only-path
+  defp matches_only?(path, only_paths) do
+    Enum.any?(only_paths, fn op ->
+      path == op or String.starts_with?(path, op <> ".")
+    end)
+  end
 
-        {_, {:merge, unwrapped_value}} ->
-          {[{key, unwrapped_value} | props], [key | merge_keys], deep_merge_keys}
+  # Returns true if `path` is an ancestor of any only-path (allows traversal into children)
+  defp leads_to_only?(path, only_paths) do
+    Enum.any?(only_paths, fn op ->
+      String.starts_with?(op, path <> ".")
+    end)
+  end
 
-        {_, {:deep_merge, unwrapped_value}} ->
-          {[{key, unwrapped_value} | props], merge_keys, [key | deep_merge_keys]}
+  # Returns true if `path` equals or is a descendant of any except-path
+  defp matches_except?(path, except_paths) do
+    Enum.any?(except_paths, fn ep ->
+      path == ep or String.starts_with?(path, ep <> ".")
+    end)
+  end
 
-        _ ->
-          {[{key, value} | props], merge_keys, deep_merge_keys}
+  defp should_include_in_partial?(value, path, parent_was_resolved, ctx) do
+    # Always-props bypass all filtering
+    case value do
+      {:keep, _} ->
+        true
+
+      _ ->
+        cond do
+          # Except filter — explicit exclusions always apply, even inside resolved closures
+          ctx.except != [] -> !matches_except?(path, ctx.except)
+          # If parent was a resolved closure, include all children
+          parent_was_resolved -> true
+          # Only filter
+          ctx.only != [] -> matches_only?(path, ctx.only) or leads_to_only?(path, ctx.only)
+          # No filter (initial load) — include everything
+          true -> true
+        end
+    end
+  end
+
+  # Single recursive resolver that handles all prop types at any nesting level.
+  # Returns {resolved_map, updated_meta}.
+  defp resolve_props(props, ctx, meta, prefix, parent_was_resolved) do
+    opts = ctx.opts
+
+    Enum.reduce(props, {%{}, meta}, fn {key, value}, {props_acc, meta_acc} ->
+      transformed_key = key |> transform_key(opts) |> to_string()
+      path = if prefix == "", do: transformed_key, else: "#{prefix}.#{transformed_key}"
+
+      # Check partial filter
+      if ctx.is_partial and
+           not should_include_in_partial?(value, path, parent_was_resolved, ctx) do
+        # Still need to collect once metadata even for skipped props
+        meta_acc = collect_once_meta_if_skipped(value, path, ctx, meta_acc)
+        {props_acc, meta_acc}
+      else
+        resolve_prop(
+          key,
+          value,
+          path,
+          transformed_key,
+          props_acc,
+          meta_acc,
+          ctx,
+          parent_was_resolved
+        )
       end
     end)
   end
 
-  defp resolve_deferred_props(props, opts) do
-    Enum.reduce(props, {[], %{}}, fn {key, value}, {props, keys} ->
-      case value do
-        {:defer, {fun, group}} ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
+  # Collects once metadata for props that were filtered out by partial filtering
+  defp collect_once_meta_if_skipped(%Once{} = once, path, _ctx, meta) do
+    once_key = once.key || path
+    %{meta | once_props: Map.put(meta.once_props, once_key, build_once_meta(once, path))}
+  end
 
-          keys =
-            case Map.get(keys, group) do
-              [_ | _] = group_keys -> Map.put(keys, group, [transformed_key | group_keys])
-              _ -> Map.put(keys, group, [transformed_key])
-            end
+  defp collect_once_meta_if_skipped(fun, path, ctx, meta) when is_function(fun, 0) do
+    collect_once_meta_if_skipped(fun.(), path, ctx, meta)
+  end
 
-          {[{key, {:optional, fun}} | props], keys}
-
-        _ ->
-          {[{key, value} | props], keys}
-      end
+  defp collect_once_meta_if_skipped(map, path, ctx, meta)
+       when is_map(map) and not is_struct(map) do
+    Enum.reduce(map, meta, fn {key, value}, meta_acc ->
+      transformed_key = key |> transform_key(ctx.opts) |> to_string()
+      child_path = if path == "", do: transformed_key, else: "#{path}.#{transformed_key}"
+      collect_once_meta_if_skipped(value, child_path, ctx, meta_acc)
     end)
   end
 
-  defp resolve_once_props(props, except_once_props, only, opts) do
-    Enum.reduce(props, {[], %{}}, fn {key, value}, {props_acc, once_acc} ->
-      case value do
-        %Once{} = once ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
+  defp collect_once_meta_if_skipped(_, _, _, meta), do: meta
 
-          once_key = once.key || transformed_key
+  defp resolve_prop(key, value, path, transformed_key, props_acc, meta, ctx, parent_was_resolved) do
+    # Step 1: Unwrap %Once{} structs
+    {value, meta, skip_once} = unwrap_once(value, path, ctx, meta)
 
-          # Determine if we should skip resolution:
-          # - The key is in except_once_props (client already has it)
-          # - The prop is not marked as fresh
-          # - The prop is not explicitly requested in a partial reload
-          skip =
-            once_key in except_once_props and
-              not once.fresh and
-              transformed_key not in only
+    if skip_once do
+      {props_acc, meta}
+    else
+      # Step 2: Unwrap %Scroll{} structs (eagerly evaluate)
+      {value, meta} = unwrap_scroll(value, path, transformed_key, ctx, meta)
 
-          once_meta = %{
-            "prop" => transformed_key,
-            "expiresAt" => once.expires_at
-          }
+      # Step 3: Resolve functions
+      {value, was_resolved} = resolve_value(value)
 
-          if skip do
-            # Skip this prop entirely, but keep metadata
-            {props_acc, Map.put(once_acc, once_key, once_meta)}
-          else
-            # Include prop for resolution
-            {[{key, once.fun} | props_acc], Map.put(once_acc, once_key, once_meta)}
-          end
+      # Step 4: Two-level unwrapping — if a function returned a prop type, detect and process
+      {value, meta, was_resolved} =
+        unwrap_second_level(value, path, transformed_key, ctx, meta, was_resolved)
 
-        _ ->
-          {[{key, value} | props_acc], once_acc}
+      # Step 5: Collect metadata based on prop type tags
+      {value, meta} = collect_metadata(value, path, ctx, meta)
+
+      # Step 6: Initial-response exclusion for optional props
+      if ctx.is_partial or not optional?(value) do
+        {value, meta} =
+          finalize_prop(value, path, meta, ctx, parent_was_resolved, was_resolved)
+
+        output_key = transform_key(key, ctx.opts)
+        {Map.put(props_acc, output_key, value), meta}
+      else
+        {props_acc, meta}
       end
-    end)
+    end
   end
 
-  defp resolve_scroll_props(props, opts) do
-    Enum.reduce(props, {[], %{}}, fn {key, value}, {props_acc, scroll_acc} ->
-      case value do
-        %Scroll{} = scroll ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
+  defp finalize_prop(value, path, meta, ctx, parent_was_resolved, was_resolved) do
+    # Unwrap remaining tags
+    value = unwrap_tags(value)
 
-          # Evaluate the value if it's a function
-          resolved_value = if is_function(scroll.fun, 0), do: scroll.fun.(), else: scroll.fun
+    # Resolve the final value (in case it's a function inside a tag)
+    value = resolve_final_value(value, ctx.opts)
 
-          # Extract metadata using protocol or custom function
-          metadata = extract_scroll_metadata(resolved_value, scroll)
+    # Recurse into maps
+    if is_map(value) and not is_struct(value) do
+      # Only set parent_was_resolved for children when this key was directly
+      # requested (not just traversed to reach a deeper target)
+      directly_matched =
+        ctx.only == [] or parent_was_resolved or matches_only?(path, ctx.only)
 
-          # Create the path for mergeProps (e.g., "users.data")
-          merge_path = "#{transformed_key}.#{scroll.wrapper}"
+      child_parent_resolved = parent_was_resolved or (was_resolved and directly_matched)
+      resolve_props(value, ctx, meta, path, child_parent_resolved)
+    else
+      {value, meta}
+    end
+  end
 
-          scroll_meta = %{
-            "pageName" => metadata.page_name,
-            "currentPage" => metadata.current_page,
-            "previousPage" => metadata.previous_page,
-            "nextPage" => metadata.next_page
-          }
+  defp unwrap_once(%Once{} = once, path, ctx, meta) do
+    once_key = once.key || path
+    meta = %{meta | once_props: Map.put(meta.once_props, once_key, build_once_meta(once, path))}
 
-          {
-            [{key, {:scroll_merge, resolved_value, merge_path}} | props_acc],
-            Map.put(scroll_acc, transformed_key, scroll_meta)
-          }
+    # Determine if we should skip resolution
+    skip =
+      once_key in ctx.except_once_props and
+        not once.fresh and
+        not (ctx.is_partial and matches_only?(path, ctx.only))
+
+    if skip do
+      {nil, meta, true}
+    else
+      {once.fun, meta, false}
+    end
+  end
+
+  defp unwrap_once(value, _path, _ctx, meta), do: {value, meta, false}
+
+  defp build_once_meta(once, path) do
+    %{"prop" => path, "expiresAt" => once.expires_at}
+  end
+
+  defp unwrap_scroll(%Scroll{} = scroll, path, _transformed_key, ctx, meta) do
+    resolved_value = if is_function(scroll.fun, 0), do: scroll.fun.(), else: scroll.fun
+    scroll_metadata = extract_scroll_metadata(resolved_value, scroll)
+    merge_path = "#{path}.#{scroll.wrapper}"
+
+    scroll_meta = %{
+      "pageName" => scroll_metadata.page_name,
+      "currentPage" => scroll_metadata.current_page,
+      "previousPage" => scroll_metadata.previous_page,
+      "nextPage" => scroll_metadata.next_page
+    }
+
+    meta = %{meta | scroll_props: Map.put(meta.scroll_props, path, scroll_meta)}
+
+    # Add merge path unless reset
+    meta =
+      if merge_path in ctx.reset do
+        meta
+      else
+        %{meta | merge_props: [merge_path | meta.merge_props]}
+      end
+
+    {resolved_value, meta}
+  end
+
+  defp unwrap_scroll(value, _path, _transformed_key, _ctx, meta), do: {value, meta}
+
+  defp resolve_value(fun) when is_function(fun, 0), do: {fun.(), true}
+  defp resolve_value(value), do: {value, false}
+
+  # Two-level unwrapping: if a function returned a prop type tag, process it.
+  # collect_metadata converts {:defer, {fun, group}} -> {:optional, fun} so the
+  # main flow's is_optional? check will exclude it on initial load.
+  defp unwrap_second_level({:defer, _} = tagged, path, _tk, ctx, meta, _was_resolved) do
+    {wrapped, meta} = collect_metadata(tagged, path, ctx, meta)
+    # wrapped is now {:optional, fun} — keep it wrapped for initial-response exclusion
+    {wrapped, meta, false}
+  end
+
+  defp unwrap_second_level({:optional, _} = value, _path, _tk, _ctx, meta, _was_resolved) do
+    {value, meta, false}
+  end
+
+  defp unwrap_second_level({:merge, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:deep_merge, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:keep, _} = value, _path, _tk, _ctx, meta, was_resolved) do
+    {value, meta, was_resolved}
+  end
+
+  defp unwrap_second_level(%Scroll{} = scroll, path, tk, ctx, meta, _was_resolved) do
+    {value, meta} = unwrap_scroll(scroll, path, tk, ctx, meta)
+    {value, meta, true}
+  end
+
+  defp unwrap_second_level(%Once{} = once, path, _tk, ctx, meta, _was_resolved) do
+    {value, meta, skip} = unwrap_once(once, path, ctx, meta)
+
+    if skip do
+      {nil, meta, false}
+    else
+      {val, was_resolved} = resolve_value(value)
+      # Check for further nested tags after once unwrap
+      case val do
+        {:defer, _} = v ->
+          {v2, meta2} = collect_metadata(v, path, ctx, meta)
+          # v2 is {:optional, fun} — keep wrapped for initial-response exclusion
+          {v2, meta2, false}
 
         _ ->
-          {[{key, value} | props_acc], scroll_acc}
+          {val, meta, was_resolved}
       end
-    end)
+    end
   end
+
+  defp unwrap_second_level(value, _path, _tk, _ctx, meta, was_resolved) do
+    {value, meta, was_resolved}
+  end
+
+  defp collect_metadata({:merge, inner}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{meta | merge_props: [path | meta.merge_props]}
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:deep_merge, inner}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{meta | deep_merge_props: [path | meta.deep_merge_props]}
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:defer, {fun, group}}, path, _ctx, meta) do
+    deferred = meta.deferred_props
+    group_keys = Map.get(deferred, group, [])
+    meta = %{meta | deferred_props: Map.put(deferred, group, [path | group_keys])}
+    {{:optional, fun}, meta}
+  end
+
+  defp collect_metadata(value, _path, _ctx, meta), do: {value, meta}
+
+  defp optional?({:optional, _}), do: true
+  defp optional?(_), do: false
+
+  defp unwrap_tags({:optional, v}), do: v
+  defp unwrap_tags({:keep, v}), do: v
+  defp unwrap_tags({:merge, v}), do: v
+  defp unwrap_tags({:deep_merge, v}), do: v
+  defp unwrap_tags({:shared, v}), do: v
+  defp unwrap_tags(v), do: v
+
+  defp resolve_final_value(value, opts) do
+    cond do
+      is_function(value, 0) -> resolve_final_value(value.(), opts)
+      is_list(value) -> Enum.map(value, &resolve_nested_value(&1, opts))
+      true -> value
+    end
+  end
+
+  defp resolve_nested_value(map, opts) when is_map(map) and not is_struct(map) do
+    map
+    |> Enum.map(fn {k, v} -> {transform_key(k, opts), resolve_nested_value(v, opts)} end)
+    |> Map.new()
+  end
+
+  defp resolve_nested_value(list, opts) when is_list(list) do
+    Enum.map(list, &resolve_nested_value(&1, opts))
+  end
+
+  defp resolve_nested_value(fun, opts) when is_function(fun, 0),
+    do: resolve_nested_value(fun.(), opts)
+
+  defp resolve_nested_value(value, _opts), do: value
 
   defp extract_scroll_metadata(data, scroll) do
     base_metadata =
@@ -768,82 +972,6 @@ defmodule Inertia.Controller do
       next_page: base_metadata[:next_page] || base_metadata["next_page"]
     }
   end
-
-  defp collect_scroll_merge_paths(props) do
-    Enum.reduce(props, [], fn
-      {_key, {:scroll_merge, _value, merge_path}}, acc -> [merge_path | acc]
-      _, acc -> acc
-    end)
-  end
-
-  defp apply_filters(props, [_ | _] = only, _except, opts) do
-    props
-    |> Enum.filter(fn {key, value} ->
-      case value do
-        {:keep, _} ->
-          true
-
-        _ ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
-
-          Enum.member?(only, transformed_key)
-      end
-    end)
-    |> Map.new()
-  end
-
-  defp apply_filters(props, _only, [_ | _] = except, opts) do
-    props
-    |> Enum.filter(fn {key, value} ->
-      case value do
-        {:keep, _} ->
-          true
-
-        _ ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
-
-          !Enum.member?(except, transformed_key)
-      end
-    end)
-    |> Map.new()
-  end
-
-  defp apply_filters(props, _only, _except, _opts) do
-    props
-    |> Enum.filter(fn {_key, value} ->
-      case value do
-        {:optional, _} -> false
-        _ -> true
-      end
-    end)
-    |> Map.new()
-  end
-
-  defp resolve_props(map, opts) when is_map(map) and not is_struct(map) do
-    map
-    |> Enum.reduce([], fn {key, value}, acc ->
-      [{transform_key(key, opts), resolve_props(value, opts)} | acc]
-    end)
-    |> Map.new()
-  end
-
-  defp resolve_props(list, opts) when is_list(list) do
-    Enum.map(list, &resolve_props(&1, opts))
-  end
-
-  defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props({:shared, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props({:scroll_merge, value, _merge_path}, opts), do: resolve_props(value, opts)
-  defp resolve_props(fun, opts) when is_function(fun, 0), do: resolve_props(fun.(), opts)
-  defp resolve_props(value, _opts), do: value
 
   # Applies any specified transformations to the key (such as conversion to
   # camel case), unless the key has been marked as "preserved".
