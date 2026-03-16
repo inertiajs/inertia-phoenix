@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add nested prop type support with a single recursive resolver. Prop type wrappers (`inertia_defer`, `inertia_merge`, `inertia_deep_merge`, `inertia_optional`, `inertia_once`, `inertia_scroll`) now work at any nesting depth, including inside closures. For example, `inertia_defer` inside a closure now correctly generates `deferredProps` metadata with dot-notation paths (e.g., `auth.permissions`).
 - Add `assign_shared_prop/3` and `inertia_share/1` to mark props as shared, exposing their keys in the `sharedProps` page metadata for the Inertia v3 protocol ([#69](https://github.com/inertiajs/inertia-phoenix/issues/69)).
 - Add `inertia_shared_props/1` test helper in `Inertia.Testing`.
 - Add `preserve_fragment/1` and `preserve_fragment/2` functions to instruct the client-side to preserve the URL fragment across server-side redirects ([#68](https://github.com/inertiajs/inertia-phoenix/issues/68)).
