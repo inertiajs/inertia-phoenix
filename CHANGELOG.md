@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fix `onSuccess` not being called when `errorBag` is set and there are no validation errors ([#72](https://github.com/inertiajs/inertia-phoenix/issues/72)).
+
 ## 2.6.0
 
 ### Added

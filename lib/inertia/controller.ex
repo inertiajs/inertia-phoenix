@@ -426,7 +426,11 @@ defmodule Inertia.Controller do
 
   defp bag_errors(errors, conn) do
     if error_bag = conn.private[:inertia_error_bag] do
-      %{error_bag => errors}
+      if map_size(errors) > 0 do
+        %{error_bag => errors}
+      else
+        errors
+      end
     else
       errors
     end

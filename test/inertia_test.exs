@@ -383,6 +383,18 @@ defmodule InertiaTest do
            }
   end
 
+  test "does not wrap empty errors in bag", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-error-bag", "task")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    assert %{"props" => %{"errors" => errors}} = json_response(conn, 200)
+    assert errors == %{}
+  end
+
   test "wraps errors in bag", %{conn: conn} do
     conn =
       conn
