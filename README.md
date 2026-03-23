@@ -47,7 +47,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 2.6.0"}
+    {:inertia, "~> 2.6.1"}
   ]
 end
 ```
@@ -239,12 +239,8 @@ The example above assumes your pages live in the `assets/js/pages` directory and
 import React from "react";
 
 const Dashboard = () => {
-  return (
-    <div>
-      {/* ... page contents ...*/}
-    </div>
-  );
-}
+  return <div>{/* ... page contents ...*/}</div>;
+};
 
 export default Dashboard;
 ```
@@ -731,7 +727,6 @@ conn
 ## Testing
 
 The `Inertia.Testing` module includes helpers for testing your Inertia controller responses, such as the `inertia_component/1` and `inertia_props/1` functions.
-
 
 ```elixir
 use MyAppWeb.ConnCase
