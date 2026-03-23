@@ -625,12 +625,7 @@ defmodule Inertia.Controller do
 
     {resolved_props, meta} = resolve_props(props, ctx, %PropsMeta{}, "", false)
 
-    # Extract flash from props if explicitly assigned, otherwise use conn.assigns.flash
-    {flash, resolved_props} =
-      case Map.pop(resolved_props, :flash) do
-        {nil, _} -> {conn.assigns.flash, resolved_props}
-        {f, p} -> {f, p}
-      end
+    {flash, resolved_props} = resolve_flash(resolved_props, conn)
 
     conn
     |> put_private(:inertia_page, %{
@@ -650,6 +645,14 @@ defmodule Inertia.Controller do
     |> detect_ssr(opts)
     |> put_csrf_cookie()
     |> send_response()
+  end
+
+  # Extract flash from props if explicitly assigned, otherwise use conn.assigns.flash
+  defp resolve_flash(resolved_props, conn) do
+    case Map.pop(resolved_props, :flash) do
+      {nil, _} -> {conn.assigns.flash, resolved_props}
+      {f, p} -> {f, p}
+    end
   end
 
   @doc """
