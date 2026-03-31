@@ -78,7 +78,7 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    assert body =~ "<title inertia>"
+    assert body =~ "<title data-inertia>"
   end
 
   test "renders ssr response", %{conn: conn} do
@@ -97,7 +97,7 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    assert body =~ ~r/<title inertia>(\s*)New title(\s*)<\/title>/
+    assert body =~ ~r/<title data-inertia>(\s*)New title(\s*)<\/title>/
     assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr"></div>)
   end
@@ -118,7 +118,7 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    assert body =~ ~r/<title inertia>(\s*)New title(\s*)<\/title>/
+    assert body =~ ~r/<title data-inertia>(\s*)New title(\s*)<\/title>/
     assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr"></div>)
   end
@@ -139,7 +139,7 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    assert body =~ ~r/<title inertia>(\s*)New title(\s*)<\/title>/
+    assert body =~ ~r/<title data-inertia>(\s*)New title(\s*)<\/title>/
     assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr">’</div>)
   end

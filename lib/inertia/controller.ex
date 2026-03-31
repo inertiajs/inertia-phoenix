@@ -11,7 +11,7 @@ defmodule Inertia.Controller do
   import Phoenix.Controller
   import Plug.Conn
 
-  @title_regex ~r/<title inertia>(.*?)<\/title>/
+  @title_regex ~r/<title data-inertia>(.*?)<\/title>/
 
   defmodule Once do
     @moduledoc false
