@@ -839,6 +839,8 @@ defmodule Inertia.Controller do
           send_ssr_response(conn, head, body)
 
         {:error, message} ->
+          message = if is_binary(message), do: message, else: inspect(message)
+
           if raise_on_ssr_failure?() do
             raise RenderError, message: message
           else
