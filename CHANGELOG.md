@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.2
+
+### Fixed
+
+- Fix CSR fallback crash when SSR returns non-string error ([#73](https://github.com/inertiajs/inertia-phoenix/pull/73)).
+
 ## 2.6.1
 
 ### Fixed
