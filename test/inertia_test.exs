@@ -164,6 +164,26 @@ defmodule InertiaTest do
     assert body =~ ~s("component":"Home")
   end
 
+  @tag :capture_log
+  test "falls back to CSR if SSR worker crashes with non-string error", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path, module: "ssr-crash"})
+
+    Application.put_env(:inertia, :ssr, true)
+    Application.put_env(:inertia, :raise_on_ssr_failure, false)
+
+    conn =
+      conn
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+    assert body =~ ~s("component":"Home")
+  end
+
   test "raises on SSR failure when failure mode is set to raise", %{conn: conn} do
     path =
       __ENV__.file
@@ -373,6 +393,18 @@ defmodule InertiaTest do
              "url" => "/changeset_errors",
              "version" => @current_version
            }
+  end
+
+  test "does not wrap empty errors in bag", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-error-bag", "task")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    assert %{"props" => %{"errors" => errors}} = json_response(conn, 200)
+    assert errors == %{}
   end
 
   test "wraps errors in bag", %{conn: conn} do

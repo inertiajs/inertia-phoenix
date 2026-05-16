@@ -24,6 +24,18 @@
 - Redirect Inertia requests that receive a 200 with an empty body back to the referer (or `/`), instead of rendering a blank page ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
 - Include `"reset": true` in scroll prop metadata when the scroll data path is in the `X-Inertia-Reset` header ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
 
+## 2.6.2
+
+### Fixed
+
+- Fix CSR fallback crash when SSR returns non-string error ([#73](https://github.com/inertiajs/inertia-phoenix/pull/73)).
+
+## 2.6.1
+
+### Fixed
+
+- Fix `onSuccess` not being called when `errorBag` is set and there are no validation errors ([#72](https://github.com/inertiajs/inertia-phoenix/issues/72)).
+
 ## 2.6.0
 
 ### Added
@@ -170,7 +182,7 @@ Now, the serializer simply takes the _first error message_ and returns it under 
 - Assign errors via an `assign_errors` helper ([#10](https://github.com/inertiajs/inertia-phoenix/issues/10))
 - Preserve assigned errors across redirects ([#10](https://github.com/inertiajs/inertia-phoenix/issues/10))
 - Set up external redirects properly for Inertia requests ([#11](https://github.com/inertiajs/inertia-phoenix/issues/11))
-- Pass CSRF tokens via cookies ([#12](https://github.com/inertiajs/inertia-phoenix/issues/12)) 
+- Pass CSRF tokens via cookies ([#12](https://github.com/inertiajs/inertia-phoenix/issues/12))
 - Forward flash contents across forced refreshes ([#13](https://github.com/inertiajs/inertia-phoenix/issues/13))
 - Automatically pass Phoenix flash data via the `flash` prop
 

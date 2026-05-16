@@ -522,7 +522,11 @@ defmodule Inertia.Controller do
 
   defp bag_errors(errors, conn) do
     if error_bag = conn.private[:inertia_error_bag] do
-      %{error_bag => errors}
+      if map_size(errors) > 0 do
+        %{error_bag => errors}
+      else
+        errors
+      end
     else
       errors
     end
@@ -1182,6 +1186,8 @@ defmodule Inertia.Controller do
           send_ssr_response(conn, head, body)
 
         {:error, message} ->
+          message = if is_binary(message), do: message, else: inspect(message)
+
           if raise_on_ssr_failure?() do
             raise RenderError, message: message
           else
