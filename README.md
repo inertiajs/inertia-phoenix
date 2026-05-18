@@ -48,7 +48,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 2.6.2"}
+    {:inertia, "~> 3.0.0-rc"}
   ]
 end
 ```
@@ -332,7 +332,7 @@ conn
 
 ## Deferred props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 If you have expensive data that you'd like to automatically fetch (from the client-side via an async background request) after the page is initially rendered, you can mark the prop as deferred:
 
@@ -352,7 +352,7 @@ If no group names are specified, then the client-side will issue a single async 
 
 ## Merge props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 If you have prop data that should get merged with the existing data on the client-side on subsequent requests (for example, an array of paginated data being presented in an "infinite scroll" interface), then you can tag the prop value using the `inertia_merge/1` helper:
 
@@ -406,7 +406,7 @@ conn
 
 ## Once props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 Some data rarely changes, is expensive to compute, or is simply large. Rather than including this data in every response, you can use once props. These props are cached on the client-side and reused on subsequent pages that include the same prop, making them ideal for shared data like user roles or configuration.
 
@@ -479,7 +479,7 @@ conn
 
 ## Scroll props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 For infinite scroll pagination, you can use `inertia_scroll/1` to wrap paginated data. This automatically configures merge behavior so new data is appended to existing content, and extracts pagination metadata for the client-side `<InfiniteScroll>` component.
 
@@ -737,20 +737,22 @@ On the client-side, you can access flash data via `usePage().flash`.
 
 ## CSRF protection
 
-This library automatically sets the `XSRF-TOKEN` cookie for use by the Axios client on the front-end. Since Phoenix expects to receive the CSRF token via the `x-csrf-token` header, you'll need to configure Axios in your front-end JavaScript to use that header name:
+This library automatically sets the `XSRF-TOKEN` cookie on each response. Inertia's built-in HTTP client reads this cookie and forwards the value on subsequent requests, but it sends it via the `X-XSRF-TOKEN` header by default. Since Phoenix expects to receive the CSRF token via the `x-csrf-token` header, override the header name when initializing your Inertia app:
 
 ```javascript
 // assets/js/app.js
 
-import axios from "axios";
-axios.defaults.xsrfHeaderName = "x-csrf-token";
-
-// the rest of your Inertia client code...
+createInertiaApp({
+  http: {
+    xsrfHeaderName: "x-csrf-token",
+  },
+  // the rest of your Inertia client setup...
+})
 ```
 
 ## History
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 ### Encryption
 
@@ -781,18 +783,18 @@ conn
 
 The `Inertia.Testing` module includes helpers for testing your Inertia controller responses. The following helpers are available:
 
-| Helper | Description |
-|--------|-------------|
-| `inertia_component/1` | Returns the component name |
-| `inertia_props/1` | Returns the props map |
-| `inertia_errors/1` | Returns validation errors (from props or session) |
-| `inertia_flash/1` | Returns the flash map |
-| `inertia_page/1` | Returns the full page object |
-| `inertia_shared_props/1` | Returns shared prop keys |
-| `inertia_deferred_props/1` | Returns deferred prop groups |
-| `inertia_merge_props/1` | Returns merge prop paths |
-| `inertia_scroll_props/1` | Returns scroll pagination metadata |
-| `inertia_once_props/1` | Returns once prop metadata |
+| Helper                     | Description                                       |
+| -------------------------- | ------------------------------------------------- |
+| `inertia_component/1`      | Returns the component name                        |
+| `inertia_props/1`          | Returns the props map                             |
+| `inertia_errors/1`         | Returns validation errors (from props or session) |
+| `inertia_flash/1`          | Returns the flash map                             |
+| `inertia_page/1`           | Returns the full page object                      |
+| `inertia_shared_props/1`   | Returns shared prop keys                          |
+| `inertia_deferred_props/1` | Returns deferred prop groups                      |
+| `inertia_merge_props/1`    | Returns merge prop paths                          |
+| `inertia_scroll_props/1`   | Returns scroll pagination metadata                |
+| `inertia_once_props/1`     | Returns once prop metadata                        |
 
 ```elixir
 use MyAppWeb.ConnCase
