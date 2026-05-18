@@ -15,7 +15,14 @@
 ### Changed
 
 - **Breaking:** Flash data is now a top-level key in the Inertia page object (`usePage().flash`) instead of being nested inside props (`usePage().props.flash`). This aligns with the Inertia.js frontend conventions and the Laravel adapter ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- **Breaking:** The `<title>` tag marker attribute has been renamed from `inertia` to `data-inertia`. If you use the provided `<.inertia_title>` component, no action is required. If you render the title tag yourself in a custom root layout, update the marker attribute.
+- **Breaking:** The initial page payload is now rendered as a `<script type="application/json">` tag instead of a `data-page` attribute on the container `<div>`. This matches the only mode supported by Inertia.js v3 ([#66](https://github.com/inertiajs/inertia-phoenix/pull/66)).
 - Set the `Vary: X-Inertia` response header on all requests (not just Inertia JSON responses), so HTTP caches can properly differentiate responses ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Remove `axios` from the Igniter installer template, since Inertia.js v3 ships with a built-in HTTP client ([#66](https://github.com/inertiajs/inertia-phoenix/pull/66)).
+
+### Removed
+
+- **Breaking:** Remove `inertia_lazy/1` (deprecated since v2.0.0). Use `inertia_optional/1` instead ([#66](https://github.com/inertiajs/inertia-phoenix/pull/66)).
 
 ### Fixed
 

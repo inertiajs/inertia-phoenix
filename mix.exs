@@ -59,6 +59,7 @@ defmodule Inertia.MixProject do
       main: "readme",
       extras: [
         "README.md",
+        "guides/upgrading_to_v3.md",
         "CHANGELOG.md",
         "LICENSE.md"
       ]
