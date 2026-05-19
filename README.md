@@ -86,10 +86,6 @@ config :inertia,
   # see instructions below). Defaults to `false`.
   ssr: false,
 
-  # By default the server side rendering is done by executing nodejs.
-  # you can use your own adapter following the spec.
-  ssr_adapter: MyAdapter
-
   # Whether to raise an exception when server-side rendering fails (only applies
   # when SSR is enabled). Defaults to `true`.
   #
@@ -979,9 +975,15 @@ By default this library uses CommonJS modules for SSR. If you want to use ESM (E
 
 ### Custom SSR adapter
 
-You can setup your own SSR adapter. This is a list of third party adapters.
+By default SSR is performed by invoking a Node.js process. You can plug in a different runtime (Bun, a Vite dev server, etc.) by implementing the `Inertia.SSR.Adapter` behaviour and passing it as the `:ssr_adapter` option to the supervisor:
 
-- [vitex](https://github.com/andresgutgon/vitex) is a package that helps with ViteJS development in Phoenix apps. It has a custom SSR adapter for this package (inertia-phoenix) so SSR can be handle in development through Vite Dev server instead of calling a NodeJS process like we do in production. You can see [how it's configured here](https://github.com/andresgutgon/vitex?tab=readme-ov-file#configuring-vitejs-in-your-phoenix-app)
+```elixir
+{Inertia.SSR,
+  path: Path.join([Application.app_dir(:my_app), "priv"]),
+  ssr_adapter: MyApp.SSR.MyAdapter}
+```
+
+Any additional options you pass to `Inertia.SSR` are forwarded to the adapter's `init/1` callback, so adapters can define their own configuration keys.
 
 ### Installing Node.js in your production
 
