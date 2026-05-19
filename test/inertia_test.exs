@@ -122,6 +122,37 @@ defmodule InertiaTest do
     assert body =~ ~s(<div id="ssr"></div>)
   end
 
+  describe "ssr_adapter option" do
+    alias Inertia.SSR.Adapters.{Bootstrap, NodeJS}
+
+    test "raises when the adapter module cannot be loaded" do
+      assert_raise ArgumentError, ~r/could not be loaded/, fn ->
+        Bootstrap.fetch_adapter(
+          opts: [path: "/tmp", ssr_adapter: Nonexistent.Adapter],
+          default_adapter: NodeJS
+        )
+      end
+    end
+
+    test "raises when the adapter module does not implement the behaviour" do
+      assert_raise ArgumentError, ~r/does not implement the Inertia.SSR.Adapter behaviour/, fn ->
+        Bootstrap.fetch_adapter(
+          opts: [path: "/tmp", ssr_adapter: String],
+          default_adapter: NodeJS
+        )
+      end
+    end
+
+    test "raises when the option is not a module atom" do
+      assert_raise ArgumentError, ~r/expected a module/, fn ->
+        Bootstrap.fetch_adapter(
+          opts: [path: "/tmp", ssr_adapter: "not-a-module"],
+          default_adapter: NodeJS
+        )
+      end
+    end
+  end
+
   test "renders ssr response when locally specified", %{conn: conn} do
     path =
       __ENV__.file

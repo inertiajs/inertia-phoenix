@@ -3,25 +3,37 @@ defmodule Inertia.SSR.Adapters.Bootstrap do
 
   alias Inertia.SSR.Adapter
 
-  @spec fetch_adapter(
-          opts: keyword(),
-          default_adapter: module()
-        ) :: {module(), Adapter.adapter_config()}
+  @spec fetch_adapter(opts: keyword(), default_adapter: module()) ::
+          {module(), Adapter.adapter_config()}
   def fetch_adapter(opts: opts, default_adapter: default_adapter) do
-    custom_adapter = Keyword.get(opts, :ssr_adapter, nil)
-    adapter = resolve_adapter(default_adapter, custom_adapter)
-    config = adapter.init(opts)
-    {adapter, config}
+    adapter = resolve_adapter(Keyword.get(opts, :ssr_adapter), default_adapter)
+    {adapter, adapter.init(opts)}
   end
 
-  @spec resolve_adapter(module(), module() | nil) :: module()
-  defp resolve_adapter(default_adapter, custom_adapter) do
-    if is_atom(custom_adapter) and
-         Code.ensure_loaded?(custom_adapter) and
-         function_exported?(custom_adapter, :init, 1) do
-      custom_adapter
-    else
-      default_adapter
+  defp resolve_adapter(nil, default_adapter), do: default_adapter
+
+  defp resolve_adapter(custom_adapter, _default_adapter) do
+    cond do
+      not is_atom(custom_adapter) ->
+        raise ArgumentError,
+              "invalid :ssr_adapter — expected a module, got: #{inspect(custom_adapter)}"
+
+      not Code.ensure_loaded?(custom_adapter) ->
+        raise ArgumentError,
+              "invalid :ssr_adapter — module #{inspect(custom_adapter)} could not be loaded"
+
+      not adapter?(custom_adapter) ->
+        raise ArgumentError,
+              "invalid :ssr_adapter — module #{inspect(custom_adapter)} does not implement the Inertia.SSR.Adapter behaviour"
+
+      true ->
+        custom_adapter
     end
+  end
+
+  defp adapter?(module) do
+    function_exported?(module, :init, 1) and
+      function_exported?(module, :children, 1) and
+      function_exported?(module, :call, 2)
   end
 end
