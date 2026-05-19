@@ -31,7 +31,7 @@ defmodule Inertia.SSR.Adapter do
           optional(:mergeProps) => list(String.t()),
           optional(:deferredProps) => map()
         }
-  @type ssr_result :: {:ok, map()} | {:error, String.t()}
+  @type ssr_result :: {:ok, map()} | {:error, term()}
 
   @callback init(opts :: keyword()) :: adapter_config()
   @callback children(adapter_config()) :: [{module(), keyword()}]
