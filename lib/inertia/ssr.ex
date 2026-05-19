@@ -3,14 +3,14 @@ defmodule Inertia.SSR do
   Supervisor that provides server-side rendering support for Inertia views.
 
   By default SSR is performed by a pool of Node.js workers
-  (`Inertia.SSR.Adapters.NodeJS`). You can plug in an alternative runtime by
+  (`Inertia.SSR.NodeJSAdapter`). You can plug in an alternative runtime by
   implementing the `Inertia.SSR.Adapter` behaviour and passing the module as
   the `:ssr_adapter` option.
   """
   use Supervisor
 
   alias Inertia.SSR.Adapter
-  alias Inertia.SSR.Adapters.NodeJS
+  alias Inertia.SSR.NodeJSAdapter
 
   @doc """
   Starts the SSR supervisor and its adapter children.
@@ -18,7 +18,7 @@ defmodule Inertia.SSR do
   ## Options
 
   - `:ssr_adapter` - (optional) a module implementing the
-    `Inertia.SSR.Adapter` behaviour. Defaults to `Inertia.SSR.Adapters.NodeJS`.
+    `Inertia.SSR.Adapter` behaviour. Defaults to `Inertia.SSR.NodeJSAdapter`.
 
   Any additional options are forwarded to the adapter's
   `c:Inertia.SSR.Adapter.init/1` callback. The default Node.js adapter
@@ -36,7 +36,7 @@ defmodule Inertia.SSR do
   @impl true
   @doc false
   def init(opts) do
-    adapter = resolve_adapter(Keyword.get(opts, :ssr_adapter), NodeJS)
+    adapter = resolve_adapter(Keyword.get(opts, :ssr_adapter), NodeJSAdapter)
     config = adapter.init(opts)
     :persistent_term.put({__MODULE__, :adapter}, {adapter, config})
     Supervisor.init(adapter.children(config), strategy: :one_for_one)

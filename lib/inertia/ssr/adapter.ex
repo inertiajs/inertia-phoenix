@@ -4,7 +4,7 @@ defmodule Inertia.SSR.Adapter do
 
   An adapter is responsible for taking an Inertia page payload and producing
   the rendered `head` and `body` strings. The default adapter
-  (`Inertia.SSR.Adapters.NodeJS`) calls into a Node.js process pool, but
+  (`Inertia.SSR.NodeJSAdapter`) calls into a Node.js process pool, but
   alternative runtimes (e.g. Bun, a Vite dev server) can be plugged in by
   implementing this behaviour and passing the module as the `:ssr_adapter`
   option to `Inertia.SSR`.

@@ -1,4 +1,4 @@
-defmodule Inertia.SSR.Adapters.NodeJS do
+defmodule Inertia.SSR.NodeJSAdapter do
   @moduledoc """
   Default SSR adapter — invokes a pool of Node.js processes to render Inertia
   pages. See `Inertia.SSR.start_link/1` for the accepted options.
