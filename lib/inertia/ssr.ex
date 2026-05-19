@@ -26,7 +26,8 @@ defmodule Inertia.SSR do
 
   - `:path` - (required) the path to the directory where your `ssr.js` file lives.
   - `:module` - (optional) the name of the Node.js module file. Defaults to `"ssr"`.
-  - `:esm` - (optional) whether the SSR entrypoint is an ESM module. Defaults to `false`.
+  - `:esm` - (optional) whether the SSR entrypoint is an ESM module. If unset,
+    ESM is auto-detected from a `.mjs` module extension.
   - `:pool_size` - (optional) the number of Node.js workers. Defaults to `4`.
   """
   def start_link(init_arg) do

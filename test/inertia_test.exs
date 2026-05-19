@@ -122,6 +122,36 @@ defmodule InertiaTest do
     assert body =~ ~s(<div id="ssr"></div>)
   end
 
+  test "preserves explicit .js extension on :module when esm: true", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js/esm")
+
+    start_supervised({Inertia.SSR, path: path, module: "ssr.js", esm: true})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    body = conn |> get(~p"/") |> html_response(200)
+
+    assert body =~ ~r/<title inertia>(\s*)New title from ESM(\s*)<\/title>/
+  end
+
+  test "auto-detects ESM from a .mjs module extension", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js/mjs")
+
+    start_supervised({Inertia.SSR, path: path, module: "ssr.mjs"})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    body = conn |> get(~p"/") |> html_response(200)
+
+    assert body =~ ~r/<title inertia>(\s*)New title from MJS(\s*)<\/title>/
+  end
+
   describe "ssr_adapter option" do
     test "raises when the adapter module cannot be loaded" do
       assert_raise ArgumentError, ~r/could not be loaded/, fn ->

@@ -14,7 +14,7 @@ defmodule Inertia.SSR.NodeJSAdapter do
     %{
       path: Keyword.fetch!(opts, :path),
       module: Keyword.get(opts, :module, "ssr"),
-      esm: Keyword.get(opts, :esm, false),
+      esm: Keyword.get(opts, :esm),
       pool_size: Keyword.get(opts, :pool_size, 4)
     }
   end
@@ -28,13 +28,21 @@ defmodule Inertia.SSR.NodeJSAdapter do
 
   @impl true
   def call(page, %{module: module, esm: esm}) when is_map(page) do
-    # ESM module needs the `.js` extension
-    module = if(esm, do: "#{module}.js", else: module)
-
-    NodeJS.call({module, :render}, [page],
-      name: @pool_name,
-      binary: true,
-      esm: esm
-    )
+    module = ensure_extension(module, esm)
+    NodeJS.call({module, :render}, [page], call_opts(esm))
   end
+
+  # When ESM is explicitly enabled and the module has no extension, append .js
+  # so Node can resolve the file (e.g. a `.js` entrypoint with a `package.json`
+  # declaring `"type": "module"`). Pre-extensioned modules pass through as-is.
+  defp ensure_extension(module, true) do
+    if Path.extname(module) == "", do: "#{module}.js", else: module
+  end
+
+  defp ensure_extension(module, _), do: module
+
+  # Only forward :esm when the user explicitly set it. Otherwise leave it off
+  # so the underlying nodejs package auto-detects ESM from a `.mjs` extension.
+  defp call_opts(nil), do: [name: @pool_name, binary: true]
+  defp call_opts(esm), do: [name: @pool_name, binary: true, esm: esm]
 end
