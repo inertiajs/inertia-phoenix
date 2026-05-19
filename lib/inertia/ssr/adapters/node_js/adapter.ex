@@ -14,7 +14,10 @@ defmodule Inertia.SSR.Adapters.NodeJS do
   SSR adapter using NodeJS invoked from Elixir.
   """
 
-  use Inertia.SSR.Adapters.Config, name: :nodejs, config: Config
+  @behaviour Inertia.SSR.Adapter
+
+  @impl true
+  def init(opts), do: Config.build(opts)
 
   @impl true
   def children(%Config{path: path, pool_size: pool_size}) do
