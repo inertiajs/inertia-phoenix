@@ -10,7 +10,7 @@ defmodule Inertia.SSR do
   use Supervisor
 
   alias Inertia.SSR.Adapter
-  alias Inertia.SSR.Adapters.{Bootstrap, NodeJS}
+  alias Inertia.SSR.Adapters.NodeJS
 
   @doc """
   Starts the SSR supervisor and its adapter children.
@@ -36,7 +36,8 @@ defmodule Inertia.SSR do
   @impl true
   @doc false
   def init(opts) do
-    {adapter, config} = Bootstrap.fetch_adapter(opts, NodeJS)
+    adapter = resolve_adapter(Keyword.get(opts, :ssr_adapter), NodeJS)
+    config = adapter.init(opts)
     :persistent_term.put({__MODULE__, :adapter}, {adapter, config})
     Supervisor.init(adapter.children(config), strategy: :one_for_one)
   end
@@ -46,5 +47,32 @@ defmodule Inertia.SSR do
   def call(page) do
     {adapter, config} = :persistent_term.get({__MODULE__, :adapter})
     adapter.call(page, config)
+  end
+
+  defp resolve_adapter(nil, default), do: default
+
+  defp resolve_adapter(custom, _default) do
+    cond do
+      not is_atom(custom) ->
+        raise ArgumentError,
+              "invalid :ssr_adapter — expected a module, got: #{inspect(custom)}"
+
+      not Code.ensure_loaded?(custom) ->
+        raise ArgumentError,
+              "invalid :ssr_adapter — module #{inspect(custom)} could not be loaded"
+
+      not adapter?(custom) ->
+        raise ArgumentError,
+              "invalid :ssr_adapter — module #{inspect(custom)} does not implement the Inertia.SSR.Adapter behaviour"
+
+      true ->
+        custom
+    end
+  end
+
+  defp adapter?(module) do
+    function_exported?(module, :init, 1) and
+      function_exported?(module, :children, 1) and
+      function_exported?(module, :call, 2)
   end
 end
