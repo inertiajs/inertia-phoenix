@@ -127,28 +127,19 @@ defmodule InertiaTest do
 
     test "raises when the adapter module cannot be loaded" do
       assert_raise ArgumentError, ~r/could not be loaded/, fn ->
-        Bootstrap.fetch_adapter(
-          opts: [path: "/tmp", ssr_adapter: Nonexistent.Adapter],
-          default_adapter: NodeJS
-        )
+        Bootstrap.fetch_adapter([path: "/tmp", ssr_adapter: Nonexistent.Adapter], NodeJS)
       end
     end
 
     test "raises when the adapter module does not implement the behaviour" do
       assert_raise ArgumentError, ~r/does not implement the Inertia.SSR.Adapter behaviour/, fn ->
-        Bootstrap.fetch_adapter(
-          opts: [path: "/tmp", ssr_adapter: String],
-          default_adapter: NodeJS
-        )
+        Bootstrap.fetch_adapter([path: "/tmp", ssr_adapter: String], NodeJS)
       end
     end
 
     test "raises when the option is not a module atom" do
       assert_raise ArgumentError, ~r/expected a module/, fn ->
-        Bootstrap.fetch_adapter(
-          opts: [path: "/tmp", ssr_adapter: "not-a-module"],
-          default_adapter: NodeJS
-        )
+        Bootstrap.fetch_adapter([path: "/tmp", ssr_adapter: "not-a-module"], NodeJS)
       end
     end
   end

@@ -3,9 +3,8 @@ defmodule Inertia.SSR.Adapters.Bootstrap do
 
   alias Inertia.SSR.Adapter
 
-  @spec fetch_adapter(opts: keyword(), default_adapter: module()) ::
-          {module(), Adapter.adapter_config()}
-  def fetch_adapter(opts: opts, default_adapter: default_adapter) do
+  @spec fetch_adapter(keyword(), module()) :: {module(), Adapter.adapter_config()}
+  def fetch_adapter(opts, default_adapter) do
     adapter = resolve_adapter(Keyword.get(opts, :ssr_adapter), default_adapter)
     {adapter, adapter.init(opts)}
   end

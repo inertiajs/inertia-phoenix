@@ -1,20 +1,15 @@
 defmodule Inertia.SSR.Adapters.NodeJS do
-  require Logger
-  alias Inertia.SSR.Supervisor, as: SSRSupervisor
-  alias Inertia.SSR.Adapters.NodeJS.Config
-
   @moduledoc """
-  ## Options
-
-  - `:path` - (required) the path to the directory where your `ssr.js` file lives.
-  - `:module` - (optional) the name of the Node.js module file
-  - `:esm` - (optional) Use ESM for the generated ssr.js file
-  - `:pool_size` - (optional) the number of Node.js workers
-
-  SSR adapter using NodeJS invoked from Elixir.
+  Default SSR adapter — invokes a pool of Node.js processes to render Inertia
+  pages. See `Inertia.SSR.start_link/1` for the accepted options.
   """
 
   @behaviour Inertia.SSR.Adapter
+
+  alias Inertia.SSR.Adapters.NodeJS.Config
+
+  # Registered name of the underlying NodeJS.Supervisor pool process.
+  @pool_name Inertia.SSR.Supervisor
 
   @impl true
   def init(opts), do: Config.build(opts)
@@ -22,7 +17,7 @@ defmodule Inertia.SSR.Adapters.NodeJS do
   @impl true
   def children(%Config{path: path, pool_size: pool_size}) do
     [
-      {NodeJS.Supervisor, name: SSRSupervisor, path: path, pool_size: pool_size}
+      {NodeJS.Supervisor, name: @pool_name, path: path, pool_size: pool_size}
     ]
   end
 
@@ -32,7 +27,7 @@ defmodule Inertia.SSR.Adapters.NodeJS do
     module = if(esm, do: "#{module}.js", else: module)
 
     NodeJS.call({module, :render}, [page],
-      name: SSRSupervisor,
+      name: @pool_name,
       binary: true,
       esm: esm
     )

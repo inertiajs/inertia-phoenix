@@ -965,9 +965,9 @@ Then, update your config to enable SSR (if you'd like to enable it globally).
     raise_on_ssr_failure: config_env() != :prod
 ```
 
-### Using ESM (EcmaScript Modules) on SSR entrypoint
+### Using ESM (ECMAScript Modules) on SSR entrypoint
 
-By default this library uses CommonJS modules for SSR. If you want to use ESM (EcmaScript Modules) set `esm: true` in your config.
+By default this library uses CommonJS modules for SSR. If you want to use ESM (ECMAScript Modules) set `esm: true` in your config.
 
 ```elixir
   {Inertia.SSR, path: Path.join([Application.app_dir(:my_app), "priv"]), esm: true},
@@ -984,6 +984,28 @@ By default SSR is performed by invoking a Node.js process. You can plug in a dif
 ```
 
 Any additional options you pass to `Inertia.SSR` are forwarded to the adapter's `init/1` callback, so adapters can define their own configuration keys.
+
+A minimal adapter looks like:
+
+```elixir
+defmodule MyApp.SSR.MyAdapter do
+  @behaviour Inertia.SSR.Adapter
+
+  @impl true
+  def init(opts), do: %{path: Keyword.fetch!(opts, :path)}
+
+  @impl true
+  def children(_config), do: []
+
+  @impl true
+  def call(page, config) do
+    # Render the page and return {:ok, %{"head" => head, "body" => body}}
+    # or {:error, message} on failure.
+  end
+end
+```
+
+See `Inertia.SSR.Adapter` for full callback docs.
 
 ### Installing Node.js in your production
 

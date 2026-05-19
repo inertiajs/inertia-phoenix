@@ -36,7 +36,7 @@ defmodule Inertia.SSR do
   @impl true
   @doc false
   def init(opts) do
-    {adapter, config} = Bootstrap.fetch_adapter(opts: opts, default_adapter: NodeJS)
+    {adapter, config} = Bootstrap.fetch_adapter(opts, NodeJS)
     :persistent_term.put({__MODULE__, :adapter}, {adapter, config})
     Supervisor.init(adapter.children(config), strategy: :one_for_one)
   end
