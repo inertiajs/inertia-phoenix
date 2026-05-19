@@ -6,13 +6,32 @@ defmodule Inertia.SSR.Adapters.NodeJS do
 
   @behaviour Inertia.SSR.Adapter
 
-  alias Inertia.SSR.Adapters.NodeJS.Config
-
   # Registered name of the underlying NodeJS.Supervisor pool process.
   @pool_name Inertia.SSR.Supervisor
 
+  defmodule Config do
+    @moduledoc false
+
+    @enforce_keys [:path]
+    defstruct [:path, :module, :esm, :pool_size]
+
+    @type t :: %__MODULE__{
+            path: String.t(),
+            module: String.t(),
+            esm: boolean(),
+            pool_size: pos_integer()
+          }
+  end
+
   @impl true
-  def init(opts), do: Config.build(opts)
+  def init(opts) do
+    %Config{
+      path: Keyword.fetch!(opts, :path),
+      module: Keyword.get(opts, :module, "ssr"),
+      esm: Keyword.get(opts, :esm, false),
+      pool_size: Keyword.get(opts, :pool_size, 4)
+    }
+  end
 
   @impl true
   def children(%Config{path: path, pool_size: pool_size}) do
