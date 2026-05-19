@@ -294,7 +294,7 @@ defmodule Inertia.Controller do
   end
 
   @doc """
-  Instuct the client-side to encrypt history for this page.
+  Instruct the client-side to encrypt history for this page.
   """
   @doc since: "1.0.0"
   @spec encrypt_history(Plug.Conn.t()) :: Plug.Conn.t()
@@ -309,7 +309,7 @@ defmodule Inertia.Controller do
   end
 
   @doc """
-  Instuct the client-side to clear the history.
+  Instruct the client-side to clear the history.
   """
   @doc since: "1.0.0"
   @spec clear_history(Plug.Conn.t()) :: Plug.Conn.t()
@@ -426,7 +426,11 @@ defmodule Inertia.Controller do
 
   defp bag_errors(errors, conn) do
     if error_bag = conn.private[:inertia_error_bag] do
-      %{error_bag => errors}
+      if map_size(errors) > 0 do
+        %{error_bag => errors}
+      else
+        errors
+      end
     else
       errors
     end
@@ -729,7 +733,7 @@ defmodule Inertia.Controller do
     end)
   end
 
-  defp apply_filters(props, only, _except, opts) when length(only) > 0 do
+  defp apply_filters(props, [_ | _] = only, _except, opts) do
     props
     |> Enum.filter(fn {key, value} ->
       case value do
@@ -748,7 +752,7 @@ defmodule Inertia.Controller do
     |> Map.new()
   end
 
-  defp apply_filters(props, _only, except, opts) when length(except) > 0 do
+  defp apply_filters(props, _only, [_ | _] = except, opts) do
     props
     |> Enum.filter(fn {key, value} ->
       case value do
@@ -835,6 +839,8 @@ defmodule Inertia.Controller do
           send_ssr_response(conn, head, body)
 
         {:error, message} ->
+          message = if is_binary(message), do: message, else: inspect(message)
+
           if raise_on_ssr_failure?() do
             raise RenderError, message: message
           else

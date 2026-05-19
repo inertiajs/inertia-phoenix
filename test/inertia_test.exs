@@ -9,6 +9,8 @@ defmodule InertiaTest do
   setup do
     # Disable SSR by default, selectively enable it when testing
     Application.put_env(:inertia, :ssr, false)
+    # Reset history config that may be leaked by install tests
+    Application.delete_env(:inertia, :history)
     :ok
   end
 
@@ -170,6 +172,26 @@ defmodule InertiaTest do
       |> Path.join("js")
 
     start_supervised({Inertia.SSR, path: path, module: "ssr-failure"})
+
+    Application.put_env(:inertia, :ssr, true)
+    Application.put_env(:inertia, :raise_on_ssr_failure, false)
+
+    conn =
+      conn
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+    assert body =~ ~s("component":"Home") |> html_escape()
+  end
+
+  @tag :capture_log
+  test "falls back to CSR if SSR worker crashes with non-string error", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path, module: "ssr-crash"})
 
     Application.put_env(:inertia, :ssr, true)
     Application.put_env(:inertia, :raise_on_ssr_failure, false)
@@ -400,6 +422,18 @@ defmodule InertiaTest do
              "encryptHistory" => false,
              "clearHistory" => false
            }
+  end
+
+  test "does not wrap empty errors in bag", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-error-bag", "task")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(~p"/")
+
+    assert %{"props" => %{"errors" => errors}} = json_response(conn, 200)
+    assert errors == %{}
   end
 
   test "wraps errors in bag", %{conn: conn} do

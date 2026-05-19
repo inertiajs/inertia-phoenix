@@ -47,7 +47,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 2.5.1"}
+    {:inertia, "~> 2.6.2"}
   ]
 end
 ```
@@ -243,12 +243,8 @@ The example above assumes your pages live in the `assets/js/pages` directory and
 import React from "react";
 
 const Dashboard = () => {
-  return (
-    <div>
-      {/* ... page contents ...*/}
-    </div>
-  );
-}
+  return <div>{/* ... page contents ...*/}</div>;
+};
 
 export default Dashboard;
 ```

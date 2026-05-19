@@ -55,4 +55,4 @@ workflows:
       - test:
           matrix:
             parameters:
-              version: ["1.15", "1.16"]
+              version: ["1.18.4-erlang-27.2.2", "1.19.5-erlang-27.2.2"]
