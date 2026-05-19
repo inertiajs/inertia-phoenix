@@ -20,7 +20,7 @@ defmodule Inertia.SSR.Adapter do
     avoid serializing work through a singleton process.
   """
 
-  @type adapter_config :: struct()
+  @type adapter_config :: term()
   @type page :: %{
           required(:component) => String.t(),
           required(:props) => map(),
