@@ -1,7 +1,7 @@
 defmodule Inertia.MixProject do
   use Mix.Project
 
-  @version "2.6.2"
+  @version "3.0.0-rc1"
 
   def project do
     [
@@ -59,6 +59,7 @@ defmodule Inertia.MixProject do
       main: "readme",
       extras: [
         "README.md",
+        "guides/upgrading_to_v3.md",
         "CHANGELOG.md",
         "LICENSE.md"
       ]

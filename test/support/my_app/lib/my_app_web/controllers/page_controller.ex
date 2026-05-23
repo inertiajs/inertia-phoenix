@@ -340,6 +340,277 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def preserved_fragment(conn, _params) do
+    conn |> assign(:page_title, "Home") |> preserve_fragment() |> render_inertia("Home")
+  end
+
+  def redirect_with_preserved_fragment(conn, _params) do
+    conn |> preserve_fragment() |> redirect(to: ~p"/")
+  end
+
+  def shared_props_via_assign(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:current_user, %{id: 1, name: "Alice"})
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def shared_props_via_inline(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render_inertia("Home", %{current_user: inertia_share(%{id: 1}), other: "value"})
+  end
+
+  def shared_props_with_merge(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:items, inertia_merge(["a", "b"]))
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def shared_props_with_defer(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:items, inertia_defer(fn -> ["a", "b"] end))
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def shared_props_camelized(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_shared_prop(:current_user, %{id: 1})
+    |> assign_prop(:other_thing, "value")
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def shared_props_empty(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  # Nested prop test actions
+
+  def nested_optional(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        token: inertia_optional(fn -> "secret-token" end)
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_defer(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        permissions: inertia_defer(fn -> ["read", "write"] end)
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_merge(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:feed, fn ->
+      %{
+        posts: inertia_merge(["post1", "post2"]),
+        meta: "info"
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_deep_merge(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:feed, fn ->
+      %{
+        posts: inertia_deep_merge(%{items: [1, 2]}),
+        meta: "info"
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_always(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        role: inertia_always("admin")
+      }
+    end)
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_partial_dot_path(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        permissions: ["read", "write"],
+        token: "secret"
+      }
+    end)
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_parent_resolved(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        token: "secret"
+      }
+    end)
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_two_level_unwrap(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:stats, fn -> inertia_defer(fn -> "data" end) |> inertia_merge() end)
+    |> render_inertia("Home")
+  end
+
+  def nested_once(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, fn ->
+      %{
+        user: "Alice",
+        plans: inertia_once(fn -> ["basic", "pro"] end)
+      }
+    end)
+    |> assign_prop(:regular, "value")
+    |> render_inertia("Home")
+  end
+
+  def nested_camelized(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:user_profile, fn ->
+      %{
+        full_name: "Alice",
+        access_level: inertia_defer(fn -> "admin" end)
+      }
+    end)
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def nested_scroll(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:feed, fn ->
+      %{
+        posts:
+          inertia_scroll(%{
+            data: [%{id: 1}],
+            meta: %{current_page: 1, next_page: 2, previous_page: nil, page_name: "page"}
+          }),
+        title: "My Feed"
+      }
+    end)
+    |> render_inertia("Home")
+  end
+
+  def nested_plain_map_partial(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:auth, %{user: "Alice", token: "secret"})
+    |> assign_prop(:other, "value")
+    |> render_inertia("Home")
+  end
+
+  # clearHistory across redirect
+  def redirect_with_clear_history(conn, _params) do
+    conn |> clear_history() |> redirect(to: ~p"/")
+  end
+
+  # Hash fragment redirect
+  def redirect_with_fragment(conn, _params) do
+    redirect(conn, to: "/page#section")
+  end
+
+  # Empty response
+  def empty_response(conn, _params) do
+    send_resp(conn, 200, "")
+  end
+
+  # Prepend merge
+  def prepend_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:a, inertia_prepend("a"))
+    |> assign_prop(:b, inertia_merge("b"))
+    |> assign_prop(:c, "c")
+    |> render_inertia("Home")
+  end
+
+  # matchPropsOn
+  def match_props_on(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:users, inertia_merge([%{id: 1}], match_on: "id"))
+    |> assign_prop(:items, inertia_prepend([%{id: 2}], match_on: "id"))
+    |> assign_prop(:data, inertia_deep_merge(%{a: 1}, match_on: "key"))
+    |> render_inertia("Home")
+  end
+
+  # Scroll prop with reset
+  def scroll_props_with_reset(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(%{
+        data: [%{id: 1}],
+        meta: %{current_page: 1, next_page: 2, previous_page: nil, page_name: "page"}
+      })
+    )
+    |> render_inertia("Home")
+  end
+
+  # SSR path exclusion test
+  def ssr_excluded(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render_inertia("Home", ssr: true)
+  end
+
+  # Scroll props with prepend merge intent
+  def scroll_props_prepend(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(%{
+        data: [%{id: 1}],
+        meta: %{current_page: 1, next_page: 2, previous_page: nil, page_name: "page"}
+      })
+    )
+    |> render_inertia("Home")
+  end
+
   defp lazy_3 do
     "lazy_3"
   end

@@ -10,6 +10,7 @@ The official Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Lazy data evaluation](#lazy-data-evaluation)
 - [Deferred props](#deferred-props)
 - [Merge props](#merge-props)
+- [Prepend props](#prepend-props)
 - [Once props](#once-props)
 - [Scroll props](#scroll-props)
 - [Shared data](#shared-data)
@@ -47,7 +48,7 @@ The package can be installed by adding `inertia` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:inertia, "~> 2.6.2"}
+    {:inertia, "~> 3.0.0-rc"}
   ]
 end
 ```
@@ -214,12 +215,9 @@ Replace the contents of your `app.js` file with the Inertia boot function and re
 // assets/js/app.jsx
 
 import React from "react";
-import axios from "axios";
 
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
-
-axios.defaults.xsrfHeaderName = "x-csrf-token";
 
 createInertiaApp({
   resolve: async (name) => {
@@ -227,6 +225,9 @@ createInertiaApp({
   },
   setup({ App, el, props }) {
     createRoot(el).render(<App {...props} />);
+  },
+  http: {
+    xsrfHeaderName: "x-csrf-token",
   },
 });
 ```
@@ -331,7 +332,7 @@ conn
 
 ## Deferred props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 If you have expensive data that you'd like to automatically fetch (from the client-side via an async background request) after the page is initially rendered, you can mark the prop as deferred:
 
@@ -351,7 +352,7 @@ If no group names are specified, then the client-side will issue a single async 
 
 ## Merge props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 If you have prop data that should get merged with the existing data on the client-side on subsequent requests (for example, an array of paginated data being presented in an "infinite scroll" interface), then you can tag the prop value using the `inertia_merge/1` helper:
 
@@ -374,9 +375,38 @@ conn
 |> assign_prop(:complex_object, inertia_deep_merge(%{a: %{b: %{c: %{d: 1}}}}))
 ```
 
+### Deduplication with `match_on`
+
+When merging list data, you can provide a `match_on` key to enable client-side deduplication of items. This is useful for infinite scroll interfaces where the same item might appear in multiple pages of data:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_merge(users, match_on: "id"))
+```
+
+The `match_on` option is also supported by `inertia_prepend/2` and `inertia_deep_merge/2`. The key is included in the `matchPropsOn` metadata in the page response.
+
+## Prepend props
+
+If you want merged data to be prepended (instead of appended) to the existing client-side data, use `inertia_prepend/1`:
+
+```elixir
+conn
+|> assign_prop(:messages, inertia_prepend(new_messages))
+```
+
+Prepend props appear in both `mergeProps` and `prependProps` in the page response. This is useful for scenarios like chat interfaces where new messages should appear at the top.
+
+Like `inertia_merge`, prepend props also support the `match_on` option for deduplication:
+
+```elixir
+conn
+|> assign_prop(:messages, inertia_prepend(new_messages, match_on: "id"))
+```
+
 ## Once props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 Some data rarely changes, is expensive to compute, or is simply large. Rather than including this data in every response, you can use once props. These props are cached on the client-side and reused on subsequent pages that include the same prop, making them ideal for shared data like user roles or configuration.
 
@@ -449,7 +479,7 @@ conn
 
 ## Scroll props
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 For infinite scroll pagination, you can use `inertia_scroll/1` to wrap paginated data. This automatically configures merge behavior so new data is appended to existing content, and extracts pagination metadata for the client-side `<InfiniteScroll>` component.
 
@@ -572,7 +602,9 @@ conn
 
 ## Shared data
 
-To share data on every request, you can use the `assign_prop/2` function inside of a shared plug in your response pipeline. For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user and you want to be sure all your Inertia components receive that user data. Your plug might look something like this:
+To share data on every request, you can use the `assign_shared_prop/3` function inside of a shared plug in your response pipeline. This marks the prop as "shared", which tells the Inertia.js client which props are set globally so it can carry them forward optimistically during instant visits.
+
+For example, suppose you have a `UserAuth` plug responsible for fetching the currently-logged in user and you want to be sure all your Inertia components receive that user data. Your plug might look something like this:
 
 ```elixir
 defmodule MyApp.UserAuth do
@@ -583,20 +615,39 @@ defmodule MyApp.UserAuth do
   def authenticate_user(conn, _opts) do
     user = get_user_from_session(conn)
 
-    # Here we are storing the user in the conn assigns (so
-    # we can use it for things like checking permissions later on),
-    # AND we are assigning a serialized represention of the user
-    # to our Inertia props.
     conn
     |> assign(:user, user)
-    |> assign_prop(:user, serialize_user(user))
+    |> assign_shared_prop(:user, serialize_user(user))
   end
 
   # ...
 end
 ```
 
-Anywhere this plug is used, the serialized `user` prop will be passed to the Inertia component.
+Anywhere this plug is used, the serialized `user` prop will be passed to the Inertia component, and the key `"user"` will appear in the `sharedProps` array in the page response.
+
+You can also use `inertia_share/1` to mark a prop as shared when using inline prop maps:
+
+```elixir
+conn
+|> render_inertia("Home", %{
+  current_user: inertia_share(serialize_user(user)),
+  other: "value"
+})
+```
+
+Shared props are composable with other prop types like `inertia_merge/1` and `inertia_defer/1`:
+
+```elixir
+conn
+|> assign_shared_prop(:notifications, inertia_merge(notifications))
+|> assign_shared_prop(:permissions, inertia_defer(fn -> fetch_permissions() end))
+```
+
+> [!NOTE]
+> You can still use `assign_prop/3` for shared data if you don't need the `sharedProps` metadata.
+> The `assign_shared_prop/3` function is a convenience wrapper that additionally tags the prop
+> for inclusion in the `sharedProps` page metadata.
 
 ## Validations
 
@@ -648,7 +699,7 @@ conn
 
 ## Flash messages
 
-This library automatically includes Phoenix flash data in Inertia props, under the `flash` key.
+This library automatically includes Phoenix flash data in the Inertia page object as a top-level `flash` key (alongside `component`, `props`, `url`, and `version`).
 
 For example, given the following controller action:
 
@@ -668,36 +719,40 @@ def update(conn, params) do
 end
 ```
 
-When Inertia (or the browser) redirects to the `/settings` page, the Inertia component will receive the flash props:
+When Inertia (or the browser) redirects to the `/settings` page, the Inertia component will receive the flash data:
 
 ```javascript
 {
   "component": "...",
   "props": {
-    "flash": {
-      "info": "Settings updated"
-    },
     // ...
+  },
+  "flash": {
+    "info": "Settings updated"
   }
 }
 ```
 
+On the client-side, you can access flash data via `usePage().flash`.
+
 ## CSRF protection
 
-This library automatically sets the `XSRF-TOKEN` cookie for use by the Axios client on the front-end. Since Phoenix expects to receive the CSRF token via the `x-csrf-token` header, you'll need to configure Axios in your front-end JavaScript to use that header name:
+This library automatically sets the `XSRF-TOKEN` cookie on each response. Inertia's built-in HTTP client reads this cookie and forwards the value on subsequent requests, but it sends it via the `X-XSRF-TOKEN` header by default. Since Phoenix expects to receive the CSRF token via the `x-csrf-token` header, override the header name when initializing your Inertia app:
 
 ```javascript
 // assets/js/app.js
 
-import axios from "axios";
-axios.defaults.xsrfHeaderName = "x-csrf-token";
-
-// the rest of your Inertia client code...
+createInertiaApp({
+  http: {
+    xsrfHeaderName: "x-csrf-token",
+  },
+  // the rest of your Inertia client setup...
+})
 ```
 
 ## History
 
-**Requires Inertia v2.x on the client-side**.
+**Requires Inertia v2.x or later on the client-side**.
 
 ### Encryption
 
@@ -726,7 +781,20 @@ conn
 
 ## Testing
 
-The `Inertia.Testing` module includes helpers for testing your Inertia controller responses, such as the `inertia_component/1` and `inertia_props/1` functions.
+The `Inertia.Testing` module includes helpers for testing your Inertia controller responses. The following helpers are available:
+
+| Helper                     | Description                                       |
+| -------------------------- | ------------------------------------------------- |
+| `inertia_component/1`      | Returns the component name                        |
+| `inertia_props/1`          | Returns the props map                             |
+| `inertia_errors/1`         | Returns validation errors (from props or session) |
+| `inertia_flash/1`          | Returns the flash map                             |
+| `inertia_page/1`           | Returns the full page object                      |
+| `inertia_shared_props/1`   | Returns shared prop keys                          |
+| `inertia_deferred_props/1` | Returns deferred prop groups                      |
+| `inertia_merge_props/1`    | Returns merge prop paths                          |
+| `inertia_scroll_props/1`   | Returns scroll pagination metadata                |
+| `inertia_once_props/1`     | Returns once prop metadata                        |
 
 ```elixir
 use MyAppWeb.ConnCase
@@ -738,6 +806,7 @@ describe "GET /" do
     conn = get("/")
     assert inertia_component(conn) == "Home"
     assert %{user: %{id: 1}} = inertia_props(conn)
+    assert inertia_flash(conn) == %{}
   end
 end
 ```
@@ -751,7 +820,6 @@ describe "POST /users" do
   test "fails when name empty", %{conn: conn} do
     conn = post("/users", %{"name" => ""})
 
-    assert %{user: %{id: 1}} = inertia_props(conn)
     assert redirected_to(conn) == ~p"/users"
     assert inertia_errors(conn) == %{"name" => "can't be blank"}
   end
@@ -1006,6 +1074,19 @@ end
 ```
 
 See `Inertia.SSR.Adapter` for full callback docs.
+
+### Excluding paths from SSR
+
+If you want to disable SSR for certain paths (e.g. pages that don't need SEO or are too expensive to server-render), you can configure `ssr_exclude_paths`:
+
+```elixir
+config :inertia,
+  ssr: true,
+  ssr_exclude_paths: [
+    "/admin",             # String prefix: matches /admin, /admin/users, etc.
+    ~r/^\/dashboard\//    # Regex: matches /dashboard/stats, /dashboard/reports, etc.
+  ]
+```
 
 ### Installing Node.js in your production
 

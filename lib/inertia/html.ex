@@ -12,7 +12,7 @@ defmodule Inertia.HTML do
   )
 
   @doc """
-  Renders a `<title>` tag that includes the `inertia` attribute needed for the
+  Renders a `<title>` tag that includes the `data-inertia` attribute needed for the
   Inertia.js client-side to subsequently manage the page title.
 
   The content you provide to this component will only apply to the initial
@@ -41,7 +41,7 @@ defmodule Inertia.HTML do
 
   def inertia_title(assigns) do
     ~H"""
-    <title data-prefix={@prefix} data-suffix={@suffix} inertia>
+    <title data-prefix={@prefix} data-suffix={@suffix} data-inertia>
       {@prefix}{render_slot(@inner_block)}{@suffix}
     </title>
     """
@@ -59,7 +59,10 @@ defmodule Inertia.HTML do
   @doc false
   def inertia_page(assigns) do
     ~H"""
-    <div id="app" data-page={json_library().encode!(@page)}></div>
+    <div id="app"></div>
+    <script data-page="app" type="application/json">
+      <%= Phoenix.HTML.raw(json_library().encode!(@page)) %>
+    </script>
     """
   end
 

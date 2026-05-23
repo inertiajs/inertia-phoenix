@@ -27,3 +27,9 @@ inertia-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# OS noise
+**.DS_Store
+
+# Local dependency management
+mise.toml

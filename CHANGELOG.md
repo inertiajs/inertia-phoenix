@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.0.0-rc1 - 2026-05-18
+
+### Added
+
+- Add nested prop type support with a single recursive resolver. Prop type wrappers (`inertia_defer`, `inertia_merge`, `inertia_deep_merge`, `inertia_optional`, `inertia_once`, `inertia_scroll`) now work at any nesting depth, including inside closures. For example, `inertia_defer` inside a closure now correctly generates `deferredProps` metadata with dot-notation paths (e.g., `auth.permissions`).
+- Add `assign_shared_prop/3` and `inertia_share/1` to mark props as shared, exposing their keys in the `sharedProps` page metadata for the Inertia v3 protocol ([#69](https://github.com/inertiajs/inertia-phoenix/issues/69)).
+- Add `preserve_fragment/1` and `preserve_fragment/2` functions to instruct the client-side to preserve the URL fragment across server-side redirects ([#68](https://github.com/inertiajs/inertia-phoenix/issues/68)).
+- Add `inertia_prepend/1` and `inertia_prepend/2` for prepending (instead of appending) data during client-side merges. Prepend props appear in both `mergeProps` and `prependProps` in the page response. Scroll props also respect the `X-Inertia-Infinite-Scroll-Merge-Intent: prepend` header ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Add `match_on:` option to `inertia_merge/2`, `inertia_prepend/2`, and `inertia_deep_merge/2` for client-side deduplication of merged items. Match keys are included in `matchPropsOn` page metadata ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Add `ssr_exclude_paths` config option to disable SSR for specific paths. Supports string prefixes and `~r//` regex patterns ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Add `inertia_flash/1`, `inertia_page/1`, `inertia_deferred_props/1`, `inertia_merge_props/1`, `inertia_scroll_props/1`, and `inertia_once_props/1` test helpers in `Inertia.Testing` ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+
+### Changed
+
+- **Breaking:** Flash data is now a top-level key in the Inertia page object (`usePage().flash`) instead of being nested inside props (`usePage().props.flash`). This aligns with the Inertia.js frontend conventions and the Laravel adapter ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- **Breaking:** The `<title>` tag marker attribute has been renamed from `inertia` to `data-inertia`. If you use the provided `<.inertia_title>` component, no action is required. If you render the title tag yourself in a custom root layout, update the marker attribute.
+- **Breaking:** The initial page payload is now rendered as a `<script type="application/json">` tag instead of a `data-page` attribute on the container `<div>`. This matches the only mode supported by Inertia.js v3 ([#66](https://github.com/inertiajs/inertia-phoenix/pull/66)).
+- Set the `Vary: X-Inertia` response header on all requests (not just Inertia JSON responses), so HTTP caches can properly differentiate responses ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Remove `axios` from the Igniter installer template, since Inertia.js v3 ships with a built-in HTTP client ([#66](https://github.com/inertiajs/inertia-phoenix/pull/66)).
+
+### Removed
+
+- **Breaking:** Remove `inertia_lazy/1` (deprecated since v2.0.0). Use `inertia_optional/1` instead ([#66](https://github.com/inertiajs/inertia-phoenix/pull/66)).
+
+### Fixed
+
+- Persist `clearHistory` across redirects via the session, matching the existing behavior of `preserve_fragment`. Previously, `clear_history(conn)` was lost on redirect ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Handle redirects containing URL hash fragments by returning 409 with `X-Inertia-Redirect` header, so the client can perform a full navigation that preserves the fragment ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Redirect Inertia requests that receive a 200 with an empty body back to the referer (or `/`), instead of rendering a blank page ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+- Include `"reset": true` in scroll prop metadata when the scroll data path is in the `X-Inertia-Reset` header ([#67](https://github.com/inertiajs/inertia-phoenix/issues/67)).
+
 ## 2.6.2
 
 ### Fixed

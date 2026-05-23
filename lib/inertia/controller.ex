@@ -2,7 +2,6 @@ defmodule Inertia.Controller do
   @moduledoc """
   Controller functions for rendering Inertia.js responses.
   """
-
   require Logger
 
   alias Inertia.Errors
@@ -12,7 +11,7 @@ defmodule Inertia.Controller do
   import Phoenix.Controller
   import Plug.Conn
 
-  @title_regex ~r/<title inertia>(.*?)<\/title>/
+  @title_regex ~r/<title data-inertia>(.*?)<\/title>/
 
   defmodule Once do
     @moduledoc false
@@ -35,15 +34,33 @@ defmodule Inertia.Controller do
     defstruct [:fun, wrapper: "data", metadata: nil]
   end
 
+  defmodule PropsMeta do
+    @moduledoc false
+    defstruct merge_props: [],
+              prepend_props: [],
+              deep_merge_props: [],
+              match_props_on: %{},
+              deferred_props: %{},
+              once_props: %{},
+              scroll_props: %{}
+  end
+
+  defmodule ResolveContext do
+    @moduledoc false
+    defstruct [:is_partial, :only, :except, :reset, :except_once_props, :opts]
+  end
+
   @type raw_prop_key :: atom() | String.t()
 
   @opaque optional() :: {:optional, fun()}
   @opaque always() :: {:keep, any()}
-  @opaque merge() :: {:merge, any()}
-  @opaque deep_merge() :: {:deep_merge, any()}
+  @opaque merge() :: {:merge, any()} | {:merge, any(), String.t()}
+  @opaque prepend() :: {:prepend, any()} | {:prepend, any(), String.t()}
+  @opaque deep_merge() :: {:deep_merge, any()} | {:deep_merge, any(), String.t()}
   @opaque defer() :: {:defer, {fun(), String.t()}}
   @opaque once() :: Once.t()
   @opaque scroll() :: Scroll.t()
+  @opaque shared() :: {:shared, any()}
   @opaque preserved_prop_key :: {:preserve, raw_prop_key()}
 
   @type render_opt() :: {:ssr, boolean()}
@@ -85,24 +102,57 @@ defmodule Inertia.Controller do
     raise ArgumentError, message: "inertia_optional/1 only accepts a function argument"
   end
 
-  @doc false
-  @spec inertia_lazy(fun :: fun()) :: optional()
-  @deprecated "Use inertia_optional/1 instead"
-  def inertia_lazy(fun), do: inertia_optional(fun)
-
   @doc """
   Marks that a prop should be merged with existing data on the client-side.
+
+  ## Options
+
+  - `:match_on` - A string key used for client-side deduplication of merged items.
   """
   @doc since: "1.0.0"
   @spec inertia_merge(value :: any()) :: merge()
-  def inertia_merge(value), do: {:merge, value}
+  @spec inertia_merge(value :: any(), opts :: keyword()) :: merge()
+  def inertia_merge(value, opts \\ []) do
+    case Keyword.get(opts, :match_on) do
+      nil -> {:merge, value}
+      key -> {:merge, value, key}
+    end
+  end
+
+  @doc """
+  Marks that a prop should be prepended (instead of appended) when merging
+  with existing data on the client-side.
+
+  ## Options
+
+  - `:match_on` - A string key used for client-side deduplication of merged items.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_prepend(value :: any()) :: prepend()
+  @spec inertia_prepend(value :: any(), opts :: keyword()) :: prepend()
+  def inertia_prepend(value, opts \\ []) do
+    case Keyword.get(opts, :match_on) do
+      nil -> {:prepend, value}
+      key -> {:prepend, value, key}
+    end
+  end
 
   @doc """
   Marks that a prop should be deeply merged with existing data on the client-side.
+
+  ## Options
+
+  - `:match_on` - A string key used for client-side deduplication of merged items.
   """
   @doc since: "2.5.0"
   @spec inertia_deep_merge(value :: any()) :: deep_merge()
-  def inertia_deep_merge(value), do: {:deep_merge, value}
+  @spec inertia_deep_merge(value :: any(), opts :: keyword()) :: deep_merge()
+  def inertia_deep_merge(value, opts \\ []) do
+    case Keyword.get(opts, :match_on) do
+      nil -> {:deep_merge, value}
+      key -> {:deep_merge, value, key}
+    end
+  end
 
   @doc """
   Marks that a prop should fetched immediately after the page is loaded on the client-side.
@@ -132,6 +182,16 @@ defmodule Inertia.Controller do
   """
   @spec inertia_always(value :: any()) :: always()
   def inertia_always(value), do: {:keep, value}
+
+  @doc """
+  Marks a prop value as shared, causing its key to appear in the `sharedProps` page metadata.
+
+  This tells the frontend which props are "shared" (set globally in plugs/middleware)
+  so it can carry them forward optimistically during instant visits.
+  """
+  @doc since: "3.0.0"
+  @spec inertia_share(value :: any()) :: shared()
+  def inertia_share(value), do: {:shared, value}
 
   @doc """
   Marks a prop as a "once" prop, which is cached on the client-side and
@@ -169,10 +229,11 @@ defmodule Inertia.Controller do
       assign_prop(conn, :permissions, inertia_once(inertia_defer(fn -> Permission.all() end)))
   """
   @doc since: "2.6.0"
-  @spec inertia_once(fun_or_tagged :: fun() | defer() | merge() | deep_merge() | optional()) ::
-          once()
   @spec inertia_once(
-          fun_or_tagged :: fun() | defer() | merge() | deep_merge() | optional(),
+          fun_or_tagged :: fun() | defer() | merge() | prepend() | deep_merge() | optional()
+        ) :: once()
+  @spec inertia_once(
+          fun_or_tagged :: fun() | defer() | merge() | prepend() | deep_merge() | optional(),
           opts :: keyword()
         ) :: once()
   def inertia_once(fun, opts \\ [])
@@ -187,7 +248,17 @@ defmodule Inertia.Controller do
   end
 
   def inertia_once({tag, _} = tagged, opts)
-      when tag in [:defer, :optional, :merge, :deep_merge] do
+      when tag in [:defer, :optional, :merge, :prepend, :deep_merge] do
+    %Once{
+      fun: tagged,
+      key: Keyword.get(opts, :as),
+      expires_at: parse_expiration(Keyword.get(opts, :until)),
+      fresh: Keyword.get(opts, :fresh, false)
+    }
+  end
+
+  def inertia_once({tag, _, _} = tagged, opts)
+      when tag in [:merge, :prepend, :deep_merge] do
     %Once{
       fun: tagged,
       key: Keyword.get(opts, :as),
@@ -294,6 +365,19 @@ defmodule Inertia.Controller do
   end
 
   @doc """
+  Assigns a shared prop value to the Inertia page data.
+
+  This is a convenience for `assign_prop(conn, key, inertia_share(value))`.
+  Shared props have their keys included in the `sharedProps` page metadata,
+  which tells the frontend to carry them forward during instant visits.
+  """
+  @doc since: "3.0.0"
+  @spec assign_shared_prop(Plug.Conn.t(), prop_key(), any()) :: Plug.Conn.t()
+  def assign_shared_prop(conn, key, value) do
+    assign_prop(conn, key, inertia_share(value))
+  end
+
+  @doc """
   Instruct the client-side to encrypt history for this page.
   """
   @doc since: "1.0.0"
@@ -322,6 +406,18 @@ defmodule Inertia.Controller do
   def clear_history(conn, true_or_false) when is_boolean(true_or_false) do
     put_private(conn, :inertia_clear_history, true_or_false)
   end
+
+  @doc """
+  Instruct the client-side to preserve the URL fragment across this navigation.
+  """
+  @doc since: "3.0.0"
+  @spec preserve_fragment(Plug.Conn.t()) :: Plug.Conn.t()
+  def preserve_fragment(conn), do: put_private(conn, :inertia_preserve_fragment, true)
+
+  @doc since: "3.0.0"
+  @spec preserve_fragment(Plug.Conn.t(), boolean()) :: Plug.Conn.t()
+  def preserve_fragment(conn, val) when is_boolean(val),
+    do: put_private(conn, :inertia_preserve_fragment, val)
 
   @doc """
   Enable (or disable) automatic conversion of prop keys from snake case (e.g.
@@ -508,42 +604,59 @@ defmodule Inertia.Controller do
     reset = conn.private[:inertia_reset] || []
     except_once_props = conn.private[:inertia_except_once_props] || []
 
-    opts = Keyword.merge(opts, camelize_props: camelize_props, reset: reset)
+    scroll_merge_intent = conn.private[:inertia_scroll_merge_intent] || "append"
+
+    opts =
+      Keyword.merge(opts,
+        camelize_props: camelize_props,
+        reset: reset,
+        scroll_merge_intent: scroll_merge_intent
+      )
 
     props = Map.merge(shared_props, inline_props)
 
-    # Process scroll props first (since they create merge entries and need early evaluation)
-    {props, scroll_props} = resolve_scroll_props(props, opts)
+    # Unwrap {:shared, _} tags and collect shared prop keys
+    {props, shared_prop_keys} = resolve_shared_props(props, opts)
 
-    # Process once props to unwrap %Once{} and expose any nested tags
-    # (like {:defer, ...} or {:merge, ...}) for subsequent resolution
-    {props, once_props} = resolve_once_props(props, except_once_props, only, opts)
-    {props, merge_props, deep_merge_props} = resolve_merge_props(props, opts)
-    {props, deferred_props} = resolve_deferred_props(props, opts)
+    ctx = %ResolveContext{
+      is_partial: is_partial,
+      only: only,
+      except: except,
+      reset: reset,
+      except_once_props: except_once_props,
+      opts: opts
+    }
 
-    # Collect scroll merge paths to add to merge_props
-    scroll_merge_paths = collect_scroll_merge_paths(props)
+    {resolved_props, meta} = resolve_props(props, ctx, %PropsMeta{}, "", false)
 
-    props =
-      props
-      |> apply_filters(only, except, opts)
-      |> resolve_props(opts)
-      |> maybe_put_flash(conn)
+    {flash, resolved_props} = resolve_flash(resolved_props, conn)
 
     conn
     |> put_private(:inertia_page, %{
       component: component,
-      props: props,
-      merge_props: merge_props ++ scroll_merge_paths,
-      deep_merge_props: deep_merge_props,
-      deferred_props: deferred_props,
-      once_props: once_props,
-      scroll_props: scroll_props,
+      props: resolved_props,
+      flash: flash,
+      merge_props: meta.merge_props,
+      prepend_props: meta.prepend_props,
+      deep_merge_props: meta.deep_merge_props,
+      match_props_on: meta.match_props_on,
+      deferred_props: meta.deferred_props,
+      once_props: meta.once_props,
+      scroll_props: meta.scroll_props,
+      shared_props: shared_prop_keys,
       is_partial: is_partial
     })
     |> detect_ssr(opts)
     |> put_csrf_cookie()
     |> send_response()
+  end
+
+  # Extract flash from props if explicitly assigned, otherwise use conn.assigns.flash
+  defp resolve_flash(resolved_props, conn) do
+    case Map.pop(resolved_props, :flash) do
+      {nil, _} -> {conn.assigns.flash, resolved_props}
+      {f, p} -> {f, p}
+    end
   end
 
   @doc """
@@ -582,132 +695,442 @@ defmodule Inertia.Controller do
 
   # Private helpers
 
-  # Runs a reduce operation over the top-level props and looks for values that
-  # were tagged via the `inertia_merge/2` helper. If the value is tagged, then
-  # place the key in an array (unless that key is included in the list of
-  # "reset" keys). Otherwise, make no modification.
-  defp resolve_merge_props(props, opts) do
-    Enum.reduce(props, {[], [], []}, fn {key, value}, {props, merge_keys, deep_merge_keys} ->
-      transformed_key =
-        key
-        |> transform_key(opts)
-        |> to_string()
-
-      # Only include this key in the collection of merge prop keys
-      # if it's not in the "reset" list
-      case {transformed_key in opts[:reset], value} do
-        {true, {tag, unwrapped_value}} when tag in [:merge, :deep_merge] ->
-          {[{key, unwrapped_value} | props], merge_keys, deep_merge_keys}
-
-        {_, {:merge, unwrapped_value}} ->
-          {[{key, unwrapped_value} | props], [key | merge_keys], deep_merge_keys}
-
-        {_, {:deep_merge, unwrapped_value}} ->
-          {[{key, unwrapped_value} | props], merge_keys, [key | deep_merge_keys]}
-
-        _ ->
-          {[{key, value} | props], merge_keys, deep_merge_keys}
-      end
-    end)
-  end
-
-  defp resolve_deferred_props(props, opts) do
-    Enum.reduce(props, {[], %{}}, fn {key, value}, {props, keys} ->
+  defp resolve_shared_props(props, opts) do
+    Enum.reduce(props, {[], []}, fn {key, value}, {props_acc, shared_acc} ->
       case value do
-        {:defer, {fun, group}} ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
-
-          keys =
-            case Map.get(keys, group) do
-              [_ | _] = group_keys -> Map.put(keys, group, [transformed_key | group_keys])
-              _ -> Map.put(keys, group, [transformed_key])
-            end
-
-          {[{key, {:optional, fun}} | props], keys}
+        {:shared, inner} ->
+          transformed_key = key |> transform_key(opts) |> to_string()
+          {[{key, inner} | props_acc], [transformed_key | shared_acc]}
 
         _ ->
-          {[{key, value} | props], keys}
+          {[{key, value} | props_acc], shared_acc}
       end
     end)
   end
 
-  defp resolve_once_props(props, except_once_props, only, opts) do
-    Enum.reduce(props, {[], %{}}, fn {key, value}, {props_acc, once_acc} ->
-      case value do
-        %Once{} = once ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
+  # Path-matching helpers for nested partial filtering
 
-          once_key = once.key || transformed_key
+  # Returns true if `path` equals or is a descendant of any only-path
+  defp matches_only?(path, only_paths) do
+    Enum.any?(only_paths, fn op ->
+      path == op or String.starts_with?(path, op <> ".")
+    end)
+  end
 
-          # Determine if we should skip resolution:
-          # - The key is in except_once_props (client already has it)
-          # - The prop is not marked as fresh
-          # - The prop is not explicitly requested in a partial reload
-          skip =
-            once_key in except_once_props and
-              not once.fresh and
-              transformed_key not in only
+  # Returns true if `path` is an ancestor of any only-path (allows traversal into children)
+  defp leads_to_only?(path, only_paths) do
+    Enum.any?(only_paths, fn op ->
+      String.starts_with?(op, path <> ".")
+    end)
+  end
 
-          once_meta = %{
-            "prop" => transformed_key,
-            "expiresAt" => once.expires_at
-          }
+  # Returns true if `path` equals or is a descendant of any except-path
+  defp matches_except?(path, except_paths) do
+    Enum.any?(except_paths, fn ep ->
+      path == ep or String.starts_with?(path, ep <> ".")
+    end)
+  end
 
-          if skip do
-            # Skip this prop entirely, but keep metadata
-            {props_acc, Map.put(once_acc, once_key, once_meta)}
-          else
-            # Include prop for resolution
-            {[{key, once.fun} | props_acc], Map.put(once_acc, once_key, once_meta)}
-          end
+  defp should_include_in_partial?(value, path, parent_was_resolved, ctx) do
+    # Always-props bypass all filtering
+    case value do
+      {:keep, _} ->
+        true
 
-        _ ->
-          {[{key, value} | props_acc], once_acc}
+      _ ->
+        cond do
+          # Except filter — explicit exclusions always apply, even inside resolved closures
+          ctx.except != [] -> !matches_except?(path, ctx.except)
+          # If parent was a resolved closure, include all children
+          parent_was_resolved -> true
+          # Only filter
+          ctx.only != [] -> matches_only?(path, ctx.only) or leads_to_only?(path, ctx.only)
+          # No filter (initial load) — include everything
+          true -> true
+        end
+    end
+  end
+
+  # Single recursive resolver that handles all prop types at any nesting level.
+  # Returns {resolved_map, updated_meta}.
+  defp resolve_props(props, ctx, meta, prefix, parent_was_resolved) do
+    opts = ctx.opts
+
+    Enum.reduce(props, {%{}, meta}, fn {key, value}, {props_acc, meta_acc} ->
+      transformed_key = key |> transform_key(opts) |> to_string()
+      path = if prefix == "", do: transformed_key, else: "#{prefix}.#{transformed_key}"
+
+      # Check partial filter
+      if ctx.is_partial and
+           not should_include_in_partial?(value, path, parent_was_resolved, ctx) do
+        # Still need to collect once metadata even for skipped props
+        meta_acc = collect_once_meta_if_skipped(value, path, ctx, meta_acc)
+        {props_acc, meta_acc}
+      else
+        resolve_prop(
+          key,
+          value,
+          path,
+          transformed_key,
+          props_acc,
+          meta_acc,
+          ctx,
+          parent_was_resolved
+        )
       end
     end)
   end
 
-  defp resolve_scroll_props(props, opts) do
-    Enum.reduce(props, {[], %{}}, fn {key, value}, {props_acc, scroll_acc} ->
-      case value do
-        %Scroll{} = scroll ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
+  # Collects once metadata for props that were filtered out by partial filtering
+  defp collect_once_meta_if_skipped(%Once{} = once, path, _ctx, meta) do
+    once_key = once.key || path
+    %{meta | once_props: Map.put(meta.once_props, once_key, build_once_meta(once, path))}
+  end
 
-          # Evaluate the value if it's a function
-          resolved_value = if is_function(scroll.fun, 0), do: scroll.fun.(), else: scroll.fun
+  defp collect_once_meta_if_skipped(fun, path, ctx, meta) when is_function(fun, 0) do
+    collect_once_meta_if_skipped(fun.(), path, ctx, meta)
+  end
 
-          # Extract metadata using protocol or custom function
-          metadata = extract_scroll_metadata(resolved_value, scroll)
-
-          # Create the path for mergeProps (e.g., "users.data")
-          merge_path = "#{transformed_key}.#{scroll.wrapper}"
-
-          scroll_meta = %{
-            "pageName" => metadata.page_name,
-            "currentPage" => metadata.current_page,
-            "previousPage" => metadata.previous_page,
-            "nextPage" => metadata.next_page
-          }
-
-          {
-            [{key, {:scroll_merge, resolved_value, merge_path}} | props_acc],
-            Map.put(scroll_acc, transformed_key, scroll_meta)
-          }
-
-        _ ->
-          {[{key, value} | props_acc], scroll_acc}
-      end
+  defp collect_once_meta_if_skipped(map, path, ctx, meta)
+       when is_map(map) and not is_struct(map) do
+    Enum.reduce(map, meta, fn {key, value}, meta_acc ->
+      transformed_key = key |> transform_key(ctx.opts) |> to_string()
+      child_path = if path == "", do: transformed_key, else: "#{path}.#{transformed_key}"
+      collect_once_meta_if_skipped(value, child_path, ctx, meta_acc)
     end)
   end
+
+  defp collect_once_meta_if_skipped(_, _, _, meta), do: meta
+
+  defp resolve_prop(key, value, path, transformed_key, props_acc, meta, ctx, parent_was_resolved) do
+    # Step 1: Unwrap %Once{} structs
+    {value, meta, skip_once} = unwrap_once(value, path, ctx, meta)
+
+    if skip_once do
+      {props_acc, meta}
+    else
+      # Step 2: Unwrap %Scroll{} structs (eagerly evaluate)
+      {value, meta} = unwrap_scroll(value, path, transformed_key, ctx, meta)
+
+      # Step 3: Resolve functions
+      {value, was_resolved} = resolve_value(value)
+
+      # Step 4: Two-level unwrapping — if a function returned a prop type, detect and process
+      {value, meta, was_resolved} =
+        unwrap_second_level(value, path, transformed_key, ctx, meta, was_resolved)
+
+      # Step 5: Collect metadata based on prop type tags
+      {value, meta} = collect_metadata(value, path, ctx, meta)
+
+      # Step 6: Initial-response exclusion for optional props
+      if ctx.is_partial or not optional?(value) do
+        {value, meta} =
+          finalize_prop(value, path, meta, ctx, parent_was_resolved, was_resolved)
+
+        output_key = transform_key(key, ctx.opts)
+        {Map.put(props_acc, output_key, value), meta}
+      else
+        {props_acc, meta}
+      end
+    end
+  end
+
+  defp finalize_prop(value, path, meta, ctx, parent_was_resolved, was_resolved) do
+    # Unwrap remaining tags
+    value = unwrap_tags(value)
+
+    # Resolve the final value (in case it's a function inside a tag)
+    value = resolve_final_value(value, ctx.opts)
+
+    # Recurse into maps
+    if is_map(value) and not is_struct(value) do
+      # Only set parent_was_resolved for children when this key was directly
+      # requested (not just traversed to reach a deeper target)
+      directly_matched =
+        ctx.only == [] or parent_was_resolved or matches_only?(path, ctx.only)
+
+      child_parent_resolved = parent_was_resolved or (was_resolved and directly_matched)
+      resolve_props(value, ctx, meta, path, child_parent_resolved)
+    else
+      {value, meta}
+    end
+  end
+
+  defp unwrap_once(%Once{} = once, path, ctx, meta) do
+    once_key = once.key || path
+    meta = %{meta | once_props: Map.put(meta.once_props, once_key, build_once_meta(once, path))}
+
+    # Determine if we should skip resolution
+    skip =
+      once_key in ctx.except_once_props and
+        not once.fresh and
+        not (ctx.is_partial and matches_only?(path, ctx.only))
+
+    if skip do
+      {nil, meta, true}
+    else
+      {once.fun, meta, false}
+    end
+  end
+
+  defp unwrap_once(value, _path, _ctx, meta), do: {value, meta, false}
+
+  defp build_once_meta(once, path) do
+    %{"prop" => path, "expiresAt" => once.expires_at}
+  end
+
+  defp unwrap_scroll(%Scroll{} = scroll, path, _transformed_key, ctx, meta) do
+    resolved_value = if is_function(scroll.fun, 0), do: scroll.fun.(), else: scroll.fun
+    scroll_metadata = extract_scroll_metadata(resolved_value, scroll)
+    merge_path = "#{path}.#{scroll.wrapper}"
+
+    is_reset = merge_path in ctx.reset
+
+    scroll_meta =
+      %{
+        "pageName" => scroll_metadata.page_name,
+        "currentPage" => scroll_metadata.current_page,
+        "previousPage" => scroll_metadata.previous_page,
+        "nextPage" => scroll_metadata.next_page
+      }
+      |> then(fn meta_map ->
+        if is_reset, do: Map.put(meta_map, "reset", true), else: meta_map
+      end)
+
+    meta = %{meta | scroll_props: Map.put(meta.scroll_props, path, scroll_meta)}
+
+    # Add merge path unless reset; use prepend list when intent is "prepend"
+    meta =
+      if is_reset do
+        meta
+      else
+        meta = %{meta | merge_props: [merge_path | meta.merge_props]}
+
+        if ctx.opts[:scroll_merge_intent] == "prepend" do
+          %{meta | prepend_props: [merge_path | meta.prepend_props]}
+        else
+          meta
+        end
+      end
+
+    {resolved_value, meta}
+  end
+
+  defp unwrap_scroll(value, _path, _transformed_key, _ctx, meta), do: {value, meta}
+
+  defp resolve_value(fun) when is_function(fun, 0), do: {fun.(), true}
+  defp resolve_value(value), do: {value, false}
+
+  # Two-level unwrapping: if a function returned a prop type tag, process it.
+  # collect_metadata converts {:defer, {fun, group}} -> {:optional, fun} so the
+  # main flow's is_optional? check will exclude it on initial load.
+  defp unwrap_second_level({:defer, _} = tagged, path, _tk, ctx, meta, _was_resolved) do
+    {wrapped, meta} = collect_metadata(tagged, path, ctx, meta)
+    # wrapped is now {:optional, fun} — keep it wrapped for initial-response exclusion
+    {wrapped, meta, false}
+  end
+
+  defp unwrap_second_level({:optional, _} = value, _path, _tk, _ctx, meta, _was_resolved) do
+    {value, meta, false}
+  end
+
+  defp unwrap_second_level({:merge, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:merge, _, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:prepend, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:prepend, _, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:deep_merge, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:deep_merge, _, _} = tagged, path, _tk, ctx, meta, was_resolved) do
+    {inner, meta} = collect_metadata(tagged, path, ctx, meta)
+    {resolved, was_resolved2} = resolve_value(inner)
+    {resolved, meta, was_resolved or was_resolved2}
+  end
+
+  defp unwrap_second_level({:keep, _} = value, _path, _tk, _ctx, meta, was_resolved) do
+    {value, meta, was_resolved}
+  end
+
+  defp unwrap_second_level(%Scroll{} = scroll, path, tk, ctx, meta, _was_resolved) do
+    {value, meta} = unwrap_scroll(scroll, path, tk, ctx, meta)
+    {value, meta, true}
+  end
+
+  defp unwrap_second_level(%Once{} = once, path, _tk, ctx, meta, _was_resolved) do
+    {value, meta, skip} = unwrap_once(once, path, ctx, meta)
+
+    if skip do
+      {nil, meta, false}
+    else
+      {val, was_resolved} = resolve_value(value)
+      # Check for further nested tags after once unwrap
+      case val do
+        {:defer, _} = v ->
+          {v2, meta2} = collect_metadata(v, path, ctx, meta)
+          # v2 is {:optional, fun} — keep wrapped for initial-response exclusion
+          {v2, meta2, false}
+
+        _ ->
+          {val, meta, was_resolved}
+      end
+    end
+  end
+
+  defp unwrap_second_level(value, _path, _tk, _ctx, meta, was_resolved) do
+    {value, meta, was_resolved}
+  end
+
+  defp collect_metadata({:merge, inner}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{meta | merge_props: [path | meta.merge_props]}
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:merge, inner, match_key}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | merge_props: [path | meta.merge_props],
+            match_props_on: Map.put(meta.match_props_on, path, match_key)
+        }
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:prepend, inner}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | merge_props: [path | meta.merge_props],
+            prepend_props: [path | meta.prepend_props]
+        }
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:prepend, inner, match_key}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | merge_props: [path | meta.merge_props],
+            prepend_props: [path | meta.prepend_props],
+            match_props_on: Map.put(meta.match_props_on, path, match_key)
+        }
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:deep_merge, inner}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{meta | deep_merge_props: [path | meta.deep_merge_props]}
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:deep_merge, inner, match_key}, path, ctx, meta) do
+    meta =
+      if path in ctx.reset do
+        meta
+      else
+        %{
+          meta
+          | deep_merge_props: [path | meta.deep_merge_props],
+            match_props_on: Map.put(meta.match_props_on, path, match_key)
+        }
+      end
+
+    {inner, meta}
+  end
+
+  defp collect_metadata({:defer, {fun, group}}, path, _ctx, meta) do
+    deferred = meta.deferred_props
+    group_keys = Map.get(deferred, group, [])
+    meta = %{meta | deferred_props: Map.put(deferred, group, [path | group_keys])}
+    {{:optional, fun}, meta}
+  end
+
+  defp collect_metadata(value, _path, _ctx, meta), do: {value, meta}
+
+  defp optional?({:optional, _}), do: true
+  defp optional?(_), do: false
+
+  defp unwrap_tags({:optional, v}), do: v
+  defp unwrap_tags({:keep, v}), do: v
+  defp unwrap_tags({:merge, v}), do: v
+  defp unwrap_tags({:merge, v, _}), do: v
+  defp unwrap_tags({:prepend, v}), do: v
+  defp unwrap_tags({:prepend, v, _}), do: v
+  defp unwrap_tags({:deep_merge, v}), do: v
+  defp unwrap_tags({:deep_merge, v, _}), do: v
+  defp unwrap_tags({:shared, v}), do: v
+  defp unwrap_tags(v), do: v
+
+  defp resolve_final_value(value, opts) do
+    cond do
+      is_function(value, 0) -> resolve_final_value(value.(), opts)
+      is_list(value) -> Enum.map(value, &resolve_nested_value(&1, opts))
+      true -> value
+    end
+  end
+
+  defp resolve_nested_value(map, opts) when is_map(map) and not is_struct(map) do
+    map
+    |> Enum.map(fn {k, v} -> {transform_key(k, opts), resolve_nested_value(v, opts)} end)
+    |> Map.new()
+  end
+
+  defp resolve_nested_value(list, opts) when is_list(list) do
+    Enum.map(list, &resolve_nested_value(&1, opts))
+  end
+
+  defp resolve_nested_value(fun, opts) when is_function(fun, 0),
+    do: resolve_nested_value(fun.(), opts)
+
+  defp resolve_nested_value(value, _opts), do: value
 
   defp extract_scroll_metadata(data, scroll) do
     base_metadata =
@@ -725,81 +1148,6 @@ defmodule Inertia.Controller do
       next_page: base_metadata[:next_page] || base_metadata["next_page"]
     }
   end
-
-  defp collect_scroll_merge_paths(props) do
-    Enum.reduce(props, [], fn
-      {_key, {:scroll_merge, _value, merge_path}}, acc -> [merge_path | acc]
-      _, acc -> acc
-    end)
-  end
-
-  defp apply_filters(props, [_ | _] = only, _except, opts) do
-    props
-    |> Enum.filter(fn {key, value} ->
-      case value do
-        {:keep, _} ->
-          true
-
-        _ ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
-
-          Enum.member?(only, transformed_key)
-      end
-    end)
-    |> Map.new()
-  end
-
-  defp apply_filters(props, _only, [_ | _] = except, opts) do
-    props
-    |> Enum.filter(fn {key, value} ->
-      case value do
-        {:keep, _} ->
-          true
-
-        _ ->
-          transformed_key =
-            key
-            |> transform_key(opts)
-            |> to_string()
-
-          !Enum.member?(except, transformed_key)
-      end
-    end)
-    |> Map.new()
-  end
-
-  defp apply_filters(props, _only, _except, _opts) do
-    props
-    |> Enum.filter(fn {_key, value} ->
-      case value do
-        {:optional, _} -> false
-        _ -> true
-      end
-    end)
-    |> Map.new()
-  end
-
-  defp resolve_props(map, opts) when is_map(map) and not is_struct(map) do
-    map
-    |> Enum.reduce([], fn {key, value}, acc ->
-      [{transform_key(key, opts), resolve_props(value, opts)} | acc]
-    end)
-    |> Map.new()
-  end
-
-  defp resolve_props(list, opts) when is_list(list) do
-    Enum.map(list, &resolve_props(&1, opts))
-  end
-
-  defp resolve_props({:optional, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props({:keep, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props({:merge, value}, opts), do: resolve_props(value, opts)
-  defp resolve_props({:scroll_merge, value, _merge_path}, opts), do: resolve_props(value, opts)
-  defp resolve_props(fun, opts) when is_function(fun, 0), do: resolve_props(fun.(), opts)
-  defp resolve_props(value, _opts), do: value
 
   # Applies any specified transformations to the key (such as conversion to
   # camel case), unless the key has been marked as "preserved".
@@ -819,16 +1167,15 @@ defmodule Inertia.Controller do
   defp atomize_if(value, true), do: String.to_atom(value)
   defp atomize_if(value, false), do: value
 
-  # Skip putting flash in the props if there's already `:flash` key assigned.
-  # Otherwise, put the flash in the props.
-  defp maybe_put_flash(%{flash: _} = props, _conn), do: props
-  defp maybe_put_flash(props, conn), do: Map.put(props, :flash, conn.assigns.flash)
+  # Put flash as a top-level page object key (pre-extracted during build_inertia_response).
+  defp maybe_put_flash(assigns, conn) do
+    Map.put(assigns, :flash, conn.private.inertia_page.flash)
+  end
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
     conn
     |> put_status(200)
     |> put_resp_header("x-inertia", "true")
-    |> put_resp_header("vary", "X-Inertia")
     |> json(inertia_assigns(conn))
   end
 
@@ -887,15 +1234,36 @@ defmodule Inertia.Controller do
       component: conn.private.inertia_page.component,
       props: conn.private.inertia_page.props,
       url: request_path(conn),
-      version: conn.private.inertia_version,
-      encryptHistory: conn.private.inertia_encrypt_history,
-      clearHistory: conn.private.inertia_clear_history
+      version: conn.private.inertia_version
     }
+    |> maybe_put_flash(conn)
+    |> maybe_put_clear_history(conn)
+    |> maybe_put_encrypt_history(conn)
     |> maybe_put_merge_props(conn)
+    |> maybe_put_prepend_props(conn)
     |> maybe_put_deep_merge_props(conn)
+    |> maybe_put_match_props_on(conn)
     |> maybe_put_deferred_props(conn)
     |> maybe_put_once_props(conn)
     |> maybe_put_scroll_props(conn)
+    |> maybe_put_shared_props(conn)
+    |> maybe_put_preserve_fragment(conn)
+  end
+
+  defp maybe_put_encrypt_history(assigns, conn) do
+    if conn.private.inertia_encrypt_history do
+      Map.put(assigns, :encryptHistory, true)
+    else
+      assigns
+    end
+  end
+
+  defp maybe_put_clear_history(assigns, conn) do
+    if conn.private.inertia_clear_history do
+      Map.put(assigns, :clearHistory, true)
+    else
+      assigns
+    end
   end
 
   defp maybe_put_merge_props(assigns, conn) do
@@ -908,6 +1276,16 @@ defmodule Inertia.Controller do
     end
   end
 
+  defp maybe_put_prepend_props(assigns, conn) do
+    prepend_props = conn.private.inertia_page.prepend_props
+
+    if Enum.empty?(prepend_props) do
+      assigns
+    else
+      Map.put(assigns, :prependProps, prepend_props)
+    end
+  end
+
   defp maybe_put_deep_merge_props(assigns, conn) do
     deep_merge_props = conn.private.inertia_page.deep_merge_props
 
@@ -915,6 +1293,16 @@ defmodule Inertia.Controller do
       assigns
     else
       Map.put(assigns, :deepMergeProps, deep_merge_props)
+    end
+  end
+
+  defp maybe_put_match_props_on(assigns, conn) do
+    match_props_on = conn.private.inertia_page.match_props_on
+
+    if Enum.empty?(match_props_on) do
+      assigns
+    else
+      Map.put(assigns, :matchPropsOn, match_props_on)
     end
   end
 
@@ -949,6 +1337,24 @@ defmodule Inertia.Controller do
     end
   end
 
+  defp maybe_put_shared_props(assigns, conn) do
+    shared_props = conn.private.inertia_page.shared_props
+
+    if Enum.empty?(shared_props) do
+      assigns
+    else
+      Map.put(assigns, :sharedProps, shared_props)
+    end
+  end
+
+  defp maybe_put_preserve_fragment(assigns, conn) do
+    if conn.private[:inertia_preserve_fragment] do
+      Map.put(assigns, :preserveFragment, true)
+    else
+      assigns
+    end
+  end
+
   defp request_path(conn) do
     IO.iodata_to_binary([conn.request_path, request_url_qs(conn.query_string)])
   end
@@ -961,7 +1367,18 @@ defmodule Inertia.Controller do
   end
 
   defp detect_ssr(conn, opts) do
-    put_private(conn, :inertia_ssr, opts[:ssr] || ssr_enabled_globally?())
+    enabled = opts[:ssr] || ssr_enabled_globally?()
+    put_private(conn, :inertia_ssr, enabled and not ssr_excluded_path?(conn.request_path))
+  end
+
+  defp ssr_excluded_path?(path) do
+    Enum.any?(Application.get_env(:inertia, :ssr_exclude_paths, []), fn pattern ->
+      case pattern do
+        %Regex{} -> Regex.match?(pattern, path)
+        prefix when is_binary(prefix) -> String.starts_with?(path, prefix)
+        _ -> false
+      end
+    end)
   end
 
   defp ssr_enabled_globally? do

@@ -120,14 +120,13 @@ defmodule Mix.Tasks.Inertia.InstallTest do
          |# Configure esbuild (the version is required)
          |config :esbuild,
        - |  version: "0.25.4",
-       + |  version: "0.21.5",
+       + |  version: "0.27.3",
          |  test: [
          |    args:
        - |      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
-       + |      ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+       + |      ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
          |    cd: Path.expand("../assets", __DIR__),
-       - |    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
-       + |    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+         |    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
       ...|
       """)
 
@@ -177,12 +176,9 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       # Assert the app.jsx file is created
       assert_creates(project, "assets/js/app.jsx", """
       import React from "react";
-      import axios from "axios";
 
       import { createInertiaApp } from "@inertiajs/react";
       import { createRoot } from "react-dom/client";
-
-      axios.defaults.xsrfHeaderName = "x-csrf-token";
 
       createInertiaApp({
         resolve: async (name) => {
@@ -190,6 +186,9 @@ defmodule Mix.Tasks.Inertia.InstallTest do
         },
         setup({ App, el, props }) {
           createRoot(el).render(<App {...props} />);
+        },
+        http: {
+          xsrfHeaderName: "x-csrf-token",
         },
       });
       """)

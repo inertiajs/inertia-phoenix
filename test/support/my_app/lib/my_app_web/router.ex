@@ -33,6 +33,8 @@ defmodule MyAppWeb.Router do
     get "/deferred_props", PageController, :deferred_props
     get "/encrypted_history", PageController, :encrypted_history
     get "/cleared_history", PageController, :cleared_history
+    get "/preserved_fragment", PageController, :preserved_fragment
+    get "/redirect_with_preserved_fragment", PageController, :redirect_with_preserved_fragment
     get "/camelized_props", PageController, :camelized_props
     get "/camelized_deferred_props", PageController, :camelized_deferred_props
     get "/preserved_case_props", PageController, :preserved_case_props
@@ -50,6 +52,32 @@ defmodule MyAppWeb.Router do
     get "/scroll_props_lazy", PageController, :scroll_props_lazy
     get "/scroll_props_camelized", PageController, :scroll_props_camelized
     get "/scroll_props_with_custom_metadata", PageController, :scroll_props_with_custom_metadata
+    get "/shared_props_via_assign", PageController, :shared_props_via_assign
+    get "/shared_props_via_inline", PageController, :shared_props_via_inline
+    get "/shared_props_with_merge", PageController, :shared_props_with_merge
+    get "/shared_props_with_defer", PageController, :shared_props_with_defer
+    get "/shared_props_camelized", PageController, :shared_props_camelized
+    get "/shared_props_empty", PageController, :shared_props_empty
+    get "/nested_optional", PageController, :nested_optional
+    get "/nested_defer", PageController, :nested_defer
+    get "/nested_merge", PageController, :nested_merge
+    get "/nested_deep_merge", PageController, :nested_deep_merge
+    get "/nested_always", PageController, :nested_always
+    get "/nested_partial_dot_path", PageController, :nested_partial_dot_path
+    get "/nested_parent_resolved", PageController, :nested_parent_resolved
+    get "/nested_two_level_unwrap", PageController, :nested_two_level_unwrap
+    get "/nested_once", PageController, :nested_once
+    get "/nested_camelized", PageController, :nested_camelized
+    get "/nested_scroll", PageController, :nested_scroll
+    get "/nested_plain_map_partial", PageController, :nested_plain_map_partial
+    get "/redirect_with_clear_history", PageController, :redirect_with_clear_history
+    get "/redirect_with_fragment", PageController, :redirect_with_fragment
+    get "/empty_response", PageController, :empty_response
+    get "/prepend_props", PageController, :prepend_props
+    get "/match_props_on", PageController, :match_props_on
+    get "/scroll_props_with_reset", PageController, :scroll_props_with_reset
+    get "/ssr_excluded", PageController, :ssr_excluded
+    get "/scroll_props_prepend", PageController, :scroll_props_prepend
     put "/", PageController, :update
     patch "/", PageController, :patch
     delete "/", PageController, :delete

@@ -13,13 +13,17 @@ defmodule Inertia.Plug do
   def call(conn, _opts) do
     conn
     |> assign(:inertia_head, [])
+    |> put_resp_header("vary", "X-Inertia")
     |> put_private(:inertia_version, compute_version())
     |> put_private(:inertia_error_bag, get_error_bag(conn))
     |> put_private(:inertia_encrypt_history, default_encrypt_history())
     |> put_private(:inertia_clear_history, false)
+    |> put_private(:inertia_preserve_fragment, false)
     |> put_private(:inertia_camelize_props, default_camelize_props())
     |> merge_forwarded_flash()
     |> fetch_inertia_errors()
+    |> fetch_preserve_fragment()
+    |> fetch_clear_history()
     |> detect_inertia()
   end
 
@@ -46,6 +50,40 @@ defmodule Inertia.Plug do
     end)
   end
 
+  defp fetch_preserve_fragment(conn) do
+    conn =
+      if get_session(conn, "inertia_preserve_fragment") do
+        put_private(conn, :inertia_preserve_fragment, true)
+      else
+        conn
+      end
+
+    register_before_send(conn, fn %{status: status} = conn ->
+      if (status in 300..308 or status == 409) and conn.private[:inertia_preserve_fragment] do
+        put_session(conn, "inertia_preserve_fragment", true)
+      else
+        delete_session(conn, "inertia_preserve_fragment")
+      end
+    end)
+  end
+
+  defp fetch_clear_history(conn) do
+    conn =
+      if get_session(conn, "inertia_clear_history") do
+        put_private(conn, :inertia_clear_history, true)
+      else
+        conn
+      end
+
+    register_before_send(conn, fn %{status: status} = conn ->
+      if (status in 300..308 or status == 409) and conn.private[:inertia_clear_history] do
+        put_session(conn, "inertia_clear_history", true)
+      else
+        delete_session(conn, "inertia_clear_history")
+      end
+    end)
+  end
+
   defp detect_inertia(conn) do
     case get_req_header(conn, "x-inertia") do
       ["true"] ->
@@ -57,6 +95,7 @@ defmodule Inertia.Plug do
         |> detect_except_once_props()
         |> detect_scroll_merge_intent()
         |> convert_redirects()
+        |> handle_empty_response()
         |> check_version()
 
       _ ->
@@ -151,6 +190,16 @@ defmodule Inertia.Plug do
           |> put_status(409)
           |> put_resp_header("x-inertia-location", location)
 
+        # Redirect with hash fragment: return 409 + X-Inertia-Redirect so the
+        # client can perform a window.location navigation (preserving the fragment).
+        # Skip for prefetch requests since they shouldn't trigger navigation.
+        fragment_redirect?(conn) ->
+          [location] = get_resp_header(conn, "location")
+
+          conn
+          |> put_status(409)
+          |> put_resp_header("x-inertia-redirect", location)
+
         # see: https://inertiajs.com/redirects#303-response-code
         method in ["PUT", "PATCH", "DELETE"] and status in [301, 302] ->
           put_status(conn, 303)
@@ -167,6 +216,52 @@ defmodule Inertia.Plug do
   end
 
   defp external_redirect?(_conn), do: false
+
+  defp handle_empty_response(conn) do
+    register_before_send(conn, fn conn ->
+      if conn.status == 200 and empty_body?(conn) do
+        location =
+          case get_req_header(conn, "referer") do
+            [url] when url != "" -> extract_path(url)
+            _ -> "/"
+          end
+
+        conn
+        |> put_status(303)
+        |> put_resp_header("location", location)
+      else
+        conn
+      end
+    end)
+  end
+
+  defp extract_path(url) do
+    uri = URI.parse(url)
+    path = uri.path || "/"
+
+    case uri.query do
+      nil -> path
+      query -> "#{path}?#{query}"
+    end
+  end
+
+  defp empty_body?(%{resp_body: nil}), do: true
+  defp empty_body?(%{resp_body: ""}), do: true
+  defp empty_body?(%{resp_body: []}), do: true
+  defp empty_body?(_), do: false
+
+  defp fragment_redirect?(%{status: status} = conn) when status in 300..308 do
+    case get_resp_header(conn, "location") do
+      [location] ->
+        String.contains?(location, "#") and
+          get_req_header(conn, "x-inertia-purpose") != ["prefetch"]
+
+      _ ->
+        false
+    end
+  end
+
+  defp fragment_redirect?(_conn), do: false
 
   # see: https://inertiajs.com/the-protocol#asset-versioning
   defp check_version(%{private: %{inertia_version: current_version}} = conn) do

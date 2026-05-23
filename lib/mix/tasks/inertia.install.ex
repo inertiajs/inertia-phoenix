@@ -213,7 +213,7 @@ if Code.ensure_loaded?(Igniter) do
     @doc false
     def update_esbuild_config(igniter) do
       igniter
-      |> Config.configure("config.exs", :esbuild, [:version], "0.21.5")
+      |> Config.configure("config.exs", :esbuild, [:version], "0.27.3")
       |> Config.configure(
         "config.exs",
         :esbuild,
@@ -222,9 +222,9 @@ if Code.ensure_loaded?(Igniter) do
          Sourceror.parse_string!("""
          [
           args:
-            ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+            ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
           cd: Path.expand("../assets", __DIR__),
-          env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+          env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
          ]
          """)}
       )
@@ -346,12 +346,9 @@ if Code.ensure_loaded?(Igniter) do
     defp inertia_app_jsx do
       """
       import React from "react";
-      import axios from "axios";
 
       import { createInertiaApp } from "@inertiajs/react";
       import { createRoot } from "react-dom/client";
-
-      axios.defaults.xsrfHeaderName = "x-csrf-token";
 
       createInertiaApp({
         resolve: async (name) => {
@@ -359,6 +356,9 @@ if Code.ensure_loaded?(Igniter) do
         },
         setup({ App, el, props }) {
           createRoot(el).render(<App {...props} />);
+        },
+        http: {
+          xsrfHeaderName: "x-csrf-token",
         },
       });
       """
