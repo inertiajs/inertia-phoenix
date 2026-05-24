@@ -25,11 +25,19 @@ defmodule Inertia.SSR.Adapter do
           required(:component) => String.t(),
           required(:props) => map(),
           required(:url) => String.t(),
+          required(:flash) => map(),
           optional(:version) => String.t(),
           optional(:encryptHistory) => boolean(),
           optional(:clearHistory) => boolean(),
           optional(:mergeProps) => list(String.t()),
-          optional(:deferredProps) => map()
+          optional(:prependProps) => list(String.t()),
+          optional(:deepMergeProps) => list(String.t()),
+          optional(:matchPropsOn) => map(),
+          optional(:deferredProps) => map(),
+          optional(:onceProps) => map(),
+          optional(:scrollProps) => map(),
+          optional(:sharedProps) => list(String.t()),
+          optional(:preserveFragment) => boolean()
         }
   @type ssr_result :: {:ok, map()} | {:error, term()}
 
