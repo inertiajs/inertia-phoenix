@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add a pluggable SSR adapter system. Server-side rendering is now performed through an `Inertia.SSR.Adapter` behaviour, so you can plug in an alternative JavaScript runtime (Bun, a Vite dev server, etc.) in place of the default Node.js process pool by passing a module via the `:ssr_adapter` option to `Inertia.SSR`. The default `Inertia.SSR.NodeJSAdapter` preserves the existing behavior ([#44](https://github.com/inertiajs/inertia-phoenix/pull/44)).
+- Add an `:esm` option to `Inertia.SSR` for using an ECMAScript Module SSR entrypoint. ESM is also auto-detected from a `.mjs` module extension ([#44](https://github.com/inertiajs/inertia-phoenix/pull/44)).
+
 ## 3.0.0-rc1 - 2026-05-18
 
 ### Added
