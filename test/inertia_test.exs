@@ -118,7 +118,7 @@ defmodule InertiaTest do
 
     body = html_response(conn, 200)
 
-    assert body =~ ~r/<title inertia>(\s*)New title from ESM(\s*)<\/title>/
+    assert body =~ ~r/<title data-inertia>(\s*)New title from ESM(\s*)<\/title>/
     assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr"></div>)
   end
@@ -135,7 +135,7 @@ defmodule InertiaTest do
 
     body = conn |> get(~p"/") |> html_response(200)
 
-    assert body =~ ~r/<title inertia>(\s*)New title from ESM(\s*)<\/title>/
+    assert body =~ ~r/<title data-inertia>(\s*)New title from ESM(\s*)<\/title>/
   end
 
   test "auto-detects ESM from a .mjs module extension", %{conn: conn} do
@@ -150,7 +150,7 @@ defmodule InertiaTest do
 
     body = conn |> get(~p"/") |> html_response(200)
 
-    assert body =~ ~r/<title inertia>(\s*)New title from MJS(\s*)<\/title>/
+    assert body =~ ~r/<title data-inertia>(\s*)New title from MJS(\s*)<\/title>/
   end
 
   describe "ssr_adapter option" do
