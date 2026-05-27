@@ -16,15 +16,17 @@ mix phx.server     # visit http://localhost:4000
 You should see a Svelte page rendered through Inertia, with working client-side
 navigation between `/` and `/about`.
 
-## Why Svelte needs a different setup than React/Vue
+## Why Svelte needs more than the esbuild CLI
 
-React and Vue ship plain JS/JSX that esbuild bundles directly, so the standard
+React components written as JS/JSX are the easy case: esbuild bundles them
+directly, so the standard
 [`esbuild` Hex package](https://github.com/phoenixframework/esbuild) (which runs
 the esbuild **CLI**) is enough.
 
-Svelte is different: `.svelte` files must be **compiled** to JS, and that
-compilation runs as an [esbuild **plugin**](https://github.com/EMH333/esbuild-svelte).
-esbuild plugins are only available through esbuild's **JS API**, never its CLI
+Svelte and Vue are different: their components must be **compiled** to JS first.
+For Svelte, that compilation runs as an
+[esbuild **plugin**](https://github.com/EMH333/esbuild-svelte), and esbuild
+plugins are only available through esbuild's **JS API**, never its CLI
 ([evanw/esbuild#884](https://github.com/evanw/esbuild/issues/884)). So we can't
 use the `esbuild` Hex package for Svelte. Instead we:
 
@@ -32,6 +34,10 @@ use the `esbuild` Hex package for Svelte. Instead we:
 2. Drive esbuild from a small Node script, [`assets/esbuild.config.js`](assets/esbuild.config.js).
 3. Drop the `esbuild` Hex dependency, its `config :esbuild` block, and point the
    dev watcher / mix aliases at `node esbuild.config.js` instead.
+
+> **Note:** This is the setup for staying on Phoenix's default esbuild pipeline.
+> Svelte's ecosystem-standard tooling is now Vite; reach for that if you'd rather
+> use the canonical Svelte toolchain.
 
 ## What's actually required
 
@@ -56,8 +62,10 @@ The complete set of changes relative to a fresh `mix phx.new` app:
 **Assets (npm)**
 
 - Dependencies: `svelte`, `@inertiajs/svelte`, `esbuild`, `esbuild-svelte`.
-  That's it — `svelte-preprocess` is **only** needed if you write TypeScript or
-  another preprocessed language inside `.svelte` files.
+  That's it — type-only TypeScript in `<script lang="ts">` works without a
+  preprocessor (esbuild strips the types). `svelte-preprocess` is only needed
+  for TS that requires real transpilation (e.g. `enum`s) or another preprocessed
+  language.
 - [`assets/js/app.js`](assets/js/app.js) — the Inertia boot (Svelte 5 `mount`).
 - [`assets/esbuild.config.js`](assets/esbuild.config.js) — the Node build.
 - `assets/js/pages/*.svelte` — your page components.

@@ -36,6 +36,12 @@ steps below remove the Hex package and wire Phoenix's watcher and asset aliases
 to that script. (If you've seen the [Svelte guide](svelte.html), this is the
 same shape — only the plugin, the boot code, and CSS handling differ.)
 
+> #### This is the esbuild path, not the canonical Vue path {: .info}
+>
+> Vue's ecosystem-standard tooling is now Vite (`@vitejs/plugin-vue`). This guide
+> keeps you on Phoenix's default **esbuild** pipeline. If you'd rather adopt the
+> canonical Vue toolchain, set up Vite instead.
+
 ## 1. Install the npm packages
 
 From your app's `assets` directory:
@@ -48,6 +54,21 @@ npm install vue @inertiajs/vue3 esbuild unplugin-vue
 - `@inertiajs/vue3` — the Inertia client adapter for Vue 3.
 - `esbuild` — the bundler, now as a Node dependency.
 - `unplugin-vue` — the plugin that compiles `.vue` files during bundling.
+
+> #### About unplugin-vue {: .info}
+>
+> `@vitejs/plugin-vue` is the official Vue plugin, but it targets Vite/Rollup,
+> not raw esbuild. [`unplugin-vue`](https://github.com/unplugin/unplugin-vue) is
+> the maintained community plugin that supports esbuild and syncs from
+> `@vitejs/plugin-vue`, which makes it the most defensible choice here. A few
+> things to know:
+>
+> - It is **not** an official Vue package.
+> - It currently requires **Node >= 20.19.0**.
+> - It pulls in Vite as an internal dependency, even though the build still runs
+>   through esbuild.
+> - There's no Vite-style HMR; the dev story is the Phoenix watcher plus
+>   `phoenix_live_reload` doing a full reload on change.
 
 ## 2. Add the esbuild build script
 

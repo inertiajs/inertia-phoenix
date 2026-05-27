@@ -18,22 +18,29 @@ A complete, runnable version of everything below lives in
 > Svelte requires an additional bundle and the `Inertia.SSR` supervisor, and is
 > not covered here.
 
-## Why Svelte is different from React and Vue
+## Why Svelte needs more than the esbuild CLI
 
-React and Vue ship JavaScript that esbuild can bundle as-is, so the
-[`esbuild` Hex package](https://github.com/phoenixframework/esbuild) — which runs
-the esbuild **command-line tool** — is all you need.
+React components written as JS/JSX are the easy case: esbuild bundles them as-is,
+so the [`esbuild` Hex package](https://github.com/phoenixframework/esbuild) —
+which runs the esbuild **command-line tool** — is all you need.
 
-Svelte is different. A `.svelte` file must be **compiled** to JavaScript first,
-and that compilation step runs as an
-[esbuild plugin](https://github.com/EMH333/esbuild-svelte). esbuild plugins are
-only available through esbuild's **JavaScript API**, never its CLI
+Svelte and Vue are different: their single-file components must be **compiled** to
+JavaScript first. For Svelte, that compilation runs as an
+[esbuild plugin](https://github.com/EMH333/esbuild-svelte), and esbuild plugins
+are only available through esbuild's **JavaScript API**, never its CLI
 ([evanw/esbuild#884](https://github.com/evanw/esbuild/issues/884)).
 
 That single constraint drives the whole setup: instead of the `esbuild` Hex
 package, you install esbuild from npm and drive it from a small Node script. The
 steps below remove the Hex package and wire Phoenix's watcher and asset aliases
 to that script.
+
+> #### This is the esbuild path, not the canonical Svelte path {: .info}
+>
+> Svelte's ecosystem-standard tooling is now Vite
+> (`@sveltejs/vite-plugin-svelte`). This guide keeps you on Phoenix's default
+> **esbuild** pipeline using the community `esbuild-svelte` plugin. If you'd
+> rather adopt the canonical Svelte toolchain, set up Vite instead.
 
 ## 1. Install the npm packages
 
@@ -50,10 +57,13 @@ npm install svelte @inertiajs/svelte esbuild esbuild-svelte
 
 > #### TypeScript {: .tip}
 >
-> `svelte-preprocess` is only needed if you write TypeScript (or another
-> preprocessed language) **inside** your `.svelte` files. For plain Svelte you
-> can skip it. If you do need it, install `svelte-preprocess` and `typescript`,
-> then pass `preprocess: sveltePreprocess()` to the plugin in step 2.
+> Type-only TypeScript in `<script lang="ts">` (type annotations, interfaces,
+> `import type`) works out of the box — esbuild strips the types during the
+> build. Add `typescript` if you want editor support and type-checking.
+>
+> You only need `svelte-preprocess` for TypeScript features that require real
+> transpilation, such as `enum`s. To add it, install `svelte-preprocess`, then
+> pass `preprocess: sveltePreprocess()` to the plugin in step 2.
 
 ## 2. Add the esbuild build script
 
@@ -119,6 +129,13 @@ omitted:
   silently disappear. Injecting the CSS through JS keeps styling correct for
   lazily-loaded pages and means your root layout needs **no** extra
   `<link rel="stylesheet">` for component styles.
+
+> #### Content Security Policy {: .warning}
+>
+> Injected CSS adds component styles via runtime `<style>` elements. Under a
+> strict CSP that disallows inline styles, you'll need a `style-src` nonce/hash
+> (or switch to esbuild's external CSS output and link it like the
+> [Vue guide](vue.html) does).
 
 ## 3. Set up the Inertia entry point
 

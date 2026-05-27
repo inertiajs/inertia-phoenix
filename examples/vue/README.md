@@ -41,6 +41,25 @@ use the `esbuild` Hex package for Vue. Instead we:
 This is the same shape as the [Svelte example](../svelte); the Vue-specific
 pieces are the plugin, the boot code, and CSS handling.
 
+> **Note:** This is the setup for staying on Phoenix's default esbuild pipeline.
+> Vue's ecosystem-standard tooling is now Vite (`@vitejs/plugin-vue`); reach for
+> that if you'd rather use the canonical Vue toolchain.
+
+### About unplugin-vue
+
+`@vitejs/plugin-vue` is the official Vue plugin, but it targets Vite/Rollup, not
+raw esbuild. [`unplugin-vue`](https://github.com/unplugin/unplugin-vue) is the
+maintained community plugin that supports esbuild and syncs from
+`@vitejs/plugin-vue`, which makes it the most defensible choice here. Worth
+knowing:
+
+- It is **not** an official Vue package.
+- It currently requires **Node >= 20.19.0**.
+- It pulls in Vite as an internal dependency, even though the build runs through
+  esbuild.
+- There's no Vite-style HMR; the dev story is the Phoenix watcher plus
+  `phoenix_live_reload`.
+
 ## What's actually required
 
 The complete set of changes relative to a fresh `mix phx.new` app:
