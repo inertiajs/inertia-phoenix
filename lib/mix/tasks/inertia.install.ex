@@ -181,7 +181,7 @@ if Code.ensure_loaded?(Igniter) do
           "root.html.heex"
         ])
 
-      content = inertia_root_html()
+      content = inertia_root_html(client_framework(igniter))
 
       Igniter.create_new_file(igniter, file_path, content, on_exists: :overwrite)
     end
@@ -193,7 +193,17 @@ if Code.ensure_loaded?(Igniter) do
       |> Macro.underscore()
     end
 
-    defp inertia_root_html do
+    defp inertia_root_html(framework) do
+      # Vue's esbuild build bundles component <style> blocks into a separate
+      # app.css next to the JS; React (no CSS output) and Svelte (CSS injected
+      # via JS) don't need this extra stylesheet link.
+      component_css =
+        if framework == "vue" do
+          ~s(\n    <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />)
+        else
+          ""
+        end
+
       """
       <!DOCTYPE html>
       <html lang="en">
@@ -203,7 +213,7 @@ if Code.ensure_loaded?(Igniter) do
           <meta name="csrf-token" content={get_csrf_token()} />
           <.inertia_title><%= assigns[:page_title] %></.inertia_title>
           <.inertia_head content={@inertia_head} />
-          <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+          <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />#{component_css}
           <script type="module" defer phx-track-static src={~p"/assets/js/app.js"} />
         </head>
         <body>
@@ -216,14 +226,14 @@ if Code.ensure_loaded?(Igniter) do
     @doc false
     def update_esbuild_config(igniter) do
       case client_framework(igniter) do
-        "svelte" -> configure_svelte_esbuild(igniter)
+        framework when framework in ["svelte", "vue"] -> configure_node_esbuild(igniter)
         _ -> configure_cli_esbuild(igniter)
       end
     end
 
-    # React and Vue bundle plain JS, so the esbuild Hex package (which runs the
-    # esbuild CLI) is sufficient. We just point it at the JSX entrypoint and
-    # enable code splitting.
+    # React bundles plain JS, so the esbuild Hex package (which runs the esbuild
+    # CLI) is sufficient. We just point it at the JSX entrypoint and enable code
+    # splitting.
     defp configure_cli_esbuild(igniter) do
       igniter
       |> Config.configure("config.exs", :esbuild, [:version], "0.27.3")
@@ -244,11 +254,11 @@ if Code.ensure_loaded?(Igniter) do
       |> Igniter.add_task("esbuild.install")
     end
 
-    # Svelte must be compiled via the esbuild-svelte plugin, which only works
-    # through esbuild's JS API (not the CLI). So we drop the esbuild Hex package
-    # entirely and drive esbuild from Node via assets/esbuild.config.js (created
-    # in setup_client/1), repointing the dev watcher and asset aliases at it.
-    defp configure_svelte_esbuild(igniter) do
+    # Svelte and Vue components must be compiled by an esbuild plugin, which only
+    # works through esbuild's JS API (not the CLI). So we drop the esbuild Hex
+    # package entirely and drive esbuild from Node via assets/esbuild.config.js
+    # (created in setup_client/1), repointing the dev watcher and asset aliases.
+    defp configure_node_esbuild(igniter) do
       app_name = Application.app_name(igniter)
       {igniter, endpoint} = Phoenix.select_endpoint(igniter)
 
@@ -321,6 +331,12 @@ if Code.ensure_loaded?(Igniter) do
           igniter
           |> install_client_package()
           |> maybe_create_typescript_config()
+          |> Igniter.create_new_file("assets/js/app.js", inertia_app_vue(),
+            on_exists: :overwrite
+          )
+          |> Igniter.create_new_file("assets/esbuild.config.js", vue_esbuild_config(),
+            on_exists: :overwrite
+          )
 
         _ ->
           igniter
@@ -357,6 +373,7 @@ if Code.ensure_loaded?(Igniter) do
     defp tsconfig_json(igniter) do
       case client_framework(igniter) do
         "svelte" -> svelte_tsconfig_json()
+        "vue" -> vue_tsconfig_json()
         _ -> react_tsconfig_json()
       end
     end
@@ -378,7 +395,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp install_client_main_packages(igniter, "vue") do
       Igniter.add_task(igniter, "cmd", [
-        "npm install --prefix assets @inertiajs/vue3 vue vue-loader"
+        "npm install --prefix assets @inertiajs/vue3 vue esbuild unplugin-vue"
       ])
     end
 
@@ -395,8 +412,10 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp maybe_install_typescript_deps(igniter, "vue", true) do
+      # esbuild strips the types from `<script lang="ts">` blocks during the
+      # build; vue-tsc + typescript are for editor support and type-checking.
       Igniter.add_task(igniter, "cmd", [
-        "npm install --prefix assets --save-dev @vue/compiler-sfc vue-tsc typescript"
+        "npm install --prefix assets --save-dev typescript vue-tsc"
       ])
     end
 
@@ -477,6 +496,25 @@ if Code.ensure_loaded?(Igniter) do
       """
     end
 
+    defp inertia_app_vue do
+      """
+      import { createInertiaApp } from "@inertiajs/vue3";
+      import { createApp, h } from "vue";
+
+      createInertiaApp({
+        resolve: (name) => import(`./pages/${name}.vue`),
+        setup({ el, App, props, plugin }) {
+          createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .mount(el);
+        },
+        http: {
+          xsrfHeaderName: "x-csrf-token",
+        },
+      });
+      """
+    end
+
     defp starter_page_react do
       """
       import React from "react";
@@ -496,9 +534,6 @@ if Code.ensure_loaded?(Igniter) do
 
     defp starter_page_vue do
       """
-      <script setup>
-      </script>
-
       <template>
         <main>
           <h1>Welcome to Inertia.js + Vue</h1>
@@ -507,6 +542,13 @@ if Code.ensure_loaded?(Igniter) do
           </p>
         </main>
       </template>
+
+      <style scoped>
+      /* Component styles are bundled into app.css (linked from the root layout). */
+      main {
+        font-family: system-ui, sans-serif;
+      }
+      </style>
       """
     end
 
@@ -645,6 +687,86 @@ if Code.ensure_loaded?(Igniter) do
           "forceConsistentCasingInFileNames": true
         },
         "include": ["js/**/*.ts", "js/**/*.js", "js/**/*.svelte"],
+        "exclude": ["node_modules"]
+      }
+      """
+    end
+
+    # Vue single-file components are compiled by the unplugin-vue esbuild plugin,
+    # which only works through esbuild's JS API. This config is run via
+    # `node esbuild.config.js`.
+    defp vue_esbuild_config do
+      """
+      const esbuild = require("esbuild");
+
+      const args = process.argv.slice(2);
+      const watch = args.includes("--watch");
+      const deploy = args.includes("--deploy");
+
+      async function run() {
+        // unplugin-vue ships as ESM only, so load it with a dynamic import from
+        // this CommonJS file.
+        const { default: vue } = await import("unplugin-vue/esbuild");
+
+        const options = {
+          entryPoints: ["js/app.js"],
+          bundle: true,
+          format: "esm",
+          splitting: true,
+          chunkNames: "chunks/[name]-[hash]",
+          outdir: "../priv/static/assets/js",
+          logLevel: "info",
+          target: "es2022",
+          external: ["/fonts/*", "/images/*"],
+          minify: deploy,
+          sourcemap: watch ? "inline" : false,
+          // Vue's bundler build reads these compile-time feature flags.
+          define: {
+            __VUE_OPTIONS_API__: "true",
+            __VUE_PROD_DEVTOOLS__: "false",
+            __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
+          },
+          // sourceMap: false avoids an inline CSS sourcemap that esbuild's CSS
+          // loader can't parse ("Unknown word sourceMappingURL").
+          plugins: [vue({ sourceMap: false })],
+        };
+
+        if (watch) {
+          const ctx = await esbuild.context(options);
+          await ctx.watch();
+          console.log("esbuild: watching for changes...");
+        } else {
+          await esbuild.build(options);
+        }
+      }
+
+      run().catch((error) => {
+        console.error(error);
+        process.exit(1);
+      });
+      """
+    end
+
+    defp vue_tsconfig_json do
+      """
+      {
+        "compilerOptions": {
+          "target": "ES2020",
+          "module": "ESNext",
+          "lib": ["ES2020", "DOM", "DOM.Iterable"],
+          "moduleResolution": "bundler",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "allowJs": true,
+          "checkJs": false,
+          "noEmit": true,
+          "strict": true,
+          "skipLibCheck": true,
+          "esModuleInterop": true,
+          "jsx": "preserve",
+          "forceConsistentCasingInFileNames": true
+        },
+        "include": ["js/**/*.ts", "js/**/*.js", "js/**/*.vue"],
         "exclude": ["node_modules"]
       }
       """

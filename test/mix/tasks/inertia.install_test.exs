@@ -159,6 +159,36 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       </html>
       """)
     end
+
+    test "links the bundled component CSS for the vue framework" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "vue"]})
+        |> Install.update_root_layout()
+
+      assert_content_equals(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        """
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <meta name="csrf-token" content={get_csrf_token()} />
+            <.inertia_title><%= assigns[:page_title] %></.inertia_title>
+            <.inertia_head content={@inertia_head} />
+            <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+            <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
+            <script type="module" defer phx-track-static src={~p"/assets/js/app.js"} />
+          </head>
+          <body>
+            {@inner_content}
+          </body>
+        </html>
+        """
+      )
+    end
   end
 
   describe "Client setup" do
@@ -385,8 +415,121 @@ defmodule Mix.Tasks.Inertia.InstallTest do
     end
   end
 
+  describe "Vue esbuild configuration" do
+    setup do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "vue"]})
+        |> Install.update_esbuild_config()
+
+      %{project: project}
+    end
+
+    test "routes vue to the node esbuild build instead of the CLI", %{project: project} do
+      # The node watcher replaces the esbuild watcher...
+      assert_has_patch(project, "config/dev.exs", """
+      ...|
+         |  watchers: [
+       - |    esbuild: {Esbuild, :install_and_run, [:test, ~w(--sourcemap=inline --watch)]},
+       + |    node: ["esbuild.config.js", "--watch", cd: Path.expand("../assets", __DIR__)],
+         |    tailwind: {Tailwind, :install_and_run, [:test, ~w(--watch)]}
+         |  ]
+      ...|
+      """)
+
+      # ...and the CLI install task is not scheduled.
+      refute Enum.any?(project.tasks, fn {task, _args} -> task == "esbuild.install" end)
+    end
+
+    test "removes the esbuild config block and dependency", %{project: project} do
+      refute file_content(project, "config/config.exs") =~ "config :esbuild"
+
+      assert_has_patch(project, "mix.exs", """
+      ...|
+       - |    {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      ...|
+      """)
+    end
+
+    test "rewrites the asset aliases to drive esbuild from node", %{project: project} do
+      content = file_content(project, "mix.exs")
+
+      assert content =~ ~s|"cmd --cd assets node esbuild.config.js"|
+      assert content =~ ~s|"cmd --cd assets node esbuild.config.js --deploy"|
+      refute content =~ ~s|"esbuild test"|
+    end
+  end
+
+  describe "Vue client setup" do
+    test "installs the vue client packages" do
+      project = vue_setup_client()
+
+      assert_has_task(project, "cmd", [
+        "npm install --prefix assets @inertiajs/vue3 vue esbuild unplugin-vue"
+      ])
+    end
+
+    test "creates the vue entry point" do
+      project = vue_setup_client()
+
+      assert_content_equals(project, "assets/js/app.js", """
+      import { createInertiaApp } from "@inertiajs/vue3";
+      import { createApp, h } from "vue";
+
+      createInertiaApp({
+        resolve: (name) => import(`./pages/${name}.vue`),
+        setup({ el, App, props, plugin }) {
+          createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .mount(el);
+        },
+        http: {
+          xsrfHeaderName: "x-csrf-token",
+        },
+      });
+      """)
+    end
+
+    test "creates the node esbuild config with the load-bearing options" do
+      project = vue_setup_client()
+
+      assert_creates(project, "assets/esbuild.config.js")
+
+      content = file_content(project, "assets/esbuild.config.js")
+      assert content =~ ~s|entryPoints: ["js/app.js"]|
+      assert content =~ ~s|outdir: "../priv/static/assets/js"|
+      assert content =~ ~s|await import("unplugin-vue/esbuild")|
+      assert content =~ ~s|vue({ sourceMap: false })|
+      assert content =~ "__VUE_OPTIONS_API__"
+    end
+
+    test "leaves tsconfig untouched without the typescript option" do
+      project = vue_setup_client()
+
+      assert_unchanged(project, "assets/tsconfig.json")
+    end
+
+    test "overwrites tsconfig with a vue config and adds the ts toolchain with --typescript" do
+      project = vue_setup_client(typescript: true)
+
+      assert file_content(project, "assets/tsconfig.json") =~ ~s|"js/**/*.vue"|
+
+      assert_has_task(project, "cmd", [
+        "npm install --prefix assets --save-dev typescript vue-tsc"
+      ])
+    end
+  end
+
   defp svelte_setup_client(opts \\ []) do
-    options = Keyword.merge([client_framework: "svelte"], opts)
+    setup_client_for("svelte", opts)
+  end
+
+  defp vue_setup_client(opts \\ []) do
+    setup_client_for("vue", opts)
+  end
+
+  defp setup_client_for(framework, opts) do
+    options = Keyword.merge([client_framework: framework], opts)
 
     phx_test_project()
     |> Map.put(:args, %{options: options})
