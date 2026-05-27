@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.inertia_title>{assigns[:page_title]}</.inertia_title>
+    <.inertia_head content={@inertia_head} />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <%!-- esbuild bundles the <style> blocks from Vue components into a single
+    app.css next to the JS bundle, so we load it here. --%>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
+    <script type="module" defer phx-track-static src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

@@ -1,0 +1,83 @@
+# Inertia.js + Vue + Phoenix (esbuild)
+
+A minimal, runnable reference for using **Vue 3** on the front end of a Phoenix
+app with Inertia.js, bundled with **esbuild**.
+
+It was generated with `mix phx.new vue --no-ecto --no-mailer` (Phoenix 1.8) and
+then wired up for Inertia + Vue by hand. The app depends on the inertia-phoenix
+checkout two directories up via `{:inertia, path: "../.."}`.
+
+```bash
+cd examples/vue
+mix setup          # deps.get + assets.setup + assets.build
+mix phx.server     # visit http://localhost:4000
+```
+
+You should see a Vue page rendered through Inertia, with working client-side
+navigation between `/` and `/about`.
+
+> #### Scope
+>
+> This covers **client-side rendering only**. SSR is out of scope here.
+
+## Why Vue needs a different setup than React
+
+React ships plain JS/JSX that esbuild bundles directly, so the standard
+[`esbuild` Hex package](https://github.com/phoenixframework/esbuild) (which runs
+the esbuild **CLI**) is enough.
+
+Vue is different: a `.vue` single-file component must be **compiled** to
+JavaScript, and that compilation runs as an
+[esbuild plugin](https://github.com/unplugin/unplugin-vue). esbuild plugins are
+only available through esbuild's **JavaScript API**, never its CLI
+([evanw/esbuild#884](https://github.com/evanw/esbuild/issues/884)). So we can't
+use the `esbuild` Hex package for Vue. Instead we:
+
+1. Install `esbuild` (and `unplugin-vue`) as npm packages.
+2. Drive esbuild from a small Node script, [`assets/esbuild.config.js`](assets/esbuild.config.js).
+3. Drop the `esbuild` Hex dependency, its `config :esbuild` block, and point the
+   dev watcher / mix aliases at `node esbuild.config.js` instead.
+
+This is the same shape as the [Svelte example](../svelte); the Vue-specific
+pieces are the plugin, the boot code, and CSS handling.
+
+## What's actually required
+
+The complete set of changes relative to a fresh `mix phx.new` app:
+
+**Elixir / Phoenix** — identical to the Svelte example: add `{:inertia, ...}`,
+remove `{:esbuild, ...}`, repoint the `assets.*` aliases and the dev watcher at
+`node esbuild.config.js`, add `config :inertia`, `import Inertia.Controller` /
+`import Inertia.HTML`, `plug Inertia.Plug`, and an Inertia root layout.
+
+**Assets (npm)**
+
+- Dependencies: `vue`, `@inertiajs/vue3`, `esbuild`, `unplugin-vue`.
+- [`assets/js/app.js`](assets/js/app.js) — the Inertia boot (`createApp` + the
+  Inertia `plugin`).
+- [`assets/esbuild.config.js`](assets/esbuild.config.js) — the Node build.
+- `assets/js/pages/*.vue` — your page components.
+
+## Two Vue-specific gotchas (proven out in this example)
+
+1. **`unplugin-vue` is ESM-only.** Its esbuild entry (`unplugin-vue/esbuild`) is
+   shipped as `.mjs`, so a CommonJS `require` won't load it. This config keeps
+   the `esbuild.config.js` filename (so it matches the Svelte setup and the
+   watcher/aliases) and loads the plugin with a dynamic `import()` instead.
+
+2. **`sourceMap: false` on the plugin.** With sourcemaps enabled, unplugin-vue
+   emits an inline CSS sourcemap that esbuild's CSS loader rejects with
+   `Unknown word sourceMappingURL`. Disabling the plugin's sourcemaps avoids it;
+   esbuild still produces its own bundle sourcemaps.
+
+## A note on component CSS
+
+esbuild bundles the `<style>` blocks from every reachable component into a
+single `app.css` next to the JS bundle, which the root layout links. Unlike
+Svelte (which can inject component CSS through JS via `css: "injected"`), Vue's
+esbuild path emits CSS files — esbuild also writes a redundant per-chunk `.css`
+for each page, but the linked `app.css` already contains every component's
+styles, so a single `<link>` is all that's needed.
+
+The Vue feature flags (`__VUE_OPTIONS_API__`, etc.) are set via esbuild's
+`define` to silence runtime warnings and drop dev-only code in production.
