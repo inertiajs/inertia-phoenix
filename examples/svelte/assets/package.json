@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@inertiajs/svelte": "^3.3.0",
+    "esbuild": "^0.28.0",
+    "esbuild-svelte": "^0.9.5",
+    "svelte": "^5.55.9"
+  }
+}
