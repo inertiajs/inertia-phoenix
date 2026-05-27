@@ -8,4 +8,10 @@ createInertiaApp({
   setup({ el, App, props }) {
     mount(App, { target: el, props });
   },
+  // Phoenix expects the CSRF token via the `x-csrf-token` header, while Inertia's
+  // built-in client sends it as `x-xsrf-token` by default. See the CSRF section
+  // of the inertia-phoenix README.
+  http: {
+    xsrfHeaderName: "x-csrf-token",
+  },
 });
