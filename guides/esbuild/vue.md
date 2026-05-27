@@ -8,9 +8,8 @@ A complete, runnable version of the manual setup below lives in
 
 > #### Scope {: .info}
 >
-> This guide covers **client-side rendering**. Server-side rendering (SSR) for
-> Vue requires an additional bundle and the `Inertia.SSR` supervisor, and is not
-> covered here.
+> The bulk of this guide sets up **client-side rendering**.
+> [Server-side rendering](#server-side-rendering) is covered at the end.
 
 ## Why Vue is different from React
 
@@ -275,3 +274,95 @@ mix phx.server
 Visit your page and you should see the Vue component rendered through Inertia.
 In development, the `node` watcher rebuilds the bundle whenever you edit a
 `.vue` file.
+
+## Server-side rendering
+
+With SSR, Phoenix pre-renders the initial page to HTML through a pool of Node
+workers and the client **hydrates** it, instead of rendering into an empty
+`<div id="app">`. Subsequent navigation stays client-side.
+
+The steps below are the Vue-specific pieces; enabling SSR itself — starting the
+`Inertia.SSR` pool and setting `config :inertia, ssr: true` — is covered in the
+README's [Server-side rendering](readme.html#server-side-rendering) section. A
+complete version lives in
+[`examples/vue`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/vue).
+
+### 1. Add the SSR entry point
+
+Create `assets/js/ssr.js`, which exports a `render(page)` function. Unlike the
+Inertia.js docs (which wrap this in `createServer` to run a standalone Node
+server), inertia-phoenix manages the Node workers itself, so you just export
+`render`:
+
+```javascript
+// assets/js/ssr.js
+import { createInertiaApp } from "@inertiajs/vue3";
+import { renderToString } from "@vue/server-renderer";
+import { createSSRApp, h } from "vue";
+
+export function render(page) {
+  return createInertiaApp({
+    page,
+    render: renderToString,
+    resolve: (name) => import(`./pages/${name}.vue`),
+    setup({ App, props, plugin }) {
+      return createSSRApp({ render: () => h(App, props) }).use(plugin);
+    },
+  });
+}
+```
+
+`@vue/server-renderer` ships as a dependency of `vue` at a matching version, so
+there's nothing extra to install.
+
+### 2. Build the SSR bundle
+
+Extend `assets/esbuild.config.js` to also build `ssr.js` as a Node/CommonJS
+module at `priv/ssr.js` (the path the `Inertia.SSR` pool loads). Split the
+single build from step 2 into a `client` build and an `ssr` build that targets
+Node, and run both:
+
+```javascript
+const ssr = {
+  ...shared, // bundle, target, define, etc.
+  entryPoints: ["js/ssr.js"],
+  platform: "node",
+  format: "cjs",
+  outfile: "../priv/ssr.js",
+  plugins: [vue({ sourceMap: false })],
+};
+
+// one-off build
+await Promise.all([esbuild.build(client), esbuild.build(ssr)]);
+// or in --watch mode, watch both contexts
+```
+
+See the [example's esbuild.config.js](https://github.com/inertiajs/inertia-phoenix/blob/main/examples/vue/assets/esbuild.config.js)
+for the full file. esbuild also emits a `priv/ssr.css` the server render doesn't
+use — add both `priv/ssr.js` and `priv/ssr.css` to your `.gitignore`.
+
+### 3. Hydrate on the client
+
+Switch `assets/js/app.js` from `createApp` to `createSSRApp` so the client
+hydrates the server-rendered markup instead of replacing it:
+
+```diff
+- import { createApp, h } from "vue";
++ import { createSSRApp, h } from "vue";
+
+  createInertiaApp({
+    resolve: (name) => import(`./pages/${name}.vue`),
+    setup({ el, App, props, plugin }) {
+-     createApp({ render: () => h(App, props) }).use(plugin).mount(el);
++     createSSRApp({ render: () => h(App, props) }).use(plugin).mount(el);
+    },
+    // ...
+  });
+```
+
+### 4. Enable SSR
+
+Start the `Inertia.SSR` pool and set `config :inertia, ssr: true` per the
+README's [Server-side rendering](readme.html#server-side-rendering) section.
+Disable it in `config/test.exs` (`config :inertia, ssr: false`) so your test
+suite doesn't need the Node pool.
