@@ -1,4 +1,4 @@
-# Setting up Svelte with esbuild
+# Svelte
 
 This guide walks through configuring a Phoenix + Inertia.js app to render
 [Svelte](https://svelte.dev/) pages, bundled with esbuild. It picks up where the

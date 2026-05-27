@@ -1,4 +1,4 @@
-# Setting up Vue with esbuild
+# Vue
 
 This guide walks through configuring a Phoenix + Inertia.js app to render
 [Vue 3](https://vuejs.org/) pages, bundled with esbuild. It picks up where the
