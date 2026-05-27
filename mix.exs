@@ -59,11 +59,16 @@ defmodule Inertia.MixProject do
       main: "readme",
       extras: [
         "README.md",
-        "guides/svelte.md",
-        "guides/vue.md",
+        "guides/esbuild/svelte.md",
+        "guides/esbuild/vue.md",
         "guides/upgrading_to_v3.md",
         "CHANGELOG.md",
         "LICENSE.md"
+      ],
+      # Group the framework setup guides under their bundler so we can add other
+      # bundlers (e.g. a Vite section) later without reshuffling the sidebar.
+      groups_for_extras: [
+        "Front-end with esbuild": ~r"guides/esbuild/"
       ]
     ]
   end
