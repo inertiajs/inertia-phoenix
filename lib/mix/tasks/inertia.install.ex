@@ -85,7 +85,7 @@ if Code.ensure_loaded?(Igniter) do
       |> update_root_layout()
       |> update_esbuild_config()
       |> setup_client()
-      |> create_pages_directory()
+      |> create_starter_page()
       |> print_next_steps()
     end
 
@@ -328,8 +328,20 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     @doc false
-    def create_pages_directory(igniter) do
-      Igniter.create_new_file(igniter, "assets/js/pages/.gitkeep", "", on_exists: :skip)
+    def create_starter_page(igniter) do
+      # A starter page does double duty: it scaffolds the pages directory (an
+      # empty .gitkeep is never written to disk) and gives esbuild at least one
+      # file to resolve, so the page glob import doesn't fail an initial build.
+      case client_framework(igniter) do
+        "react" -> create_page(igniter, "Home.jsx", starter_page_react())
+        "vue" -> create_page(igniter, "Home.vue", starter_page_vue())
+        "svelte" -> create_page(igniter, "Home.svelte", starter_page_svelte())
+        _ -> igniter
+      end
+    end
+
+    defp create_page(igniter, filename, content) do
+      Igniter.create_new_file(igniter, "assets/js/pages/#{filename}", content, on_exists: :skip)
     end
 
     defp maybe_create_typescript_config(igniter) do
@@ -462,6 +474,50 @@ if Code.ensure_loaded?(Igniter) do
           xsrfHeaderName: "x-csrf-token",
         },
       });
+      """
+    end
+
+    defp starter_page_react do
+      """
+      import React from "react";
+
+      export default function Home() {
+        return (
+          <main>
+            <h1>Welcome to Inertia.js + React</h1>
+            <p>
+              This page is rendered from <code>assets/js/pages/Home.jsx</code>.
+            </p>
+          </main>
+        );
+      }
+      """
+    end
+
+    defp starter_page_vue do
+      """
+      <script setup>
+      </script>
+
+      <template>
+        <main>
+          <h1>Welcome to Inertia.js + Vue</h1>
+          <p>
+            This page is rendered from <code>assets/js/pages/Home.vue</code>.
+          </p>
+        </main>
+      </template>
+      """
+    end
+
+    defp starter_page_svelte do
+      """
+      <main>
+        <h1>Welcome to Inertia.js + Svelte</h1>
+        <p>
+          This page is rendered from <code>assets/js/pages/Home.svelte</code>.
+        </p>
+      </main>
       """
     end
 
