@@ -67,7 +67,7 @@ config :inertia,
   # An optional list of static file paths to track for changes. You'll generally
   # want to include any JavaScript assets that may require a page refresh when
   # modified.
-  static_paths: ["/assets/app.js"],
+  static_paths: ["/assets/js/app.js"],
 
   # The default version string to use (if you decide not to track any static
   # assets using the `static_paths` config). Defaults to "1".
@@ -941,7 +941,7 @@ Then, update your config to enable SSR (if you'd like to enable it globally).
     # An optional list of static file paths to track for changes. You'll generally
     # want to include any JavaScript assets that may require a page refresh when
     # modified.
-    static_paths: ["/assets/app.js"],
+    static_paths: ["/assets/js/app.js"],
 
     # The default version string to use (if you decide not to track any static
     # assets using the `static_paths` config). Defaults to "1".
