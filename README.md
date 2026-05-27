@@ -200,104 +200,32 @@ end
 
 ## Setting up the client-side
 
-The [Inertia.js docs](https://inertiajs.com/client-side-setup) provide a good general walk-through on how to setup your JavaScript assets to boot your Inertia app. If you're new to Inertia, we recommend checking that out to familiarize yourself with how it all works. Here we'll provide some guidance on getting your Phoenix app with esbuild configured for basic client-side rendering (and further down, we'll delve into server-side rendering).
+Inertia needs a small JavaScript entry point that boots your front-end framework
+and resolves your page components. The
+[Inertia.js docs](https://inertiajs.com/client-side-setup) are a good general
+introduction to how that works.
 
-To get started, install the Inertia.js library for the frontend framework of your choice. In these instructions we'll use React, but the process is similar for other Inertia-compatible frameworks, like Vue or Svelte.
+The quickest way to set it up is the [Igniter installer](#using-igniter), which
+scaffolds the entry point, the esbuild build, and a starter page for your chosen
+framework:
 
-```
-cd assets
-npm install @inertiajs/react react react-dom
-```
-
-Replace the contents of your `app.js` file with the Inertia boot function and rename it to `app.jsx` (since we are using JSX).
-
-```javascript
-// assets/js/app.jsx
-
-import React from "react";
-
-import { createInertiaApp } from "@inertiajs/react";
-import { createRoot } from "react-dom/client";
-
-createInertiaApp({
-  resolve: async (name) => {
-    return await import(`./pages/${name}.jsx`);
-  },
-  setup({ App, el, props }) {
-    createRoot(el).render(<App {...props} />);
-  },
-  http: {
-    xsrfHeaderName: "x-csrf-token",
-  },
-});
+```sh
+mix inertia.install --client-framework [react|vue|svelte]
 ```
 
-The example above assumes your pages live in the `assets/js/pages` directory and have a default export with page component, like this:
+To wire things up by hand — or to understand what the installer generates —
+follow the guide for your framework. They all use Phoenix's default **esbuild**
+pipeline:
 
-```javascript
-// assets/js/pages/Dashboard.jsx
-
-import React from "react";
-
-const Dashboard = () => {
-  return <div>{/* ... page contents ...*/}</div>;
-};
-
-export default Dashboard;
-```
-
-Next, make some adjustments to your esbuild config:
-
-- Ensure the version is >= 0.19.0 (this is required for glob-style imports for your pages)
-- Update your entrypoint filename to the correct `.jsx` extension
-- Ensure your build `--target` is at least `es2020`
-
-```elixir
-# config/config.exs
-
-config :esbuild,
-  version: "0.21.5",
-  my_app: [
-    args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-    cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-  ]
-```
-
-If you updated your esbuild version, you'll need to run `mix esbuild.install` to fetch the new version.
-
-Esbuild also supports code-splitting, which can be useful for larger applications. To enable it, you'll need to:
-
-- Set the `format` as [`esm`](https://esbuild.github.io/api/#format-esm)
-- Add the [`--splitting`](https://esbuild.github.io/api/#splitting) flag
-- Optionally, set the [`chunk-names`](https://esbuild.github.io/api/#chunk-names) flag to customize the output filenames
-
-```diff
-  # config/config.exs
-
-  config :esbuild,
-    version: "0.21.5",
-    my_app: [
--     args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-+     args: ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-      cd: Path.expand("../assets", __DIR__),
-      env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-    ]
-```
-
-After that, we need to update our root layout to load the JavaScript bundle as an ESM module (by changing the `type` attribute from `text/javascript` to `module`):
-
-```diff
-  # lib/my_app_web/components/layouts/root.html.eex
-
--  <script type='text/javascript' defer phx-track-static src={~p"/assets/app.js"}></script>
-+  <script type='module' defer phx-track-static src={~p"/assets/app.js"}></script>
-```
+- [React](guides/esbuild/react.md) — the simple case; keeps the standard `esbuild` Hex package.
+- [Svelte](guides/esbuild/svelte.md) — Node-driven esbuild with the `esbuild-svelte` plugin.
+- [Vue](guides/esbuild/vue.md) — Node-driven esbuild with the `unplugin-vue` plugin.
 
 > [!NOTE]
-> ESM code splitting requires modern browser support.
-> While most current browsers support ESM modules, you should verify compatibility requirements with your target audience.
-> You can read more about how code-splitting works with esbuild in the [official documentation](https://esbuild.github.io/api/#chunk-names).
+> These guides target Phoenix's default esbuild pipeline. The Vue and Svelte
+> ecosystems now lean on Vite, and Inertia's own
+> [client-side setup docs](https://inertiajs.com/client-side-setup) assume it; if
+> you want the most ecosystem-standard toolchain, set up Vite instead.
 
 ## Lazy data evaluation
 

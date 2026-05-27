@@ -61,6 +61,7 @@ defmodule Inertia.MixProject do
         "README.md",
         # Bundler-prefixed output names (e.g. esbuild_svelte.html) leave room for
         # a future guides/vite/svelte.md -> vite_svelte.html without colliding.
+        {"guides/esbuild/react.md", filename: "esbuild_react"},
         {"guides/esbuild/svelte.md", filename: "esbuild_svelte"},
         {"guides/esbuild/vue.md", filename: "esbuild_vue"},
         "guides/upgrading_to_v3.md",
