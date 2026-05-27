@@ -1,15 +1,9 @@
 # Svelte
 
 This guide walks through configuring a Phoenix + Inertia.js app to render
-[Svelte](https://svelte.dev/) pages, bundled with esbuild. It picks up where the
-[client-side setup](readme.html#setting-up-the-client-side) section of the README
-leaves off, and it assumes you have already:
+[Svelte](https://svelte.dev/) pages, bundled with esbuild.
 
-- Installed and configured the server-side adapter (the `Inertia.Plug`,
-  `import Inertia.Controller` / `import Inertia.HTML`, and `config :inertia`).
-- A standard `mix phx.new` app that bundles assets with esbuild.
-
-A complete, runnable version of everything below lives in
+A complete, runnable version of the manual setup below lives in
 [`examples/svelte`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/svelte).
 
 > #### Scope {: .info}
@@ -42,7 +36,25 @@ to that script.
 > **esbuild** pipeline using the community `esbuild-svelte` plugin. If you'd
 > rather adopt the canonical Svelte toolchain, set up Vite instead.
 
-## 1. Install the npm packages
+## Install with Igniter
+
+The [Igniter installer](readme.html#using-igniter) performs every step below for
+you — including the server-side wiring — in one command:
+
+```sh
+mix inertia.install --client-framework svelte
+```
+
+Pass `--typescript` to set up TypeScript as well. The rest of this guide
+documents the same setup by hand.
+
+## Manual setup
+
+These steps assume the server-side adapter is already installed (the
+`Inertia.Plug`, the `Inertia.Controller` / `Inertia.HTML` imports, and
+`config :inertia`) per the [Installation](readme.html#installation) section.
+
+### 1. Install the npm packages
 
 From your app's `assets` directory:
 
@@ -65,7 +77,7 @@ npm install svelte @inertiajs/svelte esbuild esbuild-svelte
 > transpilation, such as `enum`s. To add it, install `svelte-preprocess`, then
 > pass `preprocess: sveltePreprocess()` to the plugin in step 2.
 
-## 2. Add the esbuild build script
+### 2. Add the esbuild build script
 
 Create `assets/esbuild.config.js`:
 
@@ -137,7 +149,7 @@ omitted:
 > (or switch to esbuild's external CSS output and link it like the
 > [Vue guide](esbuild_vue.html) does).
 
-## 3. Set up the Inertia entry point
+### 3. Set up the Inertia entry point
 
 Replace the contents of `assets/js/app.js` with the Inertia boot code:
 
@@ -164,7 +176,7 @@ file under `assets/js/pages` into its own chunk, so a page name like `"Home"`
 resolves to `assets/js/pages/Home.svelte` at runtime. `mount` is the Svelte 5
 mounting API.
 
-## 4. Remove the esbuild Hex package
+### 4. Remove the esbuild Hex package
 
 Since esbuild now runs from Node, drop the Hex package and its configuration.
 
@@ -188,7 +200,7 @@ In `config/config.exs`, remove the entire `config :esbuild` block:
 -   ]
 ```
 
-## 5. Point the dev watcher at Node
+### 5. Point the dev watcher at Node
 
 In `config/dev.exs`, replace the `esbuild` watcher with a `node` watcher that
 runs the build script in watch mode:
@@ -201,7 +213,7 @@ runs the build script in watch mode:
   ]
 ```
 
-## 6. Update the asset mix aliases
+### 6. Update the asset mix aliases
 
 In `mix.exs`, point the `assets.*` aliases at the build script (and `npm install`)
 instead of the `esbuild` tasks:
@@ -227,7 +239,7 @@ instead of the `esbuild` tasks:
 
 (Replace `my_app` with your app's name.)
 
-## 7. Load the bundle as an ES module
+### 7. Load the bundle as an ES module
 
 Code splitting produces ES modules, so the root layout must load the bundle with
 `type="module"`. In `lib/my_app_web/components/layouts/root.html.heex`, make sure
@@ -241,7 +253,7 @@ the `<head>` uses the Inertia components and a module script:
 </script>
 ```
 
-## 8. Create a page and render it
+### 8. Create a page and render it
 
 Add a Svelte page at `assets/js/pages/Home.svelte`:
 
@@ -263,7 +275,7 @@ def home(conn, _params) do
 end
 ```
 
-## 9. Build and run
+### 9. Build and run
 
 ```bash
 mix assets.build

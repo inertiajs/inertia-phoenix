@@ -1,15 +1,9 @@
 # Vue
 
 This guide walks through configuring a Phoenix + Inertia.js app to render
-[Vue 3](https://vuejs.org/) pages, bundled with esbuild. It picks up where the
-[client-side setup](readme.html#setting-up-the-client-side) section of the README
-leaves off, and it assumes you have already:
+[Vue 3](https://vuejs.org/) pages, bundled with esbuild.
 
-- Installed and configured the server-side adapter (the `Inertia.Plug`,
-  `import Inertia.Controller` / `import Inertia.HTML`, and `config :inertia`).
-- A standard `mix phx.new` app that bundles assets with esbuild.
-
-A complete, runnable version of everything below lives in
+A complete, runnable version of the manual setup below lives in
 [`examples/vue`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/vue).
 
 > #### Scope {: .info}
@@ -42,7 +36,25 @@ same shape — only the plugin, the boot code, and CSS handling differ.)
 > keeps you on Phoenix's default **esbuild** pipeline. If you'd rather adopt the
 > canonical Vue toolchain, set up Vite instead.
 
-## 1. Install the npm packages
+## Install with Igniter
+
+The [Igniter installer](readme.html#using-igniter) performs every step below for
+you — including the server-side wiring — in one command:
+
+```sh
+mix inertia.install --client-framework vue
+```
+
+Pass `--typescript` to set up TypeScript as well. The rest of this guide
+documents the same setup by hand.
+
+## Manual setup
+
+These steps assume the server-side adapter is already installed (the
+`Inertia.Plug`, the `Inertia.Controller` / `Inertia.HTML` imports, and
+`config :inertia`) per the [Installation](readme.html#installation) section.
+
+### 1. Install the npm packages
 
 From your app's `assets` directory:
 
@@ -70,7 +82,7 @@ npm install vue @inertiajs/vue3 esbuild unplugin-vue
 > - There's no Vite-style HMR; the dev story is the Phoenix watcher plus
 >   `phoenix_live_reload` doing a full reload on change.
 
-## 2. Add the esbuild build script
+### 2. Add the esbuild build script
 
 Create `assets/esbuild.config.js`:
 
@@ -134,7 +146,7 @@ Three details here are easy to miss:
 - **`define`** sets Vue's compile-time feature flags, which silences runtime
   warnings and drops dev-only code from production builds.
 
-## 3. Set up the Inertia entry point
+### 3. Set up the Inertia entry point
 
 Replace the contents of `assets/js/app.js` with the Inertia boot code:
 
@@ -162,7 +174,7 @@ The dynamic import of `./pages/${name}.vue` tells esbuild to bundle every file
 under `assets/js/pages` into its own chunk, so a page name like `"Home"`
 resolves to `assets/js/pages/Home.vue` at runtime.
 
-## 4. Remove the esbuild Hex package
+### 4. Remove the esbuild Hex package
 
 Since esbuild now runs from Node, drop the Hex package and its configuration.
 
@@ -175,7 +187,7 @@ In `mix.exs`, remove the `:esbuild` dependency:
 
 In `config/config.exs`, remove the entire `config :esbuild` block.
 
-## 5. Point the dev watcher at Node
+### 5. Point the dev watcher at Node
 
 In `config/dev.exs`, replace the `esbuild` watcher with a `node` watcher:
 
@@ -187,7 +199,7 @@ In `config/dev.exs`, replace the `esbuild` watcher with a `node` watcher:
   ]
 ```
 
-## 6. Update the asset mix aliases
+### 6. Update the asset mix aliases
 
 In `mix.exs`, point the `assets.*` aliases at the build script (and `npm install`)
 instead of the `esbuild` tasks:
@@ -213,7 +225,7 @@ instead of the `esbuild` tasks:
 
 (Replace `my_app` with your app's name.)
 
-## 7. Load the bundle and component styles
+### 7. Load the bundle and component styles
 
 Code splitting produces ES modules, so the root layout must load the bundle with
 `type="module"`. esbuild also bundles the `<style>` blocks from your Vue
@@ -229,7 +241,7 @@ components into `app.css` next to the JS, so link that too. In
 </script>
 ```
 
-## 8. Create a page and render it
+### 8. Create a page and render it
 
 Add a Vue page at `assets/js/pages/Home.vue`:
 
@@ -253,7 +265,7 @@ def home(conn, _params) do
 end
 ```
 
-## 9. Build and run
+### 9. Build and run
 
 ```bash
 mix assets.build

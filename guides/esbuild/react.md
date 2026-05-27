@@ -1,11 +1,7 @@
 # React
 
 This guide walks through configuring a Phoenix + Inertia.js app to render
-[React](https://react.dev/) pages, bundled with esbuild. It picks up where the
-[client-side setup](readme.html#setting-up-the-client-side) section of the README
-leaves off, and it assumes you have already installed and configured the
-server-side adapter (the `Inertia.Plug`, `import Inertia.Controller` /
-`import Inertia.HTML`, and `config :inertia`).
+[React](https://react.dev/) pages, bundled with esbuild.
 
 > #### Scope {: .info}
 >
@@ -29,10 +25,25 @@ at a `.jsx` entrypoint and enable code splitting.
 > stock `mix phx.new` app. If you'd rather adopt the canonical Inertia toolchain,
 > set up Vite instead.
 
-If you'd rather not do this by hand, `mix inertia.install --client-framework react`
-scaffolds everything below.
+## Install with Igniter
 
-## 1. Install the npm packages
+The [Igniter installer](readme.html#using-igniter) performs every step below for
+you — including the server-side wiring — in one command:
+
+```sh
+mix inertia.install --client-framework react
+```
+
+Pass `--typescript` to set up TypeScript as well. The rest of this guide
+documents the same setup by hand.
+
+## Manual setup
+
+These steps assume the server-side adapter is already installed (the
+`Inertia.Plug`, the `Inertia.Controller` / `Inertia.HTML` imports, and
+`config :inertia`) per the [Installation](readme.html#installation) section.
+
+### 1. Install the npm packages
 
 From your app's `assets` directory:
 
@@ -40,7 +51,7 @@ From your app's `assets` directory:
 npm install @inertiajs/react react react-dom
 ```
 
-## 2. Set up the Inertia entry point
+### 2. Set up the Inertia entry point
 
 Rename `assets/js/app.js` to `assets/js/app.jsx` (since it now contains JSX) and
 replace its contents with the Inertia boot code:
@@ -68,7 +79,7 @@ The dynamic import of `./pages/${name}.jsx` tells esbuild to bundle every file
 under `assets/js/pages` into its own chunk, so a page name like `"Home"`
 resolves to `assets/js/pages/Home.jsx` at runtime.
 
-## 3. Point esbuild at the JSX entrypoint
+### 3. Point esbuild at the JSX entrypoint
 
 Update the `config :esbuild` profile to build `app.jsx` instead of `app.js`, and
 turn on code splitting so the per-page chunks above are emitted. In
@@ -92,7 +103,7 @@ turn on code splitting so the per-page chunks above are emitted. In
 - `--splitting --format=esm` are what let esbuild emit shared chunks; the
   `--chunk-names` flag just controls their output paths.
 
-## 4. Load the bundle as an ES module
+### 4. Load the bundle as an ES module
 
 Code splitting produces ES modules, so the root layout must load the bundle with
 `type="module"`. In `lib/my_app_web/components/layouts/root.html.heex`:
@@ -105,7 +116,7 @@ Code splitting produces ES modules, so the root layout must load the bundle with
 </script>
 ```
 
-## 5. Create a page and render it
+### 5. Create a page and render it
 
 Add a React page at `assets/js/pages/Home.jsx`:
 
@@ -127,7 +138,7 @@ def home(conn, _params) do
 end
 ```
 
-## 6. Build and run
+### 6. Build and run
 
 ```bash
 mix assets.build
