@@ -124,13 +124,19 @@ defmodule Mix.Tasks.Inertia.InstallTest do
          |  test: [
          |    args:
        - |      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
-       + |      ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+       + |      ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
          |    cd: Path.expand("../assets", __DIR__),
          |    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
       ...|
       """)
 
       assert_has_task(project, "esbuild.install", [])
+
+      # The React JS deps are added to assets.setup (keeping esbuild.install) so a
+      # fresh checkout/CI build resolves them.
+      mix_content = file_content(project, "mix.exs")
+      assert mix_content =~ "esbuild.install --if-missing"
+      assert mix_content =~ ~s|"cmd --cd assets npm install"|
     end
   end
 
@@ -206,15 +212,12 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       # Assert the app.jsx file is created
       assert_creates(project, "assets/js/app.jsx", """
       import React from "react";
-
       import { createInertiaApp } from "@inertiajs/react";
       import { createRoot } from "react-dom/client";
 
       createInertiaApp({
-        resolve: async (name) => {
-          return await import(`./pages/${name}.jsx`);
-        },
-        setup({ App, el, props }) {
+        resolve: (name) => import(`./pages/${name}.jsx`),
+        setup({ el, App, props }) {
           createRoot(el).render(<App {...props} />);
         },
         http: {

@@ -51,6 +51,14 @@ From your app's `assets` directory:
 npm install @inertiajs/react react react-dom
 ```
 
+Since esbuild now needs these `node_modules` to bundle, add `npm install` to the
+`assets.setup` alias in `mix.exs` so a fresh checkout (or CI) installs them:
+
+```diff
+- "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
++ "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing", "cmd --cd assets npm install"],
+```
+
 ### 2. Set up the Inertia entry point
 
 Rename `assets/js/app.js` to `assets/js/app.jsx` (since it now contains JSX) and

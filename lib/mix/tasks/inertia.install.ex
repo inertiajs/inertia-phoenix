@@ -233,7 +233,8 @@ if Code.ensure_loaded?(Igniter) do
 
     # React bundles plain JS, so the esbuild Hex package (which runs the esbuild
     # CLI) is sufficient. We just point it at the JSX entrypoint and enable code
-    # splitting.
+    # splitting. We also teach `assets.setup` to `npm install` the client
+    # packages, so the assets build is reproducible on a fresh checkout/CI.
     defp configure_cli_esbuild(igniter) do
       igniter
       |> Config.configure("config.exs", :esbuild, [:version], "0.27.3")
@@ -245,13 +246,18 @@ if Code.ensure_loaded?(Igniter) do
          Sourceror.parse_string!("""
          [
           args:
-            ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm  --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+            ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
           cd: Path.expand("../assets", __DIR__),
           env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
          ]
          """)}
       )
       |> Igniter.add_task("esbuild.install")
+      |> replace_alias("assets.setup", [
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing",
+        "cmd --cd assets npm install"
+      ])
     end
 
     # Svelte and Vue components must be compiled by an esbuild plugin, which only
@@ -462,15 +468,12 @@ if Code.ensure_loaded?(Igniter) do
     defp inertia_app_jsx do
       """
       import React from "react";
-
       import { createInertiaApp } from "@inertiajs/react";
       import { createRoot } from "react-dom/client";
 
       createInertiaApp({
-        resolve: async (name) => {
-          return await import(`./pages/${name}.jsx`);
-        },
-        setup({ App, el, props }) {
+        resolve: (name) => import(`./pages/${name}.jsx`),
+        setup({ el, App, props }) {
           createRoot(el).render(<App {...props} />);
         },
         http: {
