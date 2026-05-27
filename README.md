@@ -780,6 +780,7 @@ The Inertia.js client library comes with with server-side rendering (SSR) suppor
 SSR has two parts: a framework-specific **server entry point** (`ssr.js`) plus the build step that compiles it to `priv/ssr.js`, and the **`Inertia.SSR` machinery** that runs it. The entry point and build are covered in your framework's guide:
 
 - [React](guides/esbuild/react.md#server-side-rendering)
+- [Svelte](guides/esbuild/svelte.md#server-side-rendering)
 - [Vue](guides/esbuild/vue.md#server-side-rendering)
 
 The rest of this section covers the machinery, which is the same regardless of framework.

@@ -8,9 +8,8 @@ A complete, runnable version of the manual setup below lives in
 
 > #### Scope {: .info}
 >
-> This guide covers **client-side rendering**. Server-side rendering (SSR) for
-> Svelte requires an additional bundle and the `Inertia.SSR` supervisor, and is
-> not covered here.
+> The bulk of this guide sets up **client-side rendering**.
+> [Server-side rendering](#server-side-rendering) is covered at the end.
 
 ## Why Svelte needs more than the esbuild CLI
 
@@ -285,3 +284,98 @@ mix phx.server
 Visit your page and you should see the Svelte component rendered through Inertia.
 In development, the `node` watcher rebuilds the bundle whenever you edit a
 `.svelte` file.
+
+## Server-side rendering
+
+With SSR, Phoenix pre-renders the initial page to HTML through a pool of Node
+workers and the client **hydrates** it, instead of rendering into an empty
+`<div id="app">`. Subsequent navigation stays client-side.
+
+The steps below are the Svelte-specific pieces; enabling SSR itself — starting
+the `Inertia.SSR` pool and setting `config :inertia, ssr: true` — is covered in
+the README's [Server-side rendering](readme.html#server-side-rendering) section.
+A complete version lives in
+[`examples/svelte`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/svelte).
+
+### 1. Add the SSR entry point
+
+Create `assets/js/ssr.js`, which exports a `render(page)` function. It uses
+Svelte 5's server `render` (aliased, since we also export a function named
+`render`):
+
+```javascript
+// assets/js/ssr.js
+import { createInertiaApp } from "@inertiajs/svelte";
+import { render as renderToHTML } from "svelte/server";
+
+export function render(page) {
+  return createInertiaApp({
+    page,
+    resolve: (name) => import(`./pages/${name}.svelte`),
+    setup({ App, props }) {
+      return renderToHTML(App, { props });
+    },
+  });
+}
+```
+
+`svelte/server` is part of `svelte`, so there's nothing extra to install.
+
+### 2. Build the SSR bundle
+
+Extend `assets/esbuild.config.js` to also build `ssr.js` as a Node/CommonJS
+module at `priv/ssr.js`. The SSR build targets Node and compiles components for
+the server:
+
+```javascript
+const ssr = {
+  ...shared,
+  entryPoints: ["js/ssr.js"],
+  platform: "node",
+  format: "cjs",
+  outfile: "../priv/ssr.js",
+  conditions: ["svelte"],
+  mainFields: ["svelte", "module", "main"],
+  plugins: [
+    sveltePlugin({
+      // dev: false — Svelte 5's dev-mode server instrumentation errors during SSR.
+      compilerOptions: { generate: "server", css: "injected", dev: false },
+    }),
+  ],
+};
+
+// build/watch both the client and ssr configs
+```
+
+See the [example's esbuild.config.js](https://github.com/inertiajs/inertia-phoenix/blob/main/examples/svelte/assets/esbuild.config.js)
+for the full file. Two things to note: `generate: "server"` is required (the
+default compiles for the DOM), and `dev: false` avoids a Svelte 5 dev-mode SSR
+crash. With injected CSS, the server render inlines component styles into the
+`head`, so there's no separate `ssr.css`. Add `priv/ssr.js` to your
+`.gitignore`.
+
+### 3. Hydrate on the client
+
+`@inertiajs/svelte`'s `createInertiaApp` hydrates server-rendered markup and
+mounts otherwise — automatically, as long as you **don't** pass a custom
+`setup`. So drop the `setup`/`mount` from `assets/js/app.js`:
+
+```diff
+  import { createInertiaApp } from "@inertiajs/svelte";
+- import { mount } from "svelte";
+
+  createInertiaApp({
+    resolve: (name) => import(`./pages/${name}.svelte`),
+-   setup({ el, App, props }) {
+-     mount(App, { target: el, props });
+-   },
+    http: { xsrfHeaderName: "x-csrf-token" },
+  });
+```
+
+### 4. Enable SSR
+
+Start the `Inertia.SSR` pool and set `config :inertia, ssr: true` per the
+README's [Server-side rendering](readme.html#server-side-rendering) section.
+Disable it in `config/test.exs` (`config :inertia, ssr: false`) so your test
+suite doesn't need the Node pool.
