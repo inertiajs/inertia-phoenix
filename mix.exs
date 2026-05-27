@@ -68,10 +68,12 @@ defmodule Inertia.MixProject do
         "CHANGELOG.md",
         "LICENSE.md"
       ],
-      # Group the framework setup guides under their bundler so we can add other
-      # bundlers (e.g. a Vite section) later without reshuffling the sidebar.
+      # The framework guides currently all use esbuild; they live under
+      # guides/esbuild/ (and render as esbuild_*.html) so a future Vite section
+      # can slot in without colliding. We'll revisit how to group the sidebar if
+      # that happens.
       groups_for_extras: [
-        "Bundling with esbuild": ~r"guides/esbuild/"
+        "Client-side Setup": ~r"guides/esbuild/"
       ]
     ]
   end
