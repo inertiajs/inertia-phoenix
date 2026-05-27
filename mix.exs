@@ -60,6 +60,7 @@ defmodule Inertia.MixProject do
       extras: [
         "README.md",
         "guides/svelte.md",
+        "guides/vue.md",
         "guides/upgrading_to_v3.md",
         "CHANGELOG.md",
         "LICENSE.md"
