@@ -151,7 +151,7 @@ defmodule Mix.Tasks.Inertia.InstallTest do
           <.inertia_title><%= assigns[:page_title] %></.inertia_title>
           <.inertia_head content={@inertia_head} />
           <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-          <script type="module" defer phx-track-static src={~p"/assets/app.js"} />
+          <script type="module" defer phx-track-static src={~p"/assets/js/app.js"} />
         </head>
         <body>
           {@inner_content}
@@ -261,5 +261,139 @@ defmodule Mix.Tasks.Inertia.InstallTest do
 
       assert_creates(project, "assets/js/pages/.gitkeep")
     end
+  end
+
+  describe "Svelte esbuild configuration" do
+    setup do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [client_framework: "svelte"]})
+        |> Install.update_esbuild_config()
+
+      %{project: project}
+    end
+
+    test "removes the esbuild config block from config.exs", %{project: project} do
+      content = file_content(project, "config/config.exs")
+
+      refute content =~ "config :esbuild"
+      refute content =~ ~s|version: "0.25.4"|
+    end
+
+    test "swaps the esbuild dev watcher for a node watcher", %{project: project} do
+      assert_has_patch(project, "config/dev.exs", """
+      ...|
+         |  watchers: [
+       - |    esbuild: {Esbuild, :install_and_run, [:test, ~w(--sourcemap=inline --watch)]},
+       + |    node: ["esbuild.config.js", "--watch", cd: Path.expand("../assets", __DIR__)],
+         |    tailwind: {Tailwind, :install_and_run, [:test, ~w(--watch)]}
+         |  ]
+      ...|
+      """)
+    end
+
+    test "removes the esbuild dependency from mix.exs", %{project: project} do
+      assert_has_patch(project, "mix.exs", """
+      ...|
+       - |    {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      ...|
+      """)
+    end
+
+    test "rewrites the asset aliases to drive esbuild from node", %{project: project} do
+      content = file_content(project, "mix.exs")
+
+      assert content =~ ~s|"assets.setup": ["tailwind.install --if-missing", "cmd --cd assets npm install"]|
+      assert content =~ ~s|"cmd --cd assets node esbuild.config.js"|
+      assert content =~ ~s|"cmd --cd assets node esbuild.config.js --deploy"|
+
+      refute content =~ "esbuild.install --if-missing"
+      refute content =~ ~s|"esbuild test"|
+      refute content =~ ~s|"esbuild test --minify"|
+    end
+
+    test "does not add the esbuild.install task", %{project: project} do
+      refute Enum.any?(project.tasks, fn {task, _args} -> task == "esbuild.install" end)
+    end
+  end
+
+  describe "Svelte client setup" do
+    test "installs the svelte client packages" do
+      project = svelte_setup_client()
+
+      assert_has_task(project, "cmd", [
+        "npm install --prefix assets @inertiajs/svelte svelte esbuild esbuild-svelte"
+      ])
+    end
+
+    test "creates the svelte entry point" do
+      project = svelte_setup_client()
+
+      # Phoenix already ships an assets/js/app.js (the LiveView boot), so the
+      # installer overwrites it rather than creating it.
+      assert_content_equals(project, "assets/js/app.js", """
+      import { createInertiaApp } from "@inertiajs/svelte";
+      import { mount } from "svelte";
+
+      createInertiaApp({
+        resolve: (name) => import(`./pages/${name}.svelte`),
+        setup({ el, App, props }) {
+          mount(App, { target: el, props });
+        },
+        http: {
+          xsrfHeaderName: "x-csrf-token",
+        },
+      });
+      """)
+    end
+
+    test "creates the node esbuild config with the load-bearing options" do
+      project = svelte_setup_client()
+
+      assert_creates(project, "assets/esbuild.config.js")
+
+      content = file_content(project, "assets/esbuild.config.js")
+      assert content =~ ~s|entryPoints: ["js/app.js"]|
+      assert content =~ ~s|outdir: "../priv/static/assets/js"|
+      assert content =~ ~s|conditions: ["svelte", "browser"]|
+      assert content =~ ~s|compilerOptions: { css: "injected", dev: !deploy }|
+      refute content =~ "svelte-preprocess"
+    end
+
+    test "leaves tsconfig untouched without the typescript option" do
+      project = svelte_setup_client()
+
+      # Phoenix ships a default assets/tsconfig.json; without --typescript we
+      # leave it alone.
+      assert_unchanged(project, "assets/tsconfig.json")
+    end
+
+    test "overwrites tsconfig with a svelte config and adds the ts toolchain with --typescript" do
+      project = svelte_setup_client(typescript: true)
+
+      # The svelte tsconfig includes .svelte files; the Phoenix default does not.
+      assert file_content(project, "assets/tsconfig.json") =~ ~s|"js/**/*.svelte"|
+
+      assert_has_task(project, "cmd", [
+        "npm install --prefix assets --save-dev svelte-preprocess typescript"
+      ])
+
+      esbuild = file_content(project, "assets/esbuild.config.js")
+      assert esbuild =~ ~s|const sveltePreprocess = require("svelte-preprocess")|
+      assert esbuild =~ "preprocess: sveltePreprocess()"
+      assert esbuild =~ ~s|tsconfig: "tsconfig.json"|
+    end
+  end
+
+  defp svelte_setup_client(opts \\ []) do
+    options = Keyword.merge([client_framework: "svelte"], opts)
+
+    phx_test_project()
+    |> Map.put(:args, %{options: options})
+    |> Install.setup_client()
+  end
+
+  defp file_content(project, path) do
+    project.rewrite.sources[path] |> Rewrite.Source.get(:content)
   end
 end
