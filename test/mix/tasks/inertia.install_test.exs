@@ -398,20 +398,18 @@ defmodule Mix.Tasks.Inertia.InstallTest do
       assert_unchanged(project, "assets/tsconfig.json")
     end
 
-    test "overwrites tsconfig with a svelte config and adds the ts toolchain with --typescript" do
+    test "overwrites tsconfig with a svelte config and adds typescript with --typescript" do
       project = svelte_setup_client(typescript: true)
 
       # The svelte tsconfig includes .svelte files; the Phoenix default does not.
       assert file_content(project, "assets/tsconfig.json") =~ ~s|"js/**/*.svelte"|
 
+      # Type-only TS works without svelte-preprocess, so we only add typescript.
       assert_has_task(project, "cmd", [
-        "npm install --prefix assets --save-dev svelte-preprocess typescript"
+        "npm install --prefix assets --save-dev typescript"
       ])
 
-      esbuild = file_content(project, "assets/esbuild.config.js")
-      assert esbuild =~ ~s|const sveltePreprocess = require("svelte-preprocess")|
-      assert esbuild =~ "preprocess: sveltePreprocess()"
-      assert esbuild =~ ~s|tsconfig: "tsconfig.json"|
+      refute file_content(project, "assets/esbuild.config.js") =~ "svelte-preprocess"
     end
   end
 

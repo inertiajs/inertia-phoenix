@@ -315,15 +315,13 @@ if Code.ensure_loaded?(Igniter) do
           )
 
         "svelte" ->
-          typescript = igniter.args.options[:typescript] || false
-
           igniter
           |> install_client_package()
           |> maybe_create_typescript_config()
           |> Igniter.create_new_file("assets/js/app.js", inertia_app_svelte(),
             on_exists: :overwrite
           )
-          |> Igniter.create_new_file("assets/esbuild.config.js", svelte_esbuild_config(typescript),
+          |> Igniter.create_new_file("assets/esbuild.config.js", svelte_esbuild_config(),
             on_exists: :overwrite
           )
 
@@ -420,8 +418,11 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp maybe_install_typescript_deps(igniter, "svelte", true) do
+      # esbuild strips the types from type-only `<script lang="ts">` during the
+      # build; typescript is for editor support and type-checking. Non-type-only
+      # TS (e.g. enums) additionally needs svelte-preprocess — see the guide.
       Igniter.add_task(igniter, "cmd", [
-        "npm install --prefix assets --save-dev svelte-preprocess typescript"
+        "npm install --prefix assets --save-dev typescript"
       ])
     end
 
@@ -565,7 +566,11 @@ if Code.ensure_loaded?(Igniter) do
 
     # Svelte is compiled by the esbuild-svelte plugin, which only works through
     # esbuild's JS API. This config is run via `node esbuild.config.js`.
-    defp svelte_esbuild_config(false) do
+    #
+    # This handles type-only TypeScript in `<script lang="ts">` out of the box
+    # (esbuild strips the types). TS features that need real transpilation, like
+    # enums, additionally require svelte-preprocess — see guides/svelte.md.
+    defp svelte_esbuild_config do
       """
       const esbuild = require("esbuild");
       const sveltePlugin = require("esbuild-svelte");
@@ -591,59 +596,6 @@ if Code.ensure_loaded?(Igniter) do
         mainFields: ["svelte", "browser", "module", "main"],
         plugins: [
           sveltePlugin({
-            // Inject component CSS through JS instead of emitting separate .css
-            // files, which code-split page chunks would never load.
-            compilerOptions: { css: "injected", dev: !deploy },
-          }),
-        ],
-      };
-
-      async function run() {
-        if (watch) {
-          const ctx = await esbuild.context(options);
-          await ctx.watch();
-          console.log("esbuild: watching for changes...");
-        } else {
-          await esbuild.build(options);
-        }
-      }
-
-      run().catch((error) => {
-        console.error(error);
-        process.exit(1);
-      });
-      """
-    end
-
-    defp svelte_esbuild_config(true) do
-      """
-      const esbuild = require("esbuild");
-      const sveltePlugin = require("esbuild-svelte");
-      const sveltePreprocess = require("svelte-preprocess");
-
-      const args = process.argv.slice(2);
-      const watch = args.includes("--watch");
-      const deploy = args.includes("--deploy");
-
-      const options = {
-        entryPoints: ["js/app.js"],
-        bundle: true,
-        format: "esm",
-        splitting: true,
-        chunkNames: "chunks/[name]-[hash]",
-        outdir: "../priv/static/assets/js",
-        logLevel: "info",
-        target: "es2022",
-        external: ["/fonts/*", "/images/*"],
-        minify: deploy,
-        sourcemap: watch ? "inline" : false,
-        tsconfig: "tsconfig.json",
-        // Required so esbuild resolves Svelte's `svelte` export condition.
-        conditions: ["svelte", "browser"],
-        mainFields: ["svelte", "browser", "module", "main"],
-        plugins: [
-          sveltePlugin({
-            preprocess: sveltePreprocess(),
             // Inject component CSS through JS instead of emitting separate .css
             // files, which code-split page chunks would never load.
             compilerOptions: { css: "injected", dev: !deploy },
