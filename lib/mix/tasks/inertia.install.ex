@@ -335,9 +335,7 @@ if Code.ensure_loaded?(Igniter) do
           igniter
           |> install_client_package()
           |> maybe_create_typescript_config()
-          |> Igniter.create_new_file("assets/js/app.js", inertia_app_vue(),
-            on_exists: :overwrite
-          )
+          |> Igniter.create_new_file("assets/js/app.js", inertia_app_vue(), on_exists: :overwrite)
           |> Igniter.create_new_file("assets/esbuild.config.js", vue_esbuild_config(),
             on_exists: :overwrite
           )

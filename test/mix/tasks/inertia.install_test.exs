@@ -336,7 +336,9 @@ defmodule Mix.Tasks.Inertia.InstallTest do
     test "rewrites the asset aliases to drive esbuild from node", %{project: project} do
       content = file_content(project, "mix.exs")
 
-      assert content =~ ~s|"assets.setup": ["tailwind.install --if-missing", "cmd --cd assets npm install"]|
+      assert content =~
+               ~s|"assets.setup": ["tailwind.install --if-missing", "cmd --cd assets npm install"]|
+
       assert content =~ ~s|"cmd --cd assets node esbuild.config.js"|
       assert content =~ ~s|"cmd --cd assets node esbuild.config.js --deploy"|
 
