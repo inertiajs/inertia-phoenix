@@ -16,6 +16,10 @@ mix phx.server     # visit http://localhost:4000
 You should see a Svelte page rendered through Inertia, with working client-side
 navigation between `/` and `/about`.
 
+This example demonstrates both **client-side rendering** and **server-side
+rendering** (SSR) — see the [Server-side rendering](#server-side-rendering)
+section below.
+
 ## Why Svelte needs more than the esbuild CLI
 
 React components written as JS/JSX are the easy case: esbuild bundles them
@@ -87,8 +91,32 @@ These are easy to get wrong and are the reason a working reference is useful:
    correct for a client-rendered SPA and means the root layout needs **no** extra
    `<link rel="stylesheet">`.
 
-## Scope
+## Server-side rendering
 
-This example covers **client-side rendering only**. Server-side rendering (SSR)
-for Svelte would need a second bundle and the `Inertia.SSR` node pool, and is out
-of scope here.
+With SSR enabled, Phoenix pre-renders the initial page to HTML on the server
+(via a pool of Node workers managed by `Inertia.SSR`) and the client then
+**hydrates** it. Subsequent navigation is still client-side. View source on a
+full-page load and the `#app` div already contains the rendered markup
+(`data-server-rendered="true"`); the component's scoped styles are inlined into
+the `<head>`.
+
+The SSR-specific pieces, on top of the CSR setup:
+
+- **[`assets/js/ssr.js`](assets/js/ssr.js)** — a second entry point that exports
+  `render(page)`, using Svelte 5's `render` from `svelte/server` (aliased to
+  avoid clashing with the export name).
+- **[`assets/esbuild.config.js`](assets/esbuild.config.js)** — also builds the
+  SSR bundle to `priv/ssr.js` (`platform: "node"`, `format: "cjs"`), compiling
+  components with `generate: "server"` and `dev: false` (Svelte 5's dev-mode
+  server instrumentation errors during SSR).
+- **[`assets/js/app.js`](assets/js/app.js)** — drops the custom `setup` so
+  `createInertiaApp` hydrates the server-rendered markup automatically (and
+  still mounts a fresh app when SSR is off).
+- **[`lib/svelte/application.ex`](lib/svelte/application.ex)** — starts
+  `{Inertia.SSR, path: ...}`.
+- **`config :inertia, ssr: true`** — `config/test.exs` turns it back off so the
+  test suite doesn't need the Node pool.
+
+`svelte/server` is part of `svelte`, so SSR needs no extra packages. With
+injected CSS, the server render inlines component styles into the `head`, so
+there's no companion `ssr.css`.

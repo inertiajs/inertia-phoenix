@@ -7,6 +7,10 @@ config :svelte, SvelteWeb.Endpoint,
   secret_key_base: "uhXeznrE9t2Hy3D7qrCHHd621bL1ggfwwEegiM1/AmPGPZmCrf2Wzt8aI6fFjmfL",
   server: false
 
+# Render pages client-side in tests; SSR (the Node pool) isn't needed to assert
+# the server-side page payload, and turning it off keeps the suite fast.
+config :inertia, ssr: false
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

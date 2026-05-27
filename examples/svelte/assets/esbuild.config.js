@@ -3,6 +3,13 @@
 // only be used through esbuild's JS API (not its CLI), which is why this project
 // drives esbuild from Node here instead of using the `esbuild` Hex package.
 //
+// This builds two bundles:
+//   - the client bundle (js/app.js -> priv/static/assets/js), compiled for the
+//     browser, and
+//   - the SSR bundle (js/ssr.js -> priv/ssr.js), a Node/CommonJS module compiled
+//     with `generate: "server"` that the Inertia.SSR pool loads to pre-render
+//     pages on the server.
+//
 // Run directly: `node esbuild.config.js` (one-off build),
 //               `node esbuild.config.js --watch` (rebuild on change, used by the
 //               Phoenix dev watcher), or
@@ -14,18 +21,22 @@ const args = process.argv.slice(2);
 const watch = args.includes("--watch");
 const deploy = args.includes("--deploy");
 
-const options = {
-  entryPoints: ["js/app.js"],
+const shared = {
   bundle: true,
+  logLevel: "info",
+  target: "es2022",
+  minify: deploy,
+  sourcemap: watch ? "inline" : false,
+};
+
+const client = {
+  ...shared,
+  entryPoints: ["js/app.js"],
   format: "esm",
   splitting: true,
   chunkNames: "chunks/[name]-[hash]",
   outdir: "../priv/static/assets/js",
-  logLevel: "info",
-  target: "es2022",
   external: ["/fonts/*", "/images/*"],
-  minify: deploy,
-  sourcemap: watch ? "inline" : false,
   // Required so esbuild resolves Svelte's `svelte` export condition (Svelte 5
   // ships its runtime behind it).
   conditions: ["svelte", "browser"],
@@ -42,13 +53,37 @@ const options = {
   ],
 };
 
+// The SSR bundle runs under Node and renders components to strings, so it
+// targets the node platform, emits CommonJS, and compiles components with
+// `generate: "server"`.
+const ssr = {
+  ...shared,
+  entryPoints: ["js/ssr.js"],
+  platform: "node",
+  format: "cjs",
+  outfile: "../priv/ssr.js",
+  conditions: ["svelte"],
+  mainFields: ["svelte", "module", "main"],
+  plugins: [
+    sveltePlugin({
+      // dev: false even outside deploy — Svelte 5's dev-mode server
+      // instrumentation (push_element/filename tracking) errors during SSR, and
+      // the server bundle gains nothing from dev mode.
+      compilerOptions: { generate: "server", css: "injected", dev: false },
+    }),
+  ],
+};
+
 async function run() {
   if (watch) {
-    const ctx = await esbuild.context(options);
-    await ctx.watch();
+    const contexts = await Promise.all([
+      esbuild.context(client),
+      esbuild.context(ssr),
+    ]);
+    await Promise.all(contexts.map((ctx) => ctx.watch()));
     console.log("esbuild: watching for changes...");
   } else {
-    await esbuild.build(options);
+    await Promise.all([esbuild.build(client), esbuild.build(ssr)]);
   }
 }
 

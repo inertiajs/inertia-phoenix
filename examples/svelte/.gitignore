@@ -27,6 +27,8 @@ svelte-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
+# The SSR bundle built by assets/esbuild.config.js.
+/priv/ssr.js
 
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json

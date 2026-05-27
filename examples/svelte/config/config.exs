@@ -10,7 +10,7 @@ import Config
 config :svelte,
   generators: [timestamp_type: :utc_datetime]
 
-config :inertia, endpoint: SvelteWeb.Endpoint
+config :inertia, endpoint: SvelteWeb.Endpoint, ssr: true
 
 # Configure the endpoint
 config :svelte, SvelteWeb.Endpoint,

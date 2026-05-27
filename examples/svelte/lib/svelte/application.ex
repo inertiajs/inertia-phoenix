@@ -11,8 +11,9 @@ defmodule Svelte.Application do
       SvelteWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:svelte, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Svelte.PubSub},
-      # Start a worker by calling: Svelte.Worker.start_link(arg)
-      # {Svelte.Worker, arg},
+      # Start the SSR Node.js pool. `path` is the directory holding the compiled
+      # ssr.js bundle (built by assets/esbuild.config.js into priv/).
+      {Inertia.SSR, path: Path.join([Application.app_dir(:svelte), "priv"])},
       # Start to serve requests, typically the last entry
       SvelteWeb.Endpoint
     ]
