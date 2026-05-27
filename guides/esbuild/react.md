@@ -5,9 +5,8 @@ This guide walks through configuring a Phoenix + Inertia.js app to render
 
 > #### Scope {: .info}
 >
-> This guide covers **client-side rendering**. Server-side rendering (SSR) is
-> covered in the README's
-> [Server-side rendering](readme.html#server-side-rendering) section.
+> The bulk of this guide sets up **client-side rendering**.
+> [Server-side rendering](#server-side-rendering) is covered at the end.
 
 ## React is the simple case
 
@@ -161,3 +160,109 @@ Visit your page and you should see the React component rendered through Inertia.
 > just write your pages as `.tsx` and update the esbuild entrypoint/glob
 > accordingly. Install `@types/react` for editor support and add a `tsconfig.json`
 > with `"jsx": "react-jsx"`.
+
+## Server-side rendering
+
+With SSR, Phoenix pre-renders the initial page to HTML through a pool of Node
+workers and the client **hydrates** it, instead of rendering into an empty
+`<div id="app">`. Subsequent navigation stays client-side.
+
+The steps below are the React-specific pieces; enabling SSR itself — starting
+the `Inertia.SSR` pool and setting `config :inertia, ssr: true` — is covered in
+the README's [Server-side rendering](readme.html#server-side-rendering) section.
+
+### 1. Add the SSR entry point
+
+Create a second entry point, `assets/js/ssr.jsx`, that exports a `render`
+function. Unlike the Inertia.js docs (which wrap this in a Node server), you
+just export `render` — inertia-phoenix manages the Node workers itself:
+
+```jsx
+// assets/js/ssr.jsx
+import React from "react";
+import ReactDOMServer from "react-dom/server";
+import { createInertiaApp } from "@inertiajs/react";
+
+export function render(page) {
+  return createInertiaApp({
+    page,
+    render: ReactDOMServer.renderToString,
+    resolve: (name) => import(`./pages/${name}.jsx`),
+    setup: ({ App, props }) => <App {...props} />,
+  });
+}
+```
+
+### 2. Build the SSR bundle
+
+Add a second `esbuild` profile that compiles `ssr.jsx` to a Node/CommonJS module
+at `priv/ssr.js` (the path the `Inertia.SSR` pool loads):
+
+```diff
+  config :esbuild,
+    version: "0.27.3",
+    my_app: [
+      args:
+        ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      cd: Path.expand("../assets", __DIR__),
+      env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+-   ]
++   ],
++   ssr: [
++     args: ~w(js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs --alias:@=.),
++     cd: Path.expand("../assets", __DIR__),
++     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
++   ]
+```
+
+Add the `ssr` build to the dev watcher and the asset aliases so it's built
+alongside the client bundle:
+
+```diff
+  # config/dev.exs
+    watchers: [
+      esbuild: {Esbuild, :install_and_run, [:my_app, ~w(--sourcemap=inline --watch)]},
++     ssr: {Esbuild, :install_and_run, [:ssr, ~w(--sourcemap=inline --watch)]},
+      tailwind: {Tailwind, :install_and_run, [:my_app, ~w(--watch)]}
+    ]
+```
+
+```diff
+  # mix.exs
+-     "assets.build": ["compile", "tailwind my_app", "esbuild my_app"],
++     "assets.build": ["compile", "tailwind my_app", "esbuild my_app", "esbuild ssr"],
+      "assets.deploy": [
+        "tailwind my_app --minify",
+        "esbuild my_app --minify",
++       "esbuild ssr",
+        "phx.digest"
+      ],
+```
+
+`priv/ssr.js` is generated, so add it to your `.gitignore`.
+
+### 3. Hydrate on the client
+
+Switch `assets/js/app.jsx` from `createRoot` to `hydrateRoot` so the client
+hydrates the server-rendered markup instead of replacing it:
+
+```diff
+- import { createRoot } from "react-dom/client";
++ import { hydrateRoot } from "react-dom/client";
+
+  createInertiaApp({
+    resolve: (name) => import(`./pages/${name}.jsx`),
+    setup({ el, App, props }) {
+-     createRoot(el).render(<App {...props} />);
++     hydrateRoot(el, <App {...props} />);
+    },
+    // ...
+  });
+```
+
+### 4. Enable SSR
+
+Start the `Inertia.SSR` pool and set `config :inertia, ssr: true` per the
+README's [Server-side rendering](readme.html#server-side-rendering) section.
+Disable it in `config/test.exs` (`config :inertia, ssr: false`) so your test
+suite doesn't need the Node pool.

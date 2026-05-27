@@ -775,124 +775,14 @@ end
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
 
 > [!NOTE]
-> The steps for enabling SSR in Phoenix are similar to other backend frameworks, but instead of running a separate Node.js server process to render HTML, this library spins up a pool of Node.js process workers to handle SSR calls and manages the state of those node processes from your Elixir process tree. This is mostly just an implementation detail that you don't need to be concerned about, but we'll highlight how our `ssr.js` script differs from the Inertia.js docs.
+> The steps for enabling SSR in Phoenix are similar to other backend frameworks, but instead of running a separate Node.js server process to render HTML, this library spins up a pool of Node.js process workers to handle SSR calls and manages the state of those node processes from your Elixir process tree.
 
-### Add a server-side rendering module
+SSR has two parts: a framework-specific **server entry point** (`ssr.js`) plus the build step that compiles it to `priv/ssr.js`, and the **`Inertia.SSR` machinery** that runs it. The entry point and build are covered in your framework's guide:
 
-You'll need to create a JavaScript module that exports a `render` function to perform the actual server-side rendering of pages. For the purpose of these instructions, we'll assume you're using React. The steps would be similar for other front-end environments supported by Inertia.js, such as [Vue](https://github.com/CallumVass/inertia_vue) and [Svelte](https://github.com/tonydangblog/phoenix-inertia-svelte).
+- [React](guides/esbuild/react.md#server-side-rendering)
+- [Vue](guides/esbuild/vue.md#server-side-rendering)
 
-Suppose your main `app.jsx` file looks something like this:
-
-```js
-// assets/js/app.jsx
-
-import React from "react";
-import { createInertiaApp } from "@inertiajs/react";
-import { createRoot } from "react-dom/client";
-
-createInertiaApp({
-  resolve: async (name) => {
-    return await import(`./pages/${name}.jsx`);
-  },
-  setup({ App, el, props }) {
-    createRoot(el).render(<App {...props} />);
-  },
-});
-```
-
-You'll need to create a second JavaScript file (alongside your `app.jsx`) that exports a `render` function. Let's name it `ssr.jsx`.
-
-```js
-// assets/js/ssr.jsx
-
-import React from "react";
-import ReactDOMServer from "react-dom/server";
-import { createInertiaApp } from "@inertiajs/react";
-
-export function render(page) {
-  return createInertiaApp({
-    page,
-    render: ReactDOMServer.renderToString,
-    resolve: async (name) => {
-      return await import(`./pages/${name}.jsx`);
-    },
-    setup: ({ App, props }) => <App {...props} />,
-  });
-}
-```
-
-This is similar to the server entry-point [documented here](https://inertiajs.com/server-side-rendering#add-server-entry-point), except we are simply **exporting a function called `render`**, instead of starting a Node.js server process.
-
-Next, configure esbuild to compile the `ssr.jsx` bundle.
-
-```diff
-  # config/config.exs
-
-  config :esbuild,
-    version: "0.21.5",
-    app: [
-      args: ~w(js/app.jsx --bundle --target=es2020 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
-      cd: Path.expand("../assets", __DIR__),
-      env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-    ],
-+   ssr: [
-+     args: ~w(js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs),
-+     cd: Path.expand("../assets", __DIR__),
-+     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-+   ]
-```
-
-Add the `ssr` build to the watchers in your dev environment, alongside the other asset watchers:
-
-```diff
-  # config/dev.exs
-  config :my_app, MyAppWeb.Endpoint,
-    # Binding to loopback ipv4 address prevents access from other machines.
-    # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-    http: [ip: {127, 0, 0, 1}, port: 4000],
-    check_origin: false,
-    code_reloader: true,
-    debug_errors: true,
-    secret_key_base: "4Z2yyTu6Uy8AM+MguG3oldEf4aIdswR2BsCm1OtqDK0lEv++T02KktRaXfMbC/Zs",
-    watchers: [
-      esbuild: {Esbuild, :install_and_run, [:app, ~w(--sourcemap=inline --watch)]},
-+     ssr: {Esbuild, :install_and_run, [:ssr, ~w(--sourcemap=inline --watch)]},
-      tailwind: {Tailwind, :install_and_run, [:my_app, ~w(--watch)]}
-    ]
-```
-
-### Build and deploy with SSR
-Add the `ssr` build step to the asset build and deploy scripts.
-
-```diff
-  # mix.exs
-
-  defp aliases do
-    [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
--     "assets.build": ["tailwind app", "esbuild app"],
-+     "assets.build": ["tailwind app", "esbuild app", "esbuild ssr"],
-      "assets.deploy": [
-        "tailwind app --minify",
-        "esbuild app --minify",
-+       "esbuild ssr",
-        "phx.digest"
-      ]
-    ]
-  end
-```
-
-As configured, this will place the generated `ssr.js` bundle into the `priv` directory. Since it's generated code, add it to your `.gitignore` file.
-
-```diff
-  # .gitignore
-
-+ /priv/ssr.js
-```
+The rest of this section covers the machinery, which is the same regardless of framework.
 
 ### Configuring your app for server-rendering
 
@@ -1046,31 +936,6 @@ If you haven't installed node into your runner image, add the following command 
 
 > [!IMPORTANT]
 > **Be sure to set `NODE_ENV=production`**, so that the SSR script is cached in memory. Otherwise, your page rendering times will be very slow!
-
-### Client side hydration
-
-[Follow the instructions from the Inertia.js docs](https://inertiajs.com/server-side-rendering#client-side-hydration) for updating your client-side code to hydrate the pre-rendered HTML coming from the server.
-
-Using our example React script from above, the adaptation looks like this:
-
-```diff
-  // assets/js/app.jsx
-
-  import React from "react";
-  import { createInertiaApp } from "@inertiajs/react";
-- import { createRoot } from "react-dom/client";
-+ import { hydrateRoot } from "react-dom/client";
-
-  createInertiaApp({
-    resolve: async (name) => {
-      return await import(`./pages/${name}.jsx`);
-    },
-    setup({ App, el, props }) {
--     createRoot(el).render(<App {...props} />);
-+     hydrateRoot(el, <App {...props} />);
-    },
-  });
-```
 
 ---
 
