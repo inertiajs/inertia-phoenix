@@ -16,6 +16,7 @@ config :react, ReactWeb.Endpoint,
   secret_key_base: "HpJ7TAIXqYn5SuugslYYKil9mLZUSGF0YkVY4hvYi0BhLoops+NmAQhOVmTK3AEj",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:react, ~w(--sourcemap=inline --watch)]},
+    ssr: {Esbuild, :install_and_run, [:ssr, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:react, ~w(--watch)]}
   ]
 

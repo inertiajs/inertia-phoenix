@@ -10,7 +10,7 @@ import Config
 config :react,
   generators: [timestamp_type: :utc_datetime]
 
-config :inertia, endpoint: ReactWeb.Endpoint
+config :inertia, endpoint: ReactWeb.Endpoint, ssr: true
 
 # Configure the endpoint
 config :react, ReactWeb.Endpoint,
@@ -29,6 +29,14 @@ config :esbuild,
   react: [
     args:
       ~w(js/app.jsx --bundle --chunk-names=chunks/[name]-[hash] --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ],
+  # SSR bundle: a Node/CommonJS module at priv/ssr.js that the Inertia.SSR pool
+  # loads to pre-render pages on the server.
+  ssr: [
+    args:
+      ~w(js/ssr.jsx --bundle --platform=node --outdir=../priv --format=cjs --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]

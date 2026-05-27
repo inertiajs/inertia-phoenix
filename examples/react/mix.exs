@@ -85,10 +85,11 @@ defmodule React.MixProject do
         "esbuild.install --if-missing",
         "cmd --cd assets npm install"
       ],
-      "assets.build": ["compile", "tailwind react", "esbuild react"],
+      "assets.build": ["compile", "tailwind react", "esbuild react", "esbuild ssr"],
       "assets.deploy": [
         "tailwind react --minify",
         "esbuild react --minify",
+        "esbuild ssr",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

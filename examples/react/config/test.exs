@@ -7,6 +7,10 @@ config :react, ReactWeb.Endpoint,
   secret_key_base: "i0AkaFIxzPKAvEkwqPpM2jUi/+z0SqIR83URZvOVGW8gbcbGHF+55+YxD927ISOq",
   server: false
 
+# Render pages client-side in tests; SSR (the Node pool) isn't needed to assert
+# the server-side page payload, and turning it off keeps the suite fast.
+config :inertia, ssr: false
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

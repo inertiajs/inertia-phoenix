@@ -16,9 +16,9 @@ mix phx.server     # visit http://localhost:4000
 You should see a React page rendered through Inertia, with working client-side
 navigation between `/` and `/about`.
 
-> #### Scope
->
-> This covers **client-side rendering only**. SSR is out of scope here.
+This example demonstrates both **client-side rendering** and **server-side
+rendering** (SSR) — see the [Server-side rendering](#server-side-rendering)
+section below.
 
 ## React is the simple case
 
@@ -65,3 +65,29 @@ The complete set of changes relative to a fresh `mix phx.new` app:
 No esbuild config script or framework plugin is needed — esbuild's built-in JSX
 support handles React, and `.tsx` works the same way if you use TypeScript
 (install `@types/react` and add a `tsconfig.json` with `"jsx": "react-jsx"`).
+
+## Server-side rendering
+
+With SSR enabled, Phoenix pre-renders the initial page to HTML on the server
+(via a pool of Node workers managed by `Inertia.SSR`) and the client then
+**hydrates** it. Subsequent navigation is still client-side. View source on a
+full-page load and the `#app` div already contains the rendered markup
+(`data-server-rendered="true"`).
+
+The SSR-specific pieces, on top of the CSR setup:
+
+- **[`assets/js/ssr.jsx`](assets/js/ssr.jsx)** — a second entry point that
+  exports `render(page)` using `ReactDOMServer.renderToString`.
+- **[`config/config.exs`](config/config.exs)** — a second `esbuild` profile
+  (`ssr`) compiles it to `priv/ssr.js` as a Node/CommonJS module; this profile
+  is added to the dev watcher and the `assets.build` / `assets.deploy` aliases.
+- **[`assets/js/app.jsx`](assets/js/app.jsx)** — uses `hydrateRoot` (not
+  `createRoot`) so the client hydrates the server-rendered markup.
+- **[`lib/react/application.ex`](lib/react/application.ex)** — starts
+  `{Inertia.SSR, path: ...}` (the Node pool that loads `priv/ssr.js`).
+- **`config :inertia, ssr: true`** — `config/test.exs` turns it back off so the
+  test suite doesn't need the Node pool.
+
+`ReactDOMServer.renderToString` comes from `react-dom` (already a dependency), so
+SSR needs no extra packages. Because React pages here use inline styles rather
+than CSS imports, the SSR build emits only `priv/ssr.js` (no companion CSS).
