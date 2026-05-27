@@ -135,7 +135,7 @@ omitted:
 > Injected CSS adds component styles via runtime `<style>` elements. Under a
 > strict CSP that disallows inline styles, you'll need a `style-src` nonce/hash
 > (or switch to esbuild's external CSS output and link it like the
-> [Vue guide](vue.html) does).
+> [Vue guide](esbuild_vue.html) does).
 
 ## 3. Set up the Inertia entry point
 

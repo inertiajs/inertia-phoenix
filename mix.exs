@@ -59,8 +59,10 @@ defmodule Inertia.MixProject do
       main: "readme",
       extras: [
         "README.md",
-        "guides/esbuild/svelte.md",
-        "guides/esbuild/vue.md",
+        # Bundler-prefixed output names (e.g. esbuild_svelte.html) leave room for
+        # a future guides/vite/svelte.md -> vite_svelte.html without colliding.
+        {"guides/esbuild/svelte.md", filename: "esbuild_svelte"},
+        {"guides/esbuild/vue.md", filename: "esbuild_vue"},
         "guides/upgrading_to_v3.md",
         "CHANGELOG.md",
         "LICENSE.md"
@@ -68,7 +70,7 @@ defmodule Inertia.MixProject do
       # Group the framework setup guides under their bundler so we can add other
       # bundlers (e.g. a Vite section) later without reshuffling the sidebar.
       groups_for_extras: [
-        "Front-end with esbuild": ~r"guides/esbuild/"
+        "Bundling with esbuild": ~r"guides/esbuild/"
       ]
     ]
   end

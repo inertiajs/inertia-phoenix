@@ -33,7 +33,7 @@ only available through esbuild's **JavaScript API**, never its CLI
 That single constraint drives the whole setup: instead of the `esbuild` Hex
 package, you install esbuild from npm and drive it from a small Node script. The
 steps below remove the Hex package and wire Phoenix's watcher and asset aliases
-to that script. (If you've seen the [Svelte guide](svelte.html), this is the
+to that script. (If you've seen the [Svelte guide](esbuild_svelte.html), this is the
 same shape — only the plugin, the boot code, and CSS handling differ.)
 
 > #### This is the esbuild path, not the canonical Vue path {: .info}
