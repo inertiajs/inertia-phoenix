@@ -10,7 +10,7 @@ import Config
 config :vue,
   generators: [timestamp_type: :utc_datetime]
 
-config :inertia, endpoint: VueWeb.Endpoint
+config :inertia, endpoint: VueWeb.Endpoint, ssr: true
 
 # Configure the endpoint
 config :vue, VueWeb.Endpoint,

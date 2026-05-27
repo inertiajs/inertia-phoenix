@@ -11,8 +11,9 @@ defmodule Vue.Application do
       VueWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:vue, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Vue.PubSub},
-      # Start a worker by calling: Vue.Worker.start_link(arg)
-      # {Vue.Worker, arg},
+      # Start the SSR Node.js pool. `path` is the directory holding the compiled
+      # ssr.js bundle (built by assets/esbuild.config.js into priv/).
+      {Inertia.SSR, path: Path.join([Application.app_dir(:vue), "priv"])},
       # Start to serve requests, typically the last entry
       VueWeb.Endpoint
     ]

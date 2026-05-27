@@ -16,9 +16,9 @@ mix phx.server     # visit http://localhost:4000
 You should see a Vue page rendered through Inertia, with working client-side
 navigation between `/` and `/about`.
 
-> #### Scope
->
-> This covers **client-side rendering only**. SSR is out of scope here.
+This example demonstrates both **client-side rendering** and **server-side
+rendering** (SSR) — see the [Server-side rendering](#server-side-rendering)
+section below.
 
 ## Why Vue needs a different setup than React
 
@@ -100,3 +100,34 @@ styles, so a single `<link>` is all that's needed.
 
 The Vue feature flags (`__VUE_OPTIONS_API__`, etc.) are set via esbuild's
 `define` to silence runtime warnings and drop dev-only code in production.
+
+## Server-side rendering
+
+With SSR enabled, Phoenix pre-renders the initial page to HTML on the server
+(via a pool of Node workers managed by `Inertia.SSR`) and the client then
+**hydrates** it, instead of rendering from an empty `<div id="app">`. Subsequent
+navigation is still client-side. You can see it working by viewing source on a
+full-page load — the `#app` div already contains the rendered markup
+(`data-server-rendered="true"`).
+
+The SSR-specific pieces, on top of the CSR setup:
+
+- **[`assets/js/ssr.js`](assets/js/ssr.js)** — a second entry point that exports
+  `render(page)`. It uses `@vue/server-renderer`'s `renderToString` and builds
+  the app with `createSSRApp`. (Unlike the Inertia.js docs, there's no
+  `createServer` — inertia-phoenix manages the Node workers itself, so we just
+  export `render`.)
+- **[`assets/esbuild.config.js`](assets/esbuild.config.js)** — also builds the
+  SSR bundle to `priv/ssr.js` as a Node/CommonJS module (`platform: "node"`,
+  `format: "cjs"`).
+- **[`assets/js/app.js`](assets/js/app.js)** — uses `createSSRApp` (not
+  `createApp`) so the client hydrates the server-rendered markup.
+- **[`lib/vue/application.ex`](lib/vue/application.ex)** — starts
+  `{Inertia.SSR, path: ...}` (the Node pool that loads `priv/ssr.js`).
+- **[`config/config.exs`](config/config.exs)** — `config :inertia, ssr: true`.
+  `config/test.exs` turns it back off so the test suite doesn't need the Node
+  pool.
+
+`@vue/server-renderer` doesn't need to be installed separately — it ships as a
+dependency of `vue` at the exact same version, and esbuild bundles it into
+`priv/ssr.js`.

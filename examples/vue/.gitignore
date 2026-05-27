@@ -27,6 +27,10 @@ vue-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
+# The SSR bundle built by assets/esbuild.config.js (esbuild also emits a
+# companion ssr.css that the server render doesn't use).
+/priv/ssr.js
+/priv/ssr.css
 
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json

@@ -7,6 +7,10 @@ config :vue, VueWeb.Endpoint,
   secret_key_base: "pPGjQGlQOQ3MQaF6kGbLyphGuJT+n/s9D/PhxSdx62p4dJdv6QwSussKyRDHooLq",
   server: false
 
+# Render pages client-side in tests; SSR (the Node pool) isn't needed to assert
+# the server-side page payload, and turning it off keeps the suite fast.
+config :inertia, ssr: false
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

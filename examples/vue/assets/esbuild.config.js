@@ -4,6 +4,11 @@
 // this project drives esbuild from Node here instead of using the `esbuild` Hex
 // package.
 //
+// This builds two bundles:
+//   - the client bundle (js/app.js -> priv/static/assets/js), and
+//   - the SSR bundle (js/ssr.js -> priv/ssr.js), a Node/CommonJS module the
+//     Inertia.SSR pool loads to pre-render pages on the server.
+//
 // Run directly: `node esbuild.config.js` (one-off build),
 //               `node esbuild.config.js --watch` (rebuild on change, used by the
 //               Phoenix dev watcher), or
@@ -14,42 +19,59 @@ const args = process.argv.slice(2);
 const watch = args.includes("--watch");
 const deploy = args.includes("--deploy");
 
+// Shared across both bundles. unplugin-vue is instantiated per build below.
+const shared = {
+  bundle: true,
+  logLevel: "info",
+  target: "es2022",
+  minify: deploy,
+  sourcemap: watch ? "inline" : false,
+  // Vue's bundler build reads these compile-time feature flags; defining them
+  // avoids runtime warnings and drops dev-only code from production builds.
+  define: {
+    __VUE_OPTIONS_API__: "true",
+    __VUE_PROD_DEVTOOLS__: "false",
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
+  },
+};
+
 async function run() {
   // unplugin-vue ships as ESM only, so load it with a dynamic import from this
-  // CommonJS file.
+  // CommonJS file. sourceMap: false avoids an inline CSS sourcemap that esbuild's
+  // CSS loader can't parse ("Unknown word sourceMappingURL").
   const { default: vue } = await import("unplugin-vue/esbuild");
 
-  const options = {
+  const client = {
+    ...shared,
     entryPoints: ["js/app.js"],
-    bundle: true,
     format: "esm",
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",
     outdir: "../priv/static/assets/js",
-    logLevel: "info",
-    target: "es2022",
     external: ["/fonts/*", "/images/*"],
-    minify: deploy,
-    sourcemap: watch ? "inline" : false,
-    // Vue's bundler build reads these compile-time feature flags; defining them
-    // avoids runtime warnings and drops dev-only code from production builds.
-    define: {
-      __VUE_OPTIONS_API__: "true",
-      __VUE_PROD_DEVTOOLS__: "false",
-      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
-    },
-    // sourceMap: false avoids an inline CSS sourcemap that esbuild's CSS loader
-    // can't parse ("Unknown word sourceMappingURL"); esbuild still emits its own
-    // bundle sourcemaps via the `sourcemap` option above.
+    plugins: [vue({ sourceMap: false })],
+  };
+
+  // The SSR bundle runs under Node, so it targets the node platform and emits a
+  // single CommonJS module that exports `render(page)`.
+  const ssr = {
+    ...shared,
+    entryPoints: ["js/ssr.js"],
+    platform: "node",
+    format: "cjs",
+    outfile: "../priv/ssr.js",
     plugins: [vue({ sourceMap: false })],
   };
 
   if (watch) {
-    const ctx = await esbuild.context(options);
-    await ctx.watch();
+    const contexts = await Promise.all([
+      esbuild.context(client),
+      esbuild.context(ssr),
+    ]);
+    await Promise.all(contexts.map((ctx) => ctx.watch()));
     console.log("esbuild: watching for changes...");
   } else {
-    await esbuild.build(options);
+    await Promise.all([esbuild.build(client), esbuild.build(ssr)]);
   }
 }
 
