@@ -93,7 +93,14 @@ config :inertia,
   # Recommended: enable in non-production environments and disable in production,
   # so that SSR failures will not cause 500 errors (but instead will fallback to
   # CSR).
-  raise_on_ssr_failure: config_env() != :prod
+  raise_on_ssr_failure: config_env() != :prod,
+
+  # The connection assign key to read a Content-Security-Policy nonce from. When
+  # set, and the assign contains a value, the nonce will be applied to the
+  # `<script>` tag that the library injects to bootstrap the page data. Use this
+  # if you serve your app with a strict CSP that disallows inline scripts without
+  # a nonce. Defaults to `nil` (no nonce).
+  csp_nonce_assign_key: :csp_nonce
 ```
 
 This library includes a few modules to help render Inertia responses:

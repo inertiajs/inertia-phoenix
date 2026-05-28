@@ -81,6 +81,31 @@ defmodule InertiaTest do
     assert body =~ "<title data-inertia>"
   end
 
+  test "sets the nonce on the page script tag when configured", %{conn: conn} do
+    Application.put_env(:inertia, :csp_nonce_assign_key, :csp_nonce)
+    on_exit(fn -> Application.delete_env(:inertia, :csp_nonce_assign_key) end)
+
+    conn =
+      conn
+      |> Plug.Conn.assign(:csp_nonce, "abc123")
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+
+    assert body =~ ~s(<script data-page="app" type="application/json" nonce="abc123">)
+  end
+
+  test "omits the nonce when no assign key is configured", %{conn: conn} do
+    conn =
+      conn
+      |> Plug.Conn.assign(:csp_nonce, "abc123")
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+
+    refute body =~ "nonce="
+  end
+
   test "renders ssr response", %{conn: conn} do
     path =
       __ENV__.file

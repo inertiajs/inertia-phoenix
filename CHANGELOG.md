@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add a `:csp_nonce_assign_key` config option. When set, the library reads a Content-Security-Policy nonce from the given connection assign and applies it to the `<script>` tag used to bootstrap the page data.
+
 ## 3.0.0-rc2 - 2026-05-27
 
 ### Added

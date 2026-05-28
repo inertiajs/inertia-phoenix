@@ -60,7 +60,7 @@ defmodule Inertia.HTML do
   def inertia_page(assigns) do
     ~H"""
     <div id="app"></div>
-    <script data-page="app" type="application/json">
+    <script data-page="app" type="application/json" nonce={@csp_nonce}>
       <%= Phoenix.HTML.raw(json_library().encode!(@page)) %>
     </script>
     """

@@ -1226,7 +1226,14 @@ defmodule Inertia.Controller do
   defp send_csr_response(conn) do
     conn
     |> put_view(Inertia.HTML)
-    |> render(:inertia_page, %{page: inertia_assigns(conn)})
+    |> render(:inertia_page, %{page: inertia_assigns(conn), csp_nonce: csp_nonce(conn)})
+  end
+
+  defp csp_nonce(conn) do
+    case Application.get_env(:inertia, :csp_nonce_assign_key) do
+      nil -> nil
+      key -> conn.assigns[key]
+    end
   end
 
   defp inertia_assigns(conn) do
