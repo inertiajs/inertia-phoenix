@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@inertiajs/react": "^3.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "phoenix_vite": "file:../deps/phoenix_vite",
+    "tailwindcss": "^4.1.0",
+    "vite": "^8.0.0"
+  }
+}

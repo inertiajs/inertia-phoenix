@@ -1,0 +1,18 @@
+/* Tailwind is processed by @tailwindcss/vite (see assets/vite.config.mjs) and
+   pulled into the bundle because assets/js/app.jsx imports this file.
+
+   The Inertia React pages in this example use inline styles, so this file is
+   intentionally minimal — it's here to demonstrate the Vite + Tailwind
+   integration. Add your own utilities/components as needed. */
+@import "tailwindcss" source(none);
+@source "../css";
+@source "../js";
+@source "../../lib/react_vite_web";
+
+/* Add variants based on LiveView classes */
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+
+/* Make LiveView wrapper divs transparent for layout */
+[data-phx-session], [data-phx-teleported-src] { display: contents }

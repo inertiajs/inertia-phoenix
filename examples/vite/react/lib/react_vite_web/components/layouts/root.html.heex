@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.inertia_title>{assigns[:page_title]}</.inertia_title>
+    <.inertia_head content={@inertia_head} />
+    <%!-- In development, @vitejs/plugin-react requires this React Fast Refresh
+          preamble to run before any React module. Vite serves /@react-refresh
+          from the dev server (see static_url in config/dev.exs). It is omitted
+          in production, where the prebuilt bundle has no Fast Refresh. --%>
+    <script
+      :if={PhoenixVite.Components.has_vite_watcher?(ReactViteWeb.Endpoint)}
+      type="module"
+      phx-no-curly-interpolation
+    >
+      import RefreshRuntime from "<%= static_url(@conn, "/@react-refresh") %>"
+      RefreshRuntime.injectIntoGlobalHook(window)
+      window.$RefreshReg$ = () => {}
+      window.$RefreshSig$ = () => (type) => type
+      window.__vite_plugin_react_preamble_installed__ = true
+    </script>
+    <%!-- Loads js/app.jsx (and its imported CSS) from the Vite dev server in
+          development, or from the hashed files in the Vite manifest in
+          production. --%>
+    <PhoenixVite.Components.assets
+      names={["js/app.jsx"]}
+      manifest={{:react_vite, "priv/static/.vite/manifest.json"}}
+      dev_server={PhoenixVite.Components.has_vite_watcher?(ReactViteWeb.Endpoint)}
+      to_url={fn p -> static_url(@conn, p) end}
+    />
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>
