@@ -50,9 +50,9 @@ defmodule React.MixProject do
       # app keeps the standard `esbuild` Hex package (the CLI) — no Node-driven
       # build like the Svelte/Vue examples need.
       #
-      # Uses the local inertia-phoenix checkout (two directories up). In a real
+      # Uses the local inertia-phoenix checkout (three directories up). In a real
       # app this would be `{:inertia, "~> 3.0"}` from Hex.
-      {:inertia, path: "../.."},
+      {:inertia, path: "../../.."},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
       {:heroicons,
