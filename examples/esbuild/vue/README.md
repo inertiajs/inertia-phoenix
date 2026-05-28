@@ -5,10 +5,10 @@ app with Inertia.js, bundled with **esbuild**.
 
 It was generated with `mix phx.new vue --no-ecto --no-mailer` (Phoenix 1.8) and
 then wired up for Inertia + Vue by hand. The app depends on the inertia-phoenix
-checkout two directories up via `{:inertia, path: "../.."}`.
+checkout three directories up via `{:inertia, path: "../../.."}`.
 
 ```bash
-cd examples/vue
+cd examples/esbuild/vue
 mix setup          # deps.get + assets.setup + assets.build
 mix phx.server     # visit http://localhost:4000
 ```

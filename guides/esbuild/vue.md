@@ -4,7 +4,7 @@ This guide walks through configuring a Phoenix + Inertia.js app to render
 [Vue 3](https://vuejs.org/) pages, bundled with esbuild.
 
 A complete, runnable version of the manual setup below lives in
-[`examples/vue`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/vue).
+[`examples/esbuild/vue`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/esbuild/vue).
 
 > #### Scope {: .info}
 >
@@ -285,7 +285,7 @@ The steps below are the Vue-specific pieces; enabling SSR itself — starting th
 `Inertia.SSR` pool and setting `config :inertia, ssr: true` — is covered in the
 README's [Server-side rendering](readme.html#server-side-rendering) section. A
 complete version lives in
-[`examples/vue`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/vue).
+[`examples/esbuild/vue`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/esbuild/vue).
 
 ### 1. Add the SSR entry point
 
@@ -337,7 +337,7 @@ await Promise.all([esbuild.build(client), esbuild.build(ssr)]);
 // or in --watch mode, watch both contexts
 ```
 
-See the [example's esbuild.config.js](https://github.com/inertiajs/inertia-phoenix/blob/main/examples/vue/assets/esbuild.config.js)
+See the [example's esbuild.config.js](https://github.com/inertiajs/inertia-phoenix/blob/main/examples/esbuild/vue/assets/esbuild.config.js)
 for the full file. esbuild also emits a `priv/ssr.css` the server render doesn't
 use — add both `priv/ssr.js` and `priv/ssr.css` to your `.gitignore`.
 
