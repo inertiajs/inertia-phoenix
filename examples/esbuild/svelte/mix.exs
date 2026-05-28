@@ -52,9 +52,9 @@ defmodule Svelte.MixProject do
       # drive esbuild from Node instead (see assets/esbuild.config.js) and drop
       # the `esbuild` dependency entirely.
       #
-      # Uses the local inertia-phoenix checkout (two directories up). In a real
+      # Uses the local inertia-phoenix checkout (three directories up). In a real
       # app this would be `{:inertia, "~> 3.0"}` from Hex.
-      {:inertia, path: "../.."},
+      {:inertia, path: "../../.."},
       {:heroicons,
        github: "tailwindlabs/heroicons",
        tag: "v2.2.0",

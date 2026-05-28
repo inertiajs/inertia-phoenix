@@ -4,7 +4,7 @@ This guide walks through configuring a Phoenix + Inertia.js app to render
 [Svelte](https://svelte.dev/) pages, bundled with esbuild.
 
 A complete, runnable version of the manual setup below lives in
-[`examples/svelte`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/svelte).
+[`examples/esbuild/svelte`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/esbuild/svelte).
 
 > #### Scope {: .info}
 >
@@ -295,7 +295,7 @@ The steps below are the Svelte-specific pieces; enabling SSR itself — starting
 the `Inertia.SSR` pool and setting `config :inertia, ssr: true` — is covered in
 the README's [Server-side rendering](readme.html#server-side-rendering) section.
 A complete version lives in
-[`examples/svelte`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/svelte).
+[`examples/esbuild/svelte`](https://github.com/inertiajs/inertia-phoenix/tree/main/examples/esbuild/svelte).
 
 ### 1. Add the SSR entry point
 
@@ -347,7 +347,7 @@ const ssr = {
 // build/watch both the client and ssr configs
 ```
 
-See the [example's esbuild.config.js](https://github.com/inertiajs/inertia-phoenix/blob/main/examples/svelte/assets/esbuild.config.js)
+See the [example's esbuild.config.js](https://github.com/inertiajs/inertia-phoenix/blob/main/examples/esbuild/svelte/assets/esbuild.config.js)
 for the full file. Two things to note: `generate: "server"` is required (the
 default compiles for the DOM), and `dev: false` avoids a Svelte 5 dev-mode SSR
 crash. With injected CSS, the server render inlines component styles into the
