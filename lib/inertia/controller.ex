@@ -29,9 +29,12 @@ defmodule Inertia.Controller do
     @type t :: %__MODULE__{
             fun: fun() | any(),
             wrapper: String.t(),
-            metadata: (any() -> map()) | nil
+            scroll_metadata: (any() -> map()) | nil,
+            meta: (any() -> map()) | nil,
+            page_name: String.t() | nil,
+            transform: (any() -> any()) | nil
           }
-    defstruct [:fun, wrapper: "data", metadata: nil]
+    defstruct [:fun, :transform, :page_name, :meta, wrapper: "data", scroll_metadata: nil]
   end
 
   defmodule PropsMeta do
@@ -349,16 +352,43 @@ defmodule Inertia.Controller do
   Marks a prop for infinite scroll pagination. Automatically configures
   merge behavior for the data key and extracts pagination metadata.
 
+  Accepts several shapes of paginated data:
+
+  - A struct implementing the `Inertia.Paginated` protocol (e.g. `Scrivener.Page`)
+  - A `{entries, meta}` tuple where `meta` implements `Inertia.Paginated`
+    (e.g. Flop's `{records, %Flop.Meta{}}`)
+  - A map shaped like `%{data: [...], meta: %{...}}` (where the entries live under
+    the `:wrapper` key)
+
+  In every case the entries are placed under the `:wrapper` key (default `"data"`)
+  so the resulting prop is uniformly shaped (e.g. `%{"data" => [...]}`) regardless
+  of the pagination library. Pagination metadata is emitted separately in
+  `scrollProps`, so it is not echoed in the prop value.
+
   ## Options
 
-  - `:wrapper` - The key containing the data items (default: "data")
+  - `:wrapper` - The key the data items are placed under (default: "data")
   - `:page_name` - Override the page query parameter name
-  - `:metadata` - Custom metadata extraction function
+  - `:scroll_metadata` - Custom metadata extraction function for `scrollProps` (the
+    pagination state the client `<InfiniteScroll>` component uses; receives the
+    original value). A per-call override of the `Inertia.Paginated` protocol.
+  - `:transform` - A 1-arity function applied to each entry before serialization,
+    for shaping entries into a prop-friendly form
+  - `:meta` - A 1-arity function (receiving the original value) whose returned map
+    is placed under a `"meta"` key in the prop, alongside the entries — for
+    surfacing additional pagination data (totals, etc.) to the page. This is
+    distinct from `:scroll_metadata`/`scrollProps`, which drives the scroll component.
 
   ## Examples
 
       # Basic usage with auto-detected metadata
       assign_prop(conn, :users, inertia_scroll(paginated_users))
+
+      # Scrivener (via the Inertia.Paginated protocol)
+      assign_prop(conn, :users, inertia_scroll(MyApp.Repo.paginate(query)))
+
+      # Flop ({records, meta} tuple)
+      assign_prop(conn, :users, inertia_scroll(Flop.run(query, params)))
 
       # With lazy evaluation
       assign_prop(conn, :users, inertia_scroll(fn -> User.paginate(params) end))
@@ -366,38 +396,36 @@ defmodule Inertia.Controller do
       # Custom wrapper key
       assign_prop(conn, :users, inertia_scroll(data, wrapper: "items"))
 
-      # Custom metadata
-      assign_prop(conn, :users, inertia_scroll(data, metadata: fn data ->
+      # Serialize each entry
+      assign_prop(conn, :users,
+        inertia_scroll(Flop.run(query, params), transform: &serialize_user/1))
+
+      # Custom scroll metadata (overrides the Inertia.Paginated protocol)
+      assign_prop(conn, :users, inertia_scroll(data, scroll_metadata: fn data ->
         %{page_name: "p", current_page: 1, next_page: 2, previous_page: nil}
       end))
+
+      # Surface extra pagination data under a "meta" key in the prop
+      assign_prop(conn, :users,
+        inertia_scroll(Flop.run(query, params),
+          meta: fn {_records, meta} -> %{total: meta.total_count} end
+        ))
+      # => %{users: %{data: [...], meta: %{total: 42}}}
   """
   @doc since: "2.6.0"
   @spec inertia_scroll(value :: any()) :: scroll()
   @spec inertia_scroll(value :: any(), opts :: keyword()) :: scroll()
-  def inertia_scroll(value, opts \\ [])
-
-  def inertia_scroll(fun, opts) when is_function(fun, 0) do
-    %Scroll{
-      fun: fun,
-      wrapper: Keyword.get(opts, :wrapper, "data"),
-      metadata: build_scroll_metadata_fun(opts)
-    }
-  end
-
-  def inertia_scroll(value, opts) do
+  def inertia_scroll(value, opts \\ []) do
+    # A 0-arity function value is resolved lazily at prop-resolution time; see
+    # unwrap_scroll/5.
     %Scroll{
       fun: value,
       wrapper: Keyword.get(opts, :wrapper, "data"),
-      metadata: build_scroll_metadata_fun(opts)
+      scroll_metadata: Keyword.get(opts, :scroll_metadata),
+      meta: Keyword.get(opts, :meta),
+      page_name: Keyword.get(opts, :page_name),
+      transform: Keyword.get(opts, :transform)
     }
-  end
-
-  defp build_scroll_metadata_fun(opts) do
-    cond do
-      fun = Keyword.get(opts, :metadata) -> fun
-      page_name = Keyword.get(opts, :page_name) -> fn _data -> %{page_name: page_name} end
-      true -> nil
-    end
   end
 
   @doc """
@@ -1020,17 +1048,28 @@ defmodule Inertia.Controller do
 
   defp unwrap_scroll(%Scroll{} = scroll, path, _transformed_key, ctx, meta) do
     resolved_value = if is_function(scroll.fun, 0), do: scroll.fun.(), else: scroll.fun
-    scroll_metadata = extract_scroll_metadata(resolved_value, scroll)
-    merge_path = "#{path}.#{scroll.wrapper}"
+    {entries, base_metadata} = normalize_scroll(resolved_value, scroll)
+
+    # Place entries under the wrapper key (alongside any opt-in `:meta`). The
+    # wrapper key is transformed (e.g. camelized) by the prop resolver, and the
+    # merge path below applies the same transform to the wrapper segment so the
+    # two stay in sync. Entries take precedence on a key collision.
+    prop_value =
+      scroll.meta
+      |> scroll_meta_map(resolved_value)
+      |> Map.put(scroll.wrapper, apply_scroll_transform(entries, scroll.transform))
+
+    metadata = finalize_scroll_metadata(base_metadata, resolved_value, scroll)
+    merge_path = "#{path}.#{transform_key(scroll.wrapper, ctx.opts)}"
 
     is_reset = merge_path in ctx.reset
 
     scroll_meta =
       %{
-        "pageName" => scroll_metadata.page_name,
-        "currentPage" => scroll_metadata.current_page,
-        "previousPage" => scroll_metadata.previous_page,
-        "nextPage" => scroll_metadata.next_page
+        "pageName" => metadata.page_name,
+        "currentPage" => metadata.current_page,
+        "previousPage" => metadata.previous_page,
+        "nextPage" => metadata.next_page
       }
       |> then(fn meta_map ->
         if is_reset, do: Map.put(meta_map, "reset", true), else: meta_map
@@ -1052,10 +1091,99 @@ defmodule Inertia.Controller do
         end
       end
 
-    {resolved_value, meta}
+    {prop_value, meta}
   end
 
   defp unwrap_scroll(value, _path, _transformed_key, _ctx, meta), do: {value, meta}
+
+  # Returns {entries, raw_metadata} for the supported paginated shapes.
+
+  # A {entries, meta} tuple (e.g. Flop's {records, %Flop.Meta{}}): the entries are
+  # supplied directly and metadata is derived from `meta`. Protocol metadata
+  # extraction is skipped when a custom :scroll_metadata function is given, so
+  # cursor-based pagination (which would otherwise raise) can still be handled.
+  defp normalize_scroll({entries, meta}, scroll) when is_list(entries) do
+    raw_metadata =
+      cond do
+        scroll.scroll_metadata ->
+          nil
+
+        Inertia.Paginated.impl_for(meta) ->
+          Inertia.Paginated.to_scroll(meta)
+
+        true ->
+          raise ArgumentError,
+                "inertia_scroll/2 received a {entries, meta} tuple, but #{inspect(meta)} " <>
+                  "does not implement the Inertia.Paginated protocol. Implement it, or " <>
+                  "pass a :scroll_metadata function."
+      end
+
+    {entries, raw_metadata}
+  end
+
+  # A struct implementing Inertia.Paginated that carries its own entries
+  # (e.g. Scrivener.Page), or a plain %{data: [...], meta: %{...}} map whose
+  # entries live under the wrapper key. Anything else is unsupported.
+  defp normalize_scroll(value, scroll) do
+    cond do
+      impl = Inertia.Paginated.impl_for(value) ->
+        scroll_map = impl.to_scroll(value)
+
+        case Map.fetch(scroll_map, :entries) do
+          {:ok, entries} ->
+            {entries, Map.delete(scroll_map, :entries)}
+
+          :error ->
+            raise ArgumentError,
+                  "#{inspect(value.__struct__)} provides pagination metadata only. " <>
+                    "Pass a {entries, meta} tuple to inertia_scroll/2."
+        end
+
+      is_map(value) and not is_struct(value) ->
+        {fetch_scroll_entries(value, scroll.wrapper), value[:meta] || value["meta"] || %{}}
+
+      true ->
+        raise ArgumentError, "inertia_scroll/2 expected paginated data, got: #{inspect(value)}"
+    end
+  end
+
+  defp fetch_scroll_entries(map, wrapper) do
+    Map.get(map, wrapper) || Map.get(map, existing_atom(wrapper)) || []
+  end
+
+  defp existing_atom(string) do
+    String.to_existing_atom(string)
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp apply_scroll_transform(entries, nil), do: entries
+
+  defp apply_scroll_transform(entries, fun) do
+    validate_scroll_fun!(:transform, fun)
+    Enum.map(entries, fun)
+  end
+
+  defp scroll_meta_map(nil, _value), do: %{}
+
+  defp scroll_meta_map(fun, value) do
+    validate_scroll_fun!(:meta, fun)
+    %{"meta" => validate_meta_result!(fun.(value))}
+  end
+
+  defp validate_scroll_fun!(_opt, fun) when is_function(fun, 1), do: :ok
+
+  defp validate_scroll_fun!(opt, other) do
+    raise ArgumentError,
+          "inertia_scroll/2 #{inspect(opt)} must be a 1-arity function, got: #{inspect(other)}"
+  end
+
+  defp validate_meta_result!(result) when is_map(result), do: result
+
+  defp validate_meta_result!(other) do
+    raise ArgumentError,
+          "inertia_scroll/2 :meta function must return a map, got: #{inspect(other)}"
+  end
 
   defp resolve_value(fun) when is_function(fun, 0), do: {fun.(), true}
   defp resolve_value(value), do: {value, false}
@@ -1289,21 +1417,28 @@ defmodule Inertia.Controller do
 
   defp resolve_nested_value(value, _opts), do: value
 
-  defp extract_scroll_metadata(data, scroll) do
-    base_metadata =
-      if scroll.metadata do
-        scroll.metadata.(data)
+  # Resolves the final scroll metadata, applying defaults. A custom :scroll_metadata
+  # function (operating on the original resolved value) takes precedence over the
+  # metadata extracted during normalization. A :page_name option always overrides
+  # the resolved page name.
+  defp finalize_scroll_metadata(base_metadata, resolved_value, scroll) do
+    raw =
+      if scroll.scroll_metadata do
+        scroll.scroll_metadata.(resolved_value)
       else
-        Inertia.ScrollMetadata.to_scroll_metadata(data)
+        base_metadata || %{}
       end
 
-    # Ensure all required keys exist with defaults
     %{
-      page_name: base_metadata[:page_name] || base_metadata["page_name"] || "page",
-      current_page: base_metadata[:current_page] || base_metadata["current_page"],
-      previous_page: base_metadata[:previous_page] || base_metadata["previous_page"],
-      next_page: base_metadata[:next_page] || base_metadata["next_page"]
+      page_name: scroll.page_name || fetch_scroll_meta(raw, :page_name, "page"),
+      current_page: fetch_scroll_meta(raw, :current_page),
+      previous_page: fetch_scroll_meta(raw, :previous_page),
+      next_page: fetch_scroll_meta(raw, :next_page)
     }
+  end
+
+  defp fetch_scroll_meta(raw, key, default \\ nil) do
+    raw[key] || raw[to_string(key)] || default
   end
 
   # Applies any specified transformations to the key (such as conversion to

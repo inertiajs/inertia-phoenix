@@ -383,11 +383,141 @@ defmodule MyAppWeb.PageController do
           entries: [%{id: 1}]
         },
         wrapper: "entries",
-        metadata: fn _data ->
+        scroll_metadata: fn _data ->
           %{page_name: "p", current_page: 5, next_page: 6, previous_page: 4}
         end
       )
     )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_scrivener(conn, _params) do
+    page = %Scrivener.Page{
+      entries: [%{id: 1, name: "Alice"}, %{id: 2, name: "Bob"}],
+      page_number: 2,
+      page_size: 2,
+      total_entries: 6,
+      total_pages: 3
+    }
+
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:users, inertia_scroll(page))
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_flop(conn, _params) do
+    records = [%{id: 1, name: "Alice"}, %{id: 2, name: "Bob"}]
+
+    meta = %Flop.Meta{
+      current_page: 2,
+      next_page: 3,
+      previous_page: 1,
+      page_size: 2,
+      total_count: 6,
+      total_pages: 3
+    }
+
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:users, inertia_scroll({records, meta}))
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_with_transform(conn, _params) do
+    records = [%{id: 1, name: "Alice", secret: "x"}, %{id: 2, name: "Bob", secret: "y"}]
+    meta = %Flop.Meta{current_page: 1, next_page: 2, previous_page: nil}
+
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll({records, meta}, transform: fn user -> %{id: user.id} end)
+    )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_with_meta(conn, _params) do
+    records = [%{id: 1, name: "Alice"}, %{id: 2, name: "Bob"}]
+
+    meta = %Flop.Meta{
+      current_page: 1,
+      next_page: 2,
+      previous_page: nil,
+      total_count: 6,
+      total_pages: 3
+    }
+
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll({records, meta},
+        meta: fn {_records, m} -> %{total: m.total_count, pages: m.total_pages} end
+      )
+    )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_invalid_meta(conn, _params) do
+    records = [%{id: 1}]
+    meta = %Flop.Meta{current_page: 1, next_page: 2, previous_page: nil}
+
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:users, inertia_scroll({records, meta}, meta: fn _ -> [total: 6] end))
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_camelized_wrapper(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :user_list,
+      inertia_scroll(
+        %{data_items: [%{id: 1}], meta: %{current_page: 1}},
+        wrapper: "data_items"
+      )
+    )
+    |> camelize_props()
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_legacy_transform(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll(
+        %{
+          data: [%{id: 1, secret: "x"}, %{id: 2, secret: "y"}],
+          meta: %{current_page: 1, next_page: 2, previous_page: nil}
+        },
+        transform: fn user -> %{id: user.id} end
+      )
+    )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_flop_cursor_custom_metadata(conn, _params) do
+    records = [%{id: 1, name: "Alice"}]
+    meta = %Flop.Meta{current_page: nil, start_cursor: "abc", end_cursor: "xyz"}
+
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :users,
+      inertia_scroll({records, meta},
+        scroll_metadata: fn _ -> %{page_name: "after", current_page: "xyz", next_page: "def"} end
+      )
+    )
+    |> render_inertia("Home")
+  end
+
+  def scroll_props_invalid_tuple(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:users, inertia_scroll({[%{id: 1}], %{some: "non-paginator"}}))
     |> render_inertia("Home")
   end
 

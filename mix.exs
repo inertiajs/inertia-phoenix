@@ -46,6 +46,8 @@ defmodule Inertia.MixProject do
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:igniter, "~> 0.7", optional: true},
+      {:flop, "~> 0.25", optional: true},
+      {:scrivener, "~> 2.7", optional: true},
       {:nodejs, "~> 3.0"},
       {:ecto, ">= 3.0.0"}
     ]

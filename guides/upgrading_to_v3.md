@@ -76,6 +76,76 @@ createInertiaApp({
 
 See the [CSRF protection](readme.html#csrf-protection) section of the README for details.
 
+### Infinite scroll pagination has been reworked
+
+The `inertia_scroll/2` infinite-scroll support (added in 2.6.0) was reworked in 3.0. If you don't use `inertia_scroll`, no action is required.
+
+**The scroll prop now contains only the entries.** Previously a `%{data: [...], meta: %{...}}` map was passed through verbatim, so the `meta` key (and any other sibling keys) appeared in the prop. The prop is now uniformly shaped as `%{<wrapper> => entries}`, and pagination state is surfaced via the page's `scrollProps` instead.
+
+If a component read pagination state off the prop, read it from `scrollProps` (or the component's pagination metadata) instead:
+
+```javascript
+// Before (v2) — meta rode along in the prop
+const { data, meta } = usePage().props.users;
+
+// After (v3) — entries only; pagination state comes from the InfiniteScroll component
+const { data } = usePage().props.users;
+```
+
+If you specifically need extra data (totals, etc.) on the prop, opt back in with the new `:meta` option:
+
+```elixir
+inertia_scroll(Flop.run(query, params),
+  meta: fn {_records, meta} -> %{total: meta.total_count} end
+)
+# => %{users: %{data: [...], meta: %{total: 42}}}
+```
+
+**The `Inertia.ScrollMetadata` protocol has been removed**, replaced by the single `Inertia.Paginated` protocol. Its `to_scroll/1` returns a metadata map that optionally carries the page's `:entries`.
+
+[Scrivener](https://hex.pm/packages/scrivener) and [Flop](https://hex.pm/packages/flop) are now supported out of the box, so a hand-written `defimpl` for them can be **deleted** — just pass the value directly:
+
+```elixir
+# Before (v2) — custom defimpl required
+defimpl Inertia.ScrollMetadata, for: Scrivener.Page do
+  def to_scroll_metadata(page) do
+    %{page_name: "page", current_page: page.page_number, ...}
+  end
+end
+
+inertia_scroll(page, wrapper: "entries")
+
+# After (v3) — first-party; no defimpl needed
+inertia_scroll(MyApp.Repo.paginate(query))
+```
+
+For other libraries, migrate the `defimpl` from `Inertia.ScrollMetadata.to_scroll_metadata/1` to `Inertia.Paginated.to_scroll/1`, including the entries under an `:entries` key when the struct carries them:
+
+```elixir
+defimpl Inertia.Paginated, for: MyPaginator.Page do
+  def to_scroll(page) do
+    %{
+      entries: page.entries,
+      current_page: page.page_number,
+      previous_page: if(page.page_number > 1, do: page.page_number - 1),
+      next_page: if(page.page_number < page.total_pages, do: page.page_number + 1)
+    }
+  end
+end
+```
+
+**The `:metadata` option was renamed to `:scroll_metadata`** (to distinguish it from the new prop-level `:meta` option):
+
+```elixir
+# Before (v2)
+inertia_scroll(data, metadata: fn data -> %{current_page: 1, next_page: 2} end)
+
+# After (v3)
+inertia_scroll(data, scroll_metadata: fn data -> %{current_page: 1, next_page: 2} end)
+```
+
+See the [Scroll props](readme.html#scroll-props) section of the README for the full API.
+
 ## New features worth adopting
 
 These are not required for upgrading, but new in 3.0:
@@ -86,5 +156,6 @@ These are not required for upgrading, but new in 3.0:
 - **`match_on:` option** on `inertia_merge`, `inertia_prepend`, and `inertia_deep_merge` — Client-side deduplication of merged items.
 - **`ssr_exclude_paths`** config option — Disable SSR for specific paths via string prefixes or regex.
 - **Nested prop type wrappers** — `inertia_defer`, `inertia_merge`, `inertia_deep_merge`, `inertia_optional`, `inertia_once`, and `inertia_scroll` now work at any nesting depth, including inside closures.
+- **First-party pagination support** — `inertia_scroll/2` accepts a `Scrivener.Page` or a Flop `{records, %Flop.Meta{}}` tuple directly, extensible to other libraries via the `Inertia.Paginated` protocol. Plus `:transform` (shape each entry) and `:meta` (surface extra data under a `"meta"` key) options.
 
 See the [CHANGELOG](changelog.html) for the full list of additions.

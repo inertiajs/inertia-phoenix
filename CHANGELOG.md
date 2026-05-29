@@ -4,9 +4,19 @@
 
 ### Added
 
+- First-party pagination support for `inertia_scroll/2`. Pass a `Scrivener.Page` struct or a Flop `{records, %Flop.Meta{}}` tuple directly and the entries are placed under the `:wrapper` key (default `"data"`) with pagination metadata extracted automatically. Extensible to other libraries via the `Inertia.Paginated` protocol, whose `to_scroll/1` returns a metadata map that optionally carries the page's `:entries`. Also adds a `:transform` option for serializing each entry before it is rendered, and a `:meta` option (a function whose returned map is placed under a `"meta"` key in the prop, alongside the entries) for surfacing extra pagination data to the page.
 - Add a `:csp_nonce_assign_key` config option. When set, the library reads a Content-Security-Policy nonce from the given connection assign and applies it to the `<script>` tag used to bootstrap the page data.
 - The `:match_on` option on `inertia_merge/2`, `inertia_prepend/2`, and `inertia_deep_merge/2` now accepts a list of keys (in addition to a single key) for matching on multiple fields, producing one `matchPropsOn` entry per key.
 - Add an `on_error: :ignore` option to `inertia_defer/2,3` for graceful failure of deferred props. When a rescued deferred prop's resolver fails during a partial reload, the prop is omitted, its path is reported in the `rescuedProps` page metadata, and the failure is logged and emitted as a `[:inertia, :deferred_prop, :rescue]` telemetry event ([#75](https://github.com/inertiajs/inertia-phoenix/issues/75)).
+
+### Changed
+
+- **(Breaking)** `inertia_scroll/2` now always shapes the prop value as `%{<wrapper> => entries}`. Previously a `%{data:, meta:}` map was passed through verbatim; now only the entries under the wrapper key are kept, and any other top-level keys (including `meta` and any sibling fields like `total_count`) are dropped from the prop. Pagination metadata is surfaced via `scrollProps` instead — read pagination state from there.
+- **(Breaking)** Renamed the `inertia_scroll/2` `:metadata` option (added in 2.6.0) to `:scroll_metadata`, to distinguish it from the new `:meta` option (which adds display data to the prop value). `:scroll_metadata` still produces the `scrollProps` the client component uses.
+
+### Removed
+
+- **(Breaking)** Removed the `Inertia.ScrollMetadata` protocol (added in 2.6.0). Pagination extensibility is now provided by the single `Inertia.Paginated` protocol — implement `to_scroll/1` (which returns a metadata map, optionally carrying `:entries`) instead of `to_scroll_metadata/1`.
 
 ### Fixed
 

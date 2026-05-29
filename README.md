@@ -452,7 +452,11 @@ conn
 |> render_inertia("Users/Index")
 ```
 
-The function expects paginated data with a structure like:
+`inertia_scroll` accepts a few shapes of paginated data:
+
+- A struct from a [supported pagination library](#pagination-libraries) (e.g. `Scrivener.Page`)
+- A `{entries, meta}` tuple (e.g. Flop's `{records, %Flop.Meta{}}`)
+- A plain map with the entries under the wrapper key (default `data`) and a `meta` map:
 
 ```elixir
 %{
@@ -466,9 +470,9 @@ The function expects paginated data with a structure like:
 }
 ```
 
-This will produce a response with:
+In every case the entries are placed under the wrapper key, producing a uniformly-shaped response:
 
-- The paginated data in `props`
+- The entries in `props` under the wrapper key
 - The data path (e.g., `"users.data"`) added to `mergeProps`
 - Pagination metadata in `scrollProps`
 
@@ -476,8 +480,7 @@ This will produce a response with:
 {
   "props": {
     "users": {
-      "data": [...],
-      "meta": {...}
+      "data": [...]
     }
   },
   "mergeProps": ["users.data"],
@@ -492,13 +495,18 @@ This will produce a response with:
 }
 ```
 
+> [!NOTE]
+> Pagination metadata is surfaced via `scrollProps`, so it is not echoed in the prop value by default — only the entries under the wrapper key are kept. (If you pass the plain `%{data:, meta:}` map, the `meta` key is dropped from the rendered prop.) To surface extra data to the page alongside the entries, use the [`:meta` option](#including-extra-metadata-in-the-prop).
+
 ### Options
 
 The `inertia_scroll/2` function accepts the following options:
 
-- `:wrapper` - The key containing the data items (default: `"data"`)
+- `:wrapper` - The key the data items are placed under (default: `"data"`)
 - `:page_name` - Override the page query parameter name
-- `:metadata` - Custom metadata extraction function
+- `:scroll_metadata` - Custom metadata extraction function for `scrollProps`, the pagination state the client component uses (receives the original value; a per-call override of the `Inertia.Paginated` protocol)
+- `:transform` - A 1-arity function applied to each entry before serialization (see [Serializing entries](#serializing-entries))
+- `:meta` - A 1-arity function whose returned map is placed under a `"meta"` key in the prop, alongside the entries (see [Including extra metadata in the prop](#including-extra-metadata-in-the-prop))
 
 ```elixir
 # Custom wrapper key (for data structures that use "items" instead of "data")
@@ -520,15 +528,66 @@ conn
 |> assign_prop(:users, inertia_scroll(fn -> User.paginate(params) end))
 ```
 
-### Custom metadata
+### Pagination libraries
 
-For pagination libraries that use different data structures, you can provide a custom metadata extraction function:
+`inertia_scroll` has first-party support for popular pagination libraries. When given a recognized pagination result, it pulls out the entries, places them under the `:wrapper` key (default `"data"`), and extracts the pagination metadata — so the prop is uniformly shaped regardless of which library you use.
+
+[Scrivener](https://hex.pm/packages/scrivener) returns a `Scrivener.Page` struct, which you can pass directly:
 
 ```elixir
 conn
-|> assign_prop(:users, inertia_scroll(scrivener_page,
+|> assign_prop(:users, inertia_scroll(MyApp.Repo.paginate(query)))
+|> render_inertia("Users/Index")
+```
+
+[Flop](https://hex.pm/packages/flop) returns a `{records, %Flop.Meta{}}` tuple, which you can also pass directly:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(Flop.run(query, params)))
+|> render_inertia("Users/Index")
+```
+
+In both cases the entries end up under `props.users.data` and `"users.data"` is added to `mergeProps`.
+
+> [!NOTE]
+> Flop's page query parameter is assumed to be `"page"`; override it with `:page_name` if you've configured a different name. Cursor-based Flop pagination (which uses `:after`/`:before` cursors rather than page numbers) is not supported out of the box — provide a custom `:scroll_metadata` function for that case.
+
+### Serializing entries
+
+By default, each entry is serialized by your JSON library (e.g. via a `Jason.Encoder` implementation on your schema). If you'd rather shape entries into a prop-friendly form explicitly, pass a `:transform` function — it's applied to each entry before serialization:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(Flop.run(query, params),
+  transform: fn user -> %{id: user.id, name: user.name} end
+))
+```
+
+### Including extra metadata in the prop
+
+The scroll prop holds only the entries by default. If your page needs additional pagination data (totals, etc.), pass a `:meta` function — its returned map is placed under a `"meta"` key alongside the entries:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(Flop.run(query, params),
+  meta: fn {_records, meta} -> %{total: meta.total_count, pages: meta.total_pages} end
+))
+
+# => %{users: %{data: [...], meta: %{total: 42, pages: 5}}}
+```
+
+The function receives the original value (e.g. the `{records, meta}` tuple for Flop, or the `Scrivener.Page` struct), so you can surface whatever your paginator exposes. This is independent of `scrollProps` (which drives the `<InfiniteScroll>` component) — use `:meta` for data the page itself renders.
+
+### Custom scroll metadata
+
+For a one-off pagination shape without first-party support (or to override an existing one), provide a `:scroll_metadata` function — a per-call alternative to implementing the [`Inertia.Paginated` protocol](#the-inertiapaginated-protocol). It produces the `scrollProps` the client component uses:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_scroll(page,
   wrapper: "entries",
-  metadata: fn page ->
+  scroll_metadata: fn page ->
     %{
       page_name: "page",
       current_page: page.page_number,
@@ -539,28 +598,44 @@ conn
 ))
 ```
 
-### ScrollMetadata protocol
+> [!NOTE]
+> `:scroll_metadata` drives `scrollProps` (the paging state the `<InfiniteScroll>` component reads). Don't confuse it with [`:meta`](#including-extra-metadata-in-the-prop), which adds display data to the prop value itself.
 
-For reusable metadata extraction, you can implement the `Inertia.ScrollMetadata` protocol for your pagination library's struct:
+### The `Inertia.Paginated` protocol
+
+To add reusable support for another pagination library, implement the `Inertia.Paginated` protocol. Its `to_scroll/1` returns a metadata map; omitted keys fall back to defaults (`page_name` defaults to `"page"`; the rest to `nil`).
+
+For libraries whose struct **carries its own entries** (like `Scrivener.Page`), include an `:entries` key:
 
 ```elixir
-defimpl Inertia.ScrollMetadata, for: Scrivener.Page do
-  def to_scroll_metadata(page) do
+defimpl Inertia.Paginated, for: MyPaginator.Page do
+  def to_scroll(%{entries: entries, page_number: page, total_pages: total}) do
     %{
-      page_name: "page",
-      current_page: page.page_number,
-      previous_page: if(page.page_number > 1, do: page.page_number - 1),
-      next_page: if(page.page_number < page.total_pages, do: page.page_number + 1)
+      entries: entries,
+      current_page: page,
+      previous_page: if(page > 1, do: page - 1),
+      next_page: if(page < total, do: page + 1)
     }
   end
 end
+
+# used as: inertia_scroll(page)
 ```
 
-Then you can use `inertia_scroll` directly with the struct:
+For libraries that return entries **separately** from their metadata (like Flop's `{records, meta}` tuple), implement the protocol for the metadata struct and **omit** `:entries` — the entries come from the tuple you pass to `inertia_scroll`:
 
 ```elixir
-conn
-|> assign_prop(:users, inertia_scroll(scrivener_page, wrapper: "entries"))
+defimpl Inertia.Paginated, for: MyPaginator.Meta do
+  def to_scroll(meta) do
+    %{
+      current_page: meta.current_page,
+      previous_page: meta.previous_page,
+      next_page: meta.next_page
+    }
+  end
+end
+
+# used as: inertia_scroll({entries, meta})
 ```
 
 ## Shared data

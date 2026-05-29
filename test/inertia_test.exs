@@ -1339,15 +1339,10 @@ defmodule InertiaTest do
       html = html_response(conn, 200)
       props = extract_page_data_from_html(html)
 
-      # Props should include the paginated data
+      # Props should include the paginated data under the wrapper key. The meta is
+      # surfaced via scrollProps (below), not echoed in the prop value.
       assert props["props"]["users"] == %{
-               "data" => [%{"id" => 1, "name" => "Alice"}, %{"id" => 2, "name" => "Bob"}],
-               "meta" => %{
-                 "current_page" => 1,
-                 "next_page" => 2,
-                 "previous_page" => nil,
-                 "page_name" => "page"
-               }
+               "data" => [%{"id" => 1, "name" => "Alice"}, %{"id" => 2, "name" => "Bob"}]
              }
 
       # Regular props should also be included
@@ -1442,6 +1437,118 @@ defmodule InertiaTest do
 
       # Custom wrapper should be used
       assert "users.entries" in props["mergeProps"]
+    end
+
+    test "supports Scrivener.Page via the Inertia.Paginated protocol", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_scrivener")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      # Entries are placed under the uniform "data" wrapper
+      assert props["props"]["users"] == %{
+               "data" => [%{"id" => 1, "name" => "Alice"}, %{"id" => 2, "name" => "Bob"}]
+             }
+
+      assert "users.data" in props["mergeProps"]
+
+      assert props["scrollProps"]["users"] == %{
+               "pageName" => "page",
+               "currentPage" => 2,
+               "previousPage" => 1,
+               "nextPage" => 3
+             }
+    end
+
+    test "supports a Flop {records, meta} tuple", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_flop")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      assert props["props"]["users"] == %{
+               "data" => [%{"id" => 1, "name" => "Alice"}, %{"id" => 2, "name" => "Bob"}]
+             }
+
+      assert "users.data" in props["mergeProps"]
+
+      assert props["scrollProps"]["users"] == %{
+               "pageName" => "page",
+               "currentPage" => 2,
+               "previousPage" => 1,
+               "nextPage" => 3
+             }
+    end
+
+    test "applies a :transform function to each entry", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_with_transform")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      assert props["props"]["users"] == %{"data" => [%{"id" => 1}, %{"id" => 2}]}
+      assert props["scrollProps"]["users"]["currentPage"] == 1
+    end
+
+    test "includes opt-in :meta alongside the entries under the parent key", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_with_meta")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      assert props["props"]["users"] == %{
+               "data" => [%{"id" => 1, "name" => "Alice"}, %{"id" => 2, "name" => "Bob"}],
+               "meta" => %{"total" => 6, "pages" => 3}
+             }
+
+      # scrollProps still drives the component independently of the prop meta.
+      assert props["scrollProps"]["users"]["currentPage"] == 1
+      assert props["scrollProps"]["users"]["nextPage"] == 2
+    end
+
+    test "camelizes a multi-word wrapper key consistently in the prop and merge path",
+         %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_camelized_wrapper")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      # The wrapper key is camelized in both the prop value and the merge path.
+      assert props["props"]["userList"] == %{"dataItems" => [%{"id" => 1}]}
+      assert "userList.dataItems" in props["mergeProps"]
+    end
+
+    test "applies a :transform function on the legacy map shape", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_legacy_transform")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      # transform drops the :secret field; meta is not echoed in the prop
+      assert props["props"]["users"] == %{"data" => [%{"id" => 1}, %{"id" => 2}]}
+      assert props["scrollProps"]["users"]["currentPage"] == 1
+    end
+
+    test "a custom :metadata function handles cursor-based Flop without raising", %{conn: conn} do
+      conn = get(conn, ~p"/scroll_props_flop_cursor_custom_metadata")
+      html = html_response(conn, 200)
+      props = extract_page_data_from_html(html)
+
+      assert props["props"]["users"] == %{"data" => [%{"id" => 1, "name" => "Alice"}]}
+
+      assert props["scrollProps"]["users"] == %{
+               "pageName" => "after",
+               "currentPage" => "xyz",
+               "previousPage" => nil,
+               "nextPage" => "def"
+             }
+    end
+
+    test "raises a helpful error when the :meta function returns a non-map", %{conn: conn} do
+      assert_raise ArgumentError, ~r/:meta function must return a map/, fn ->
+        get(conn, ~p"/scroll_props_invalid_meta")
+      end
+    end
+
+    test "raises a helpful error for a {entries, meta} tuple whose meta is unsupported",
+         %{conn: conn} do
+      assert_raise ArgumentError, ~r/does not implement the Inertia.Paginated protocol/, fn ->
+        get(conn, ~p"/scroll_props_invalid_tuple")
+      end
     end
   end
 
