@@ -42,7 +42,8 @@ defmodule Inertia.Controller do
               match_props_on: [],
               deferred_props: %{},
               once_props: %{},
-              scroll_props: %{}
+              scroll_props: %{},
+              rescued_props: []
   end
 
   defmodule ResolveContext do
@@ -57,7 +58,7 @@ defmodule Inertia.Controller do
   @opaque merge() :: {:merge, any()} | {:merge, any(), String.t()}
   @opaque prepend() :: {:prepend, any()} | {:prepend, any(), String.t()}
   @opaque deep_merge() :: {:deep_merge, any()} | {:deep_merge, any(), String.t()}
-  @opaque defer() :: {:defer, {fun(), String.t()}}
+  @opaque defer() :: {:defer, {fun(), String.t()}} | {:defer, {fun(), String.t(), atom()}}
   @opaque once() :: Once.t()
   @opaque scroll() :: Scroll.t()
   @opaque shared() :: {:shared, any()}
@@ -159,6 +160,30 @@ defmodule Inertia.Controller do
 
   @doc """
   Marks that a prop should fetched immediately after the page is loaded on the client-side.
+
+  ## Options
+
+  - `:on_error` - Controls what happens when the prop's resolver fails while the
+    client is fetching its deferred group. Defaults to letting the error
+    propagate (failing the partial reload). Pass `:ignore` to degrade
+    gracefully: the error is contained, the prop is omitted from the response,
+    and its path is reported in the `rescuedProps` page metadata so the client
+    can render a fallback. Rescued failures emit a
+    `[:inertia, :deferred_prop, :rescue]` telemetry event and are logged.
+
+  ## Examples
+
+      # Default group
+      assign_prop(conn, :stats, inertia_defer(fn -> expensive_stats() end))
+
+      # Custom group
+      assign_prop(conn, :stats, inertia_defer(fn -> expensive_stats() end, "dashboard"))
+
+      # Degrade gracefully if the resolver fails
+      assign_prop(conn, :stats, inertia_defer(fn -> expensive_stats() end, on_error: :ignore))
+
+      # Custom group + graceful failure
+      assign_prop(conn, :stats, inertia_defer(fn -> expensive_stats() end, "dashboard", on_error: :ignore))
   """
   @doc since: "1.0.0"
   @spec inertia_defer(fun :: fun()) :: defer()
@@ -170,12 +195,55 @@ defmodule Inertia.Controller do
 
   @doc since: "1.0.0"
   @spec inertia_defer(fun :: fun(), group :: String.t()) :: defer()
+  @spec inertia_defer(fun :: fun(), opts :: keyword()) :: defer()
   def inertia_defer(fun, group) when is_function(fun) and is_binary(group) do
     {:defer, {fun, group}}
   end
 
+  def inertia_defer(fun, opts) when is_function(fun) and is_list(opts) do
+    build_defer(fun, "default", opts)
+  end
+
   def inertia_defer(_, _) do
-    raise ArgumentError, message: "inertia_defer/2 only accepts function and group arguments"
+    raise ArgumentError,
+      message: "inertia_defer/2 only accepts function and group (or options) arguments"
+  end
+
+  @doc since: "3.0.0"
+  @spec inertia_defer(fun :: fun(), group :: String.t(), opts :: keyword()) :: defer()
+  def inertia_defer(fun, group, opts)
+      when is_function(fun) and is_binary(group) and is_list(opts) do
+    build_defer(fun, group, opts)
+  end
+
+  def inertia_defer(_, _, _) do
+    raise ArgumentError,
+      message: "inertia_defer/3 only accepts function, group, and options arguments"
+  end
+
+  defp build_defer(fun, group, opts) do
+    case Keyword.validate(opts, [:on_error]) do
+      {:ok, opts} ->
+        apply_defer_opts(fun, group, opts)
+
+      {:error, invalid} ->
+        raise ArgumentError,
+          message: "inertia_defer received invalid options: #{inspect(invalid)}"
+    end
+  end
+
+  defp apply_defer_opts(fun, group, opts) do
+    case Keyword.get(opts, :on_error) do
+      nil ->
+        {:defer, {fun, group}}
+
+      :ignore ->
+        {:defer, {fun, group, :ignore}}
+
+      other ->
+        raise ArgumentError,
+          message: "inertia_defer :on_error only accepts :ignore, got: #{inspect(other)}"
+    end
   end
 
   @doc """
@@ -646,6 +714,7 @@ defmodule Inertia.Controller do
       deferred_props: meta.deferred_props,
       once_props: meta.once_props,
       scroll_props: meta.scroll_props,
+      rescued_props: meta.rescued_props,
       shared_props: shared_prop_keys,
       is_partial: is_partial
     })
@@ -827,15 +896,82 @@ defmodule Inertia.Controller do
 
       # Step 6: Initial-response exclusion for optional props
       if ctx.is_partial or not optional?(value) do
-        {value, meta} =
-          finalize_prop(value, path, meta, ctx, parent_was_resolved, was_resolved)
-
-        output_key = transform_key(key, ctx.opts)
-        {Map.put(props_acc, output_key, value), meta}
+        finalize_and_put(
+          key,
+          value,
+          path,
+          props_acc,
+          meta,
+          ctx,
+          parent_was_resolved,
+          was_resolved
+        )
       else
         {props_acc, meta}
       end
     end
+  end
+
+  # Resolves a rescuable deferred prop within a try/catch. If resolution of the
+  # prop (including its nested values) fails, the prop is omitted, its path is
+  # recorded in rescued_props, and the failure is reported via telemetry +
+  # logging. A nested *rescuable* prop still handles its own failure first (via
+  # its own clause here), so it is reported under its own path; only otherwise
+  # unhandled failures bubble up to this ancestor.
+  defp finalize_and_put(
+         key,
+         {:optional, fun, :rescue},
+         path,
+         props_acc,
+         meta,
+         ctx,
+         parent_was_resolved,
+         was_resolved
+       ) do
+    {value, resolved_meta} =
+      finalize_prop({:optional, fun}, path, meta, ctx, parent_was_resolved, was_resolved)
+
+    put_resolved(props_acc, key, value, resolved_meta, ctx)
+  rescue
+    exception ->
+      report_rescued_prop(path, :error, exception, __STACKTRACE__)
+      {props_acc, %{meta | rescued_props: [path | meta.rescued_props]}}
+  catch
+    kind, reason ->
+      report_rescued_prop(path, kind, reason, __STACKTRACE__)
+      {props_acc, %{meta | rescued_props: [path | meta.rescued_props]}}
+  end
+
+  defp finalize_and_put(
+         key,
+         value,
+         path,
+         props_acc,
+         meta,
+         ctx,
+         parent_was_resolved,
+         was_resolved
+       ) do
+    {value, meta} = finalize_prop(value, path, meta, ctx, parent_was_resolved, was_resolved)
+    put_resolved(props_acc, key, value, meta, ctx)
+  end
+
+  defp put_resolved(props_acc, key, value, meta, ctx) do
+    output_key = transform_key(key, ctx.opts)
+    {Map.put(props_acc, output_key, value), meta}
+  end
+
+  defp report_rescued_prop(path, kind, reason, stacktrace) do
+    :telemetry.execute(
+      [:inertia, :deferred_prop, :rescue],
+      %{},
+      %{prop: path, kind: kind, reason: reason, stacktrace: stacktrace}
+    )
+
+    Logger.error(
+      "Inertia rescued deferred prop #{inspect(path)}:\n" <>
+        Exception.format(kind, reason, stacktrace)
+    )
   end
 
   defp finalize_prop(value, path, meta, ctx, parent_was_resolved, was_resolved) do
@@ -1090,13 +1226,20 @@ defmodule Inertia.Controller do
   end
 
   defp collect_metadata({:defer, {fun, group}}, path, _ctx, meta) do
-    deferred = meta.deferred_props
-    group_keys = Map.get(deferred, group, [])
-    meta = %{meta | deferred_props: Map.put(deferred, group, [path | group_keys])}
-    {{:optional, fun}, meta}
+    {{:optional, fun}, record_deferred(meta, group, path)}
+  end
+
+  defp collect_metadata({:defer, {fun, group, :ignore}}, path, _ctx, meta) do
+    {{:optional, fun, :rescue}, record_deferred(meta, group, path)}
   end
 
   defp collect_metadata(value, _path, _ctx, meta), do: {value, meta}
+
+  defp record_deferred(meta, group, path) do
+    deferred = meta.deferred_props
+    group_keys = Map.get(deferred, group, [])
+    %{meta | deferred_props: Map.put(deferred, group, [path | group_keys])}
+  end
 
   # Builds the "path.field" match entries for the matchPropsOn page metadata.
   # The client splits each entry on the final "." to derive the prop path and
@@ -1109,6 +1252,7 @@ defmodule Inertia.Controller do
   defp match_prop_entries(path, match_key), do: ["#{path}.#{match_key}"]
 
   defp optional?({:optional, _}), do: true
+  defp optional?({:optional, _, :rescue}), do: true
   defp optional?(_), do: false
 
   defp unwrap_tags({:optional, v}), do: v
@@ -1266,6 +1410,7 @@ defmodule Inertia.Controller do
     |> maybe_put_deferred_props(conn)
     |> maybe_put_once_props(conn)
     |> maybe_put_scroll_props(conn)
+    |> maybe_put_rescued_props(conn)
     |> maybe_put_shared_props(conn)
     |> maybe_put_preserve_fragment(conn)
   end
@@ -1354,6 +1499,16 @@ defmodule Inertia.Controller do
       assigns
     else
       Map.put(assigns, :scrollProps, scroll_props)
+    end
+  end
+
+  defp maybe_put_rescued_props(assigns, conn) do
+    rescued_props = conn.private.inertia_page.rescued_props
+
+    if Enum.empty?(rescued_props) do
+      assigns
+    else
+      Map.put(assigns, :rescuedProps, rescued_props)
     end
   end
 

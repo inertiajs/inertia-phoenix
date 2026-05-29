@@ -192,4 +192,17 @@ defmodule Inertia.Testing do
     page = conn.private[:inertia_page] || %{}
     page[:once_props] || %{}
   end
+
+  @doc """
+  Fetches the rescued prop paths for the current request.
+
+  Returns the list of deferred prop paths whose resolution failed and were
+  rescued (via `inertia_defer(..., on_error: :ignore)`).
+  """
+  @doc since: "3.0.0"
+  @spec inertia_rescued_props(Plug.Conn.t()) :: list(String.t())
+  def inertia_rescued_props(conn) do
+    page = conn.private[:inertia_page] || %{}
+    page[:rescued_props] || []
+  end
 end

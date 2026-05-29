@@ -3,6 +3,7 @@ defmodule InertiaTest do
   use Phoenix.Component
 
   import Plug.Conn
+  import ExUnit.CaptureLog
 
   @current_version "db137d38dc4b6ee57d5eedcf0182de8a"
 
@@ -830,6 +831,188 @@ defmodule InertiaTest do
 
     # The deferred props list should not be returned on partial requests
     refute "deferredProps" in Map.keys(body)
+  end
+
+  # Rescued deferred props (on_error: :ignore)
+
+  test "rescuable deferred props behave like normal deferred props on initial load", %{conn: conn} do
+    conn = get(conn, ~p"/rescued_deferred_props")
+
+    body = html_response(conn, 200)
+    props = extract_page_data_from_html(body)
+
+    # Deferred — excluded from props, listed in deferredProps by group
+    refute Map.has_key?(props["props"], "ok")
+    refute Map.has_key?(props["props"], "boom")
+
+    assert props["deferredProps"]["default"]
+           |> MapSet.new()
+           |> MapSet.equal?(MapSet.new(["ok", "boom", "auth.permissions"]))
+
+    assert props["deferredProps"]["other"] == ["thrown"]
+
+    # Nothing has been resolved yet, so nothing is rescued
+    refute Map.has_key?(props, "rescuedProps")
+  end
+
+  test "rescues a failing deferred prop on partial reload, omitting it and reporting the path",
+       %{conn: conn} do
+    {conn, log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "ok,boom")
+        |> get(~p"/rescued_deferred_props")
+      end)
+
+    body = json_response(conn, 200)
+
+    # The healthy prop resolves; the failing one is omitted
+    assert body["props"]["ok"] == "ok"
+    refute Map.has_key?(body["props"], "boom")
+
+    # The failing prop's path is reported in rescuedProps
+    assert body["rescuedProps"] == ["boom"]
+
+    # The failure is logged, not silently dropped
+    assert log =~ "Inertia rescued deferred prop \"boom\""
+    assert log =~ "kaboom"
+  end
+
+  test "rescues thrown values (not just raised exceptions)", %{conn: conn} do
+    {conn, _log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "thrown")
+        |> get(~p"/rescued_deferred_props")
+      end)
+
+    body = json_response(conn, 200)
+
+    refute Map.has_key?(body["props"], "thrown")
+    assert body["rescuedProps"] == ["thrown"]
+  end
+
+  test "emits a telemetry event when a deferred prop is rescued", %{conn: conn} do
+    ref = make_ref()
+    parent = self()
+    handler_id = {:rescue_test, ref}
+
+    :telemetry.attach(
+      handler_id,
+      [:inertia, :deferred_prop, :rescue],
+      fn event, measurements, metadata, _config ->
+        send(parent, {ref, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    with_log(fn ->
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "boom")
+      |> get(~p"/rescued_deferred_props")
+    end)
+
+    assert_received {^ref, [:inertia, :deferred_prop, :rescue], %{}, metadata}
+    assert metadata.prop == "boom"
+    assert metadata.kind == :error
+    assert %RuntimeError{message: "kaboom"} = metadata.reason
+    assert is_list(metadata.stacktrace)
+  end
+
+  test "a deferred prop without on_error: :ignore still raises", %{conn: conn} do
+    assert_raise RuntimeError, "kaboom", fn ->
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "boom")
+      |> get(~p"/unrescued_deferred_props")
+    end
+  end
+
+  test "rescues a failing nested deferred prop using its dot-path", %{conn: conn} do
+    {conn, _log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "auth.permissions")
+        |> get(~p"/rescued_deferred_props")
+      end)
+
+    body = json_response(conn, 200)
+
+    refute Map.has_key?(body["props"]["auth"], "permissions")
+    assert body["rescuedProps"] == ["auth.permissions"]
+  end
+
+  test "a failing nested rescuable child is reported under its own path and healthy siblings survive",
+       %{conn: conn} do
+    {conn, _log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "stats")
+        |> get(~p"/nested_rescue_deferred_props")
+      end)
+
+    body = json_response(conn, 200)
+
+    # The parent resolver succeeded, so its healthy data survives...
+    assert body["props"]["stats"]["healthy"] == "ok"
+    refute Map.has_key?(body["props"]["stats"], "broken")
+
+    # ...and only the failing child is reported, under its own dot-path
+    # (not the rescuable parent's path).
+    assert body["rescuedProps"] == ["stats.broken"]
+  end
+
+  test "an unrescuable failure nested inside a rescuable prop degrades gracefully under the parent",
+       %{conn: conn} do
+    {conn, _log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "stats")
+        |> get(~p"/nested_unrescuable_failure_deferred_props")
+      end)
+
+    # The nested lazy value has no rescue of its own, so the whole rescuable
+    # parent is omitted and reported under the parent path (a 200, not a 500).
+    body = json_response(conn, 200)
+
+    refute Map.has_key?(body["props"], "stats")
+    assert body["rescuedProps"] == ["stats"]
+  end
+
+  test "inertia_rescued_props/1 returns the rescued prop paths", %{conn: conn} do
+    {conn, _log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "ok,boom")
+        |> get(~p"/rescued_deferred_props")
+      end)
+
+    assert Inertia.Testing.inertia_rescued_props(conn) == ["boom"]
   end
 
   test "instructs the client-side to encrypt history", %{conn: conn} do

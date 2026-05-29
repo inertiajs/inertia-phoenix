@@ -31,6 +31,13 @@ defmodule MyAppWeb.Router do
     get "/merge_props", PageController, :merge_props
     get "/deep_merge_props", PageController, :deep_merge_props
     get "/deferred_props", PageController, :deferred_props
+    get "/rescued_deferred_props", PageController, :rescued_deferred_props
+    get "/nested_rescue_deferred_props", PageController, :nested_rescue_deferred_props
+
+    get "/nested_unrescuable_failure_deferred_props",
+        PageController,
+        :nested_unrescuable_failure_deferred_props
+    get "/unrescued_deferred_props", PageController, :unrescued_deferred_props
     get "/encrypted_history", PageController, :encrypted_history
     get "/cleared_history", PageController, :cleared_history
     get "/preserved_fragment", PageController, :preserved_fragment

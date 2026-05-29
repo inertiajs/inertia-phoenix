@@ -285,6 +285,27 @@ conn
 
 If no group names are specified, then the client-side will issue a single async request to fetch all the deferred props. If there are multiple group names, then the client-side will issue one async request per group instead. This is useful if you have some very expensive data that you'd prefer fetch in parallel alongside other expensive data.
 
+### Graceful failure with `on_error: :ignore`
+
+By default, if a deferred prop's resolver raises while the client is fetching its group, the error propagates and the partial reload fails. Pass `on_error: :ignore` to degrade gracefully instead: the error is contained, the prop is omitted from the response, and its path is reported in the `rescuedProps` page metadata so the client can render a fallback.
+
+```elixir
+conn
+|> assign_prop(:stats, inertia_defer(fn -> expensive_stats() end, on_error: :ignore))
+
+# With a custom group
+|> assign_prop(:stats, inertia_defer(fn -> expensive_stats() end, "dashboard", on_error: :ignore))
+```
+
+Rescued failures are logged and emit a `[:inertia, :deferred_prop, :rescue]` telemetry event with the following metadata, so you can report them to your error tracker:
+
+```elixir
+:telemetry.attach("inertia-rescue", [:inertia, :deferred_prop, :rescue], fn _event, _measurements, metadata, _config ->
+  # metadata: %{prop: "stats", kind: :error | :throw | :exit, reason: term(), stacktrace: [...]}
+  MyApp.ErrorReporter.report(metadata)
+end, nil)
+```
+
 ## Merge props
 
 **Requires Inertia v2.x or later on the client-side**.
