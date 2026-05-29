@@ -6,6 +6,10 @@
 
 - Add a `:csp_nonce_assign_key` config option. When set, the library reads a Content-Security-Policy nonce from the given connection assign and applies it to the `<script>` tag used to bootstrap the page data.
 
+### Fixed
+
+- Emit `matchPropsOn` as a list of `"path.field"` strings (e.g. `["users.id"]`) instead of a `%{path => field}` map. The Inertia.js client expects an array and calls `Array.prototype.find` on it, so the previous map shape caused a client-side error when merging props with a `match_on` key.
+
 ## 3.0.0-rc2 - 2026-05-27
 
 ### Added

@@ -32,7 +32,7 @@ defmodule Inertia.SSR.Adapter do
           optional(:mergeProps) => list(String.t()),
           optional(:prependProps) => list(String.t()),
           optional(:deepMergeProps) => list(String.t()),
-          optional(:matchPropsOn) => map(),
+          optional(:matchPropsOn) => list(String.t()),
           optional(:deferredProps) => map(),
           optional(:onceProps) => map(),
           optional(:scrollProps) => map(),

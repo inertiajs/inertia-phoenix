@@ -39,7 +39,7 @@ defmodule Inertia.Controller do
     defstruct merge_props: [],
               prepend_props: [],
               deep_merge_props: [],
-              match_props_on: %{},
+              match_props_on: [],
               deferred_props: %{},
               once_props: %{},
               scroll_props: %{}
@@ -1022,7 +1022,7 @@ defmodule Inertia.Controller do
         %{
           meta
           | merge_props: [path | meta.merge_props],
-            match_props_on: Map.put(meta.match_props_on, path, match_key)
+            match_props_on: [match_prop_entry(path, match_key) | meta.match_props_on]
         }
       end
 
@@ -1053,7 +1053,7 @@ defmodule Inertia.Controller do
           meta
           | merge_props: [path | meta.merge_props],
             prepend_props: [path | meta.prepend_props],
-            match_props_on: Map.put(meta.match_props_on, path, match_key)
+            match_props_on: [match_prop_entry(path, match_key) | meta.match_props_on]
         }
       end
 
@@ -1079,7 +1079,7 @@ defmodule Inertia.Controller do
         %{
           meta
           | deep_merge_props: [path | meta.deep_merge_props],
-            match_props_on: Map.put(meta.match_props_on, path, match_key)
+            match_props_on: [match_prop_entry(path, match_key) | meta.match_props_on]
         }
       end
 
@@ -1094,6 +1094,12 @@ defmodule Inertia.Controller do
   end
 
   defp collect_metadata(value, _path, _ctx, meta), do: {value, meta}
+
+  # Builds a "path.field" match entry for the matchPropsOn page metadata. The
+  # client splits each entry on the final "." to derive the prop path and the
+  # field used for item deduplication, so the match key is appended to the
+  # prop's full dot-path.
+  defp match_prop_entry(path, match_key), do: "#{path}.#{match_key}"
 
   defp optional?({:optional, _}), do: true
   defp optional?(_), do: false
