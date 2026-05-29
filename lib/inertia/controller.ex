@@ -107,7 +107,8 @@ defmodule Inertia.Controller do
 
   ## Options
 
-  - `:match_on` - A string key used for client-side deduplication of merged items.
+  - `:match_on` - A key (or list of keys) used for client-side deduplication of
+    merged items. Each key may be a dot-path into the merged items (e.g. `"data.id"`).
   """
   @doc since: "1.0.0"
   @spec inertia_merge(value :: any()) :: merge()
@@ -125,7 +126,8 @@ defmodule Inertia.Controller do
 
   ## Options
 
-  - `:match_on` - A string key used for client-side deduplication of merged items.
+  - `:match_on` - A key (or list of keys) used for client-side deduplication of
+    merged items. Each key may be a dot-path into the merged items (e.g. `"data.id"`).
   """
   @doc since: "3.0.0"
   @spec inertia_prepend(value :: any()) :: prepend()
@@ -142,7 +144,8 @@ defmodule Inertia.Controller do
 
   ## Options
 
-  - `:match_on` - A string key used for client-side deduplication of merged items.
+  - `:match_on` - A key (or list of keys) used for client-side deduplication of
+    merged items. Each key may be a dot-path into the merged items (e.g. `"data.id"`).
   """
   @doc since: "2.5.0"
   @spec inertia_deep_merge(value :: any()) :: deep_merge()
@@ -1022,7 +1025,7 @@ defmodule Inertia.Controller do
         %{
           meta
           | merge_props: [path | meta.merge_props],
-            match_props_on: [match_prop_entry(path, match_key) | meta.match_props_on]
+            match_props_on: match_prop_entries(path, match_key) ++ meta.match_props_on
         }
       end
 
@@ -1053,7 +1056,7 @@ defmodule Inertia.Controller do
           meta
           | merge_props: [path | meta.merge_props],
             prepend_props: [path | meta.prepend_props],
-            match_props_on: [match_prop_entry(path, match_key) | meta.match_props_on]
+            match_props_on: match_prop_entries(path, match_key) ++ meta.match_props_on
         }
       end
 
@@ -1079,7 +1082,7 @@ defmodule Inertia.Controller do
         %{
           meta
           | deep_merge_props: [path | meta.deep_merge_props],
-            match_props_on: [match_prop_entry(path, match_key) | meta.match_props_on]
+            match_props_on: match_prop_entries(path, match_key) ++ meta.match_props_on
         }
       end
 
@@ -1095,11 +1098,15 @@ defmodule Inertia.Controller do
 
   defp collect_metadata(value, _path, _ctx, meta), do: {value, meta}
 
-  # Builds a "path.field" match entry for the matchPropsOn page metadata. The
-  # client splits each entry on the final "." to derive the prop path and the
-  # field used for item deduplication, so the match key is appended to the
-  # prop's full dot-path.
-  defp match_prop_entry(path, match_key), do: "#{path}.#{match_key}"
+  # Builds the "path.field" match entries for the matchPropsOn page metadata.
+  # The client splits each entry on the final "." to derive the prop path and
+  # the field used for item deduplication, so each match key is appended to the
+  # prop's full dot-path. A list of keys produces one entry per key.
+  defp match_prop_entries(path, match_keys) when is_list(match_keys) do
+    Enum.map(match_keys, &"#{path}.#{&1}")
+  end
+
+  defp match_prop_entries(path, match_key), do: ["#{path}.#{match_key}"]
 
   defp optional?({:optional, _}), do: true
   defp optional?(_), do: false

@@ -5,6 +5,7 @@
 ### Added
 
 - Add a `:csp_nonce_assign_key` config option. When set, the library reads a Content-Security-Policy nonce from the given connection assign and applies it to the `<script>` tag used to bootstrap the page data.
+- The `:match_on` option on `inertia_merge/2`, `inertia_prepend/2`, and `inertia_deep_merge/2` now accepts a list of keys (in addition to a single key) for matching on multiple fields, producing one `matchPropsOn` entry per key.
 
 ### Fixed
 

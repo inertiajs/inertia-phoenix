@@ -573,6 +573,7 @@ defmodule MyAppWeb.PageController do
     |> assign_prop(:users, inertia_merge([%{id: 1}], match_on: "id"))
     |> assign_prop(:items, inertia_prepend([%{id: 2}], match_on: "id"))
     |> assign_prop(:data, inertia_deep_merge(%{a: 1}, match_on: "key"))
+    |> assign_prop(:posts, inertia_merge([%{id: 1}], match_on: ["id", "slug"]))
     |> render_inertia("Home")
   end
 

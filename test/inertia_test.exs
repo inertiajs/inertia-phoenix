@@ -1960,7 +1960,13 @@ defmodule InertiaTest do
     assert body["props"]["items"] == [%{"id" => 2}]
     assert body["props"]["data"] == %{"a" => 1}
 
-    assert Enum.sort(body["matchPropsOn"]) == ["data.key", "items.id", "users.id"]
+    assert Enum.sort(body["matchPropsOn"]) == [
+             "data.key",
+             "items.id",
+             "posts.id",
+             "posts.slug",
+             "users.id"
+           ]
   end
 
   # Scroll prop reset field tests

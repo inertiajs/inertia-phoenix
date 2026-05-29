@@ -321,6 +321,13 @@ conn
 
 The `match_on` option is also supported by `inertia_prepend/2` and `inertia_deep_merge/2`. The key is included in the `matchPropsOn` metadata in the page response.
 
+You can match on multiple keys by passing a list, and each key may be a dot-path into the merged items:
+
+```elixir
+conn
+|> assign_prop(:users, inertia_merge(users, match_on: ["id", "email"]))
+```
+
 ## Prepend props
 
 If you want merged data to be prepended (instead of appended) to the existing client-side data, use `inertia_prepend/1`:
