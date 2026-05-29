@@ -131,6 +131,57 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def rescued_deferred_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:ok, inertia_defer(fn -> "ok" end, on_error: :ignore))
+    |> assign_prop(:boom, inertia_defer(fn -> raise "kaboom" end, on_error: :ignore))
+    |> assign_prop(:thrown, inertia_defer(fn -> throw(:nope) end, "other", on_error: :ignore))
+    |> assign_prop(:auth, %{
+      user: "Alice",
+      permissions: inertia_defer(fn -> raise "no perms" end, on_error: :ignore)
+    })
+    |> render_inertia("Home")
+  end
+
+  def nested_rescue_deferred_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :stats,
+      inertia_defer(
+        fn ->
+          %{
+            healthy: "ok",
+            broken: inertia_defer(fn -> raise "child boom" end, on_error: :ignore)
+          }
+        end,
+        on_error: :ignore
+      )
+    )
+    |> render_inertia("Home")
+  end
+
+  def nested_unrescuable_failure_deferred_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(
+      :stats,
+      inertia_defer(
+        fn -> %{healthy: "ok", broken: fn -> raise "lazy boom" end} end,
+        on_error: :ignore
+      )
+    )
+    |> render_inertia("Home")
+  end
+
+  def unrescued_deferred_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:boom, inertia_defer(fn -> raise "kaboom" end))
+    |> render_inertia("Home")
+  end
+
   def encrypted_history(conn, _params) do
     conn
     |> assign(:page_title, "Home")

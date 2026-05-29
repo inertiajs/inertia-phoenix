@@ -36,6 +36,7 @@ defmodule Inertia.SSR.Adapter do
           optional(:deferredProps) => map(),
           optional(:onceProps) => map(),
           optional(:scrollProps) => map(),
+          optional(:rescuedProps) => list(String.t()),
           optional(:sharedProps) => list(String.t()),
           optional(:preserveFragment) => boolean()
         }

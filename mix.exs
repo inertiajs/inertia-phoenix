@@ -37,6 +37,7 @@ defmodule Inertia.MixProject do
       {:phoenix_live_view, "~> 1.0"},
       {:plug, ">= 1.5.0 and < 2.0.0"},
       {:jason, "~> 1.2"},
+      {:telemetry, "~> 1.0"},
       {:bandit, "~> 1.2", only: :test},
       {:phoenix_view, "~> 2.0", only: :test},
       {:plug_cowboy, "~> 2.1", only: :test},
