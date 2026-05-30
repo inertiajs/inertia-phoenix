@@ -3,9 +3,10 @@ defmodule Inertia.SSR do
   Supervisor that provides server-side rendering support for Inertia views.
 
   By default SSR is performed by a pool of Node.js workers
-  (`Inertia.SSR.NodeJSAdapter`). You can plug in an alternative runtime by
-  implementing the `Inertia.SSR.Adapter` behaviour and passing the module as
-  the `:ssr_adapter` option.
+  (`Inertia.SSR.NodeJSAdapter`), which requires the optional `:nodejs`
+  dependency. You can plug in an alternative runtime by implementing the
+  `Inertia.SSR.Adapter` behaviour and passing the module as the `:ssr_adapter`
+  option (in which case `:nodejs` is not needed).
   """
   use Supervisor
 
@@ -50,7 +51,22 @@ defmodule Inertia.SSR do
     adapter.call(page, config)
   end
 
-  defp resolve_adapter(nil, default), do: default
+  defp resolve_adapter(nil, default) do
+    if Code.ensure_loaded?(default) do
+      default
+    else
+      raise ArgumentError, """
+      The default Inertia SSR adapter (#{inspect(default)}) is unavailable because \
+      the optional :nodejs dependency is not installed.
+
+      Add it to your deps to use Node.js-based SSR:
+
+          {:nodejs, "~> 3.0"}
+
+      Or pass a custom module via the :ssr_adapter option.
+      """
+    end
+  end
 
   defp resolve_adapter(custom, _default) do
     cond do

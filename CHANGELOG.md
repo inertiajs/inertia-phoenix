@@ -13,6 +13,9 @@
 
 - **(Breaking)** `inertia_scroll/2` now always shapes the prop value as `%{<wrapper> => entries}`. Previously a `%{data:, meta:}` map was passed through verbatim; now only the entries under the wrapper key are kept, and any other top-level keys (including `meta` and any sibling fields like `total_count`) are dropped from the prop. Pagination metadata is surfaced via `scrollProps` instead — read pagination state from there.
 - **(Breaking)** Renamed the `inertia_scroll/2` `:metadata` option (added in 2.6.0) to `:scroll_metadata`, to distinguish it from the new `:meta` option (which adds display data to the prop value). `:scroll_metadata` still produces the `scrollProps` the client component uses.
+- **(Breaking)** `ecto` is now an optional dependency. The `Ecto.Changeset` error serializer is only available when Ecto is present. Apps that pass changesets to `assign_errors` and don't already depend on Ecto should add `{:ecto, "~> 3.10"}` (most Phoenix apps already do). Bare error maps work without Ecto.
+- **(Breaking)** `nodejs` is now an optional dependency. It's only needed by the default Node.js SSR adapter, so apps using SSR with the default adapter should add `{:nodejs, "~> 3.0"}`. Apps that don't use SSR (or use a custom `:ssr_adapter`) no longer pull it in.
+- **(Breaking)** Raised minimum versions: Elixir `>= 1.15.0` and `phoenix_html ~> 4.0`.
 
 ### Removed
 

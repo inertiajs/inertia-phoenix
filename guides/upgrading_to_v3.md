@@ -146,6 +146,28 @@ inertia_scroll(data, scroll_metadata: fn data -> %{current_page: 1, next_page: 2
 
 See the [Scroll props](readme.html#scroll-props) section of the README for the full API.
 
+### Some dependencies are now optional
+
+To avoid imposing dependencies on apps that don't need them, `ecto` and `nodejs` are now optional. If you use the features that rely on them, add them to your own deps:
+
+- **`ecto`** — required only for passing an `Ecto.Changeset` to `assign_errors/2`. Most Phoenix apps already depend on Ecto, so no action is needed. If yours doesn't (and you rely on changeset errors), add `{:ecto, "~> 3.10"}`. Bare error maps work without Ecto.
+- **`nodejs`** — required only by the default Node.js SSR adapter. If you use server-side rendering with the default adapter, add `{:nodejs, "~> 3.0"}`. Apps that don't use SSR, or use a custom `:ssr_adapter` (Bun, Vite, etc.), don't need it.
+
+```elixir
+def deps do
+  [
+    {:inertia, "~> 3.0"},
+    # add only what you use:
+    {:ecto, "~> 3.10"},
+    {:nodejs, "~> 3.0"}
+  ]
+end
+```
+
+### Minimum versions raised
+
+3.0 requires **Elixir 1.15+** and **phoenix_html 4.0+**. Upgrade these if you're on older versions.
+
 ## New features worth adopting
 
 These are not required for upgrading, but new in 3.0:

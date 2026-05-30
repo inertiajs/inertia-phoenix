@@ -7,7 +7,7 @@ defmodule Inertia.MixProject do
     [
       app: :inertia,
       version: @version,
-      elixir: ">= 1.14.0",
+      elixir: ">= 1.15.0",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       name: "Inertia",
@@ -33,7 +33,7 @@ defmodule Inertia.MixProject do
     [
       {:phx_new, "~> 1.0", only: [:test]},
       {:phoenix, "~> 1.7"},
-      {:phoenix_html, ">= 3.0.0"},
+      {:phoenix_html, "~> 4.0"},
       {:phoenix_live_view, "~> 1.0"},
       {:plug, ">= 1.5.0 and < 2.0.0"},
       {:jason, "~> 1.2"},
@@ -48,8 +48,8 @@ defmodule Inertia.MixProject do
       {:igniter, "~> 0.7", optional: true},
       {:flop, "~> 0.25", optional: true},
       {:scrivener, "~> 2.7", optional: true},
-      {:nodejs, "~> 3.0"},
-      {:ecto, ">= 3.0.0"}
+      {:nodejs, "~> 3.0", optional: true},
+      {:ecto, "~> 3.10", optional: true}
     ]
   end
 

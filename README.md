@@ -228,7 +228,8 @@ pipeline:
 - [Svelte](guides/esbuild/svelte.md) — Node-driven esbuild with the `esbuild-svelte` plugin.
 - [Vue](guides/esbuild/vue.md) — Node-driven esbuild with the `unplugin-vue` plugin.
 
-> [!NOTE]
+> #### Note {: .info}
+>
 > These guides target Phoenix's default esbuild pipeline. The Vue and Svelte
 > ecosystems now lean on Vite, and Inertia's own
 > [client-side setup docs](https://inertiajs.com/client-side-setup) assume it; if
@@ -238,7 +239,8 @@ pipeline:
 
 If you have expensive data for your props that may not always be required (that is, if you plan to use [partial reloads](https://inertiajs.com/partial-reloads)), you can wrap your expensive computation in a function and pass the function reference when setting your Inertia props. You may use either an anonymous function (or named function reference) and optionally wrap it with the `Inertia.Controller.inertia_optional/1` function.
 
-> [!NOTE]
+> #### Note {: .info}
+>
 > `inertia_optional` props will _only_ be included the when explicitly requested in a partial
 > reload. If you want to include the prop on first visit, you'll want to use a
 > bare anonymous function or named function reference instead. See below for
@@ -495,7 +497,8 @@ In every case the entries are placed under the wrapper key, producing a uniforml
 }
 ```
 
-> [!NOTE]
+> #### Note {: .info}
+>
 > Pagination metadata is surfaced via `scrollProps`, so it is not echoed in the prop value by default — only the entries under the wrapper key are kept. (If you pass the plain `%{data:, meta:}` map, the `meta` key is dropped from the rendered prop.) To surface extra data to the page alongside the entries, use the [`:meta` option](#including-extra-metadata-in-the-prop).
 
 ### Options
@@ -550,7 +553,8 @@ conn
 
 In both cases the entries end up under `props.users.data` and `"users.data"` is added to `mergeProps`.
 
-> [!NOTE]
+> #### Note {: .info}
+>
 > Flop's page query parameter is assumed to be `"page"`; override it with `:page_name` if you've configured a different name. Cursor-based Flop pagination (which uses `:after`/`:before` cursors rather than page numbers) is not supported out of the box — provide a custom `:scroll_metadata` function for that case.
 
 ### Serializing entries
@@ -598,7 +602,8 @@ conn
 ))
 ```
 
-> [!NOTE]
+> #### Note {: .info}
+>
 > `:scroll_metadata` drives `scrollProps` (the paging state the `<InfiniteScroll>` component reads). Don't confuse it with [`:meta`](#including-extra-metadata-in-the-prop), which adds display data to the prop value itself.
 
 ### The `Inertia.Paginated` protocol
@@ -682,7 +687,8 @@ conn
 |> assign_shared_prop(:permissions, inertia_defer(fn -> fetch_permissions() end))
 ```
 
-> [!NOTE]
+> #### Note {: .info}
+>
 > You can still use `assign_prop/3` for shared data if you don't need the `sharedProps` metadata.
 > The `assign_shared_prop/3` function is a convenience wrapper that additionally tags the prop
 > for inclusion in the `sharedProps` page metadata.
@@ -692,6 +698,10 @@ conn
 Validation errors follow some specific conventions to make wiring up with Inertia's form helpers seamless. The `errors` prop is managed by this library and is always included in the props object for Inertia components. (When there are no errors, the `errors` prop will be an empty object).
 
 The `assign_errors` function is how you tell Inertia what errors should be represented on the front-end. By default, you can either pass an `Ecto.Changeset` struct or a bare map to the `assign_errors` function. For other error data types, you may implement the `Inertia.Errors` protocol (see the `Inertia.Errors` module docs for more information).
+
+> #### Note {: .info}
+>
+> `Ecto.Changeset` support requires the optional [`ecto`](https://hex.pm/packages/ecto) dependency. Most Phoenix apps already depend on it; if yours doesn't (and you want to pass changesets to `assign_errors`), add `{:ecto, "~> 3.10"}` to your deps. Bare error maps work without Ecto.
 
 ```elixir
 def update(conn, params) do
@@ -884,7 +894,8 @@ end
 
 The Inertia.js client library comes with with server-side rendering (SSR) support, which means you can have your Inertia-powered client hydrate HTML that has been pre-rendered on the server (instead of performing the initial DOM rendering).
 
-> [!NOTE]
+> #### Note {: .info}
+>
 > The steps for enabling SSR in Phoenix are similar to other backend frameworks, but instead of running a separate Node.js server process to render HTML, this library spins up a pool of Node.js process workers to handle SSR calls and manages the state of those node processes from your Elixir process tree.
 
 SSR has two parts: a framework-specific **server entry point** (`ssr.js`) plus the build step that compiles it to `priv/ssr.js`, and the **`Inertia.SSR` machinery** that runs it. The entry point and build are covered in your framework's guide:
@@ -898,6 +909,19 @@ The rest of this section covers the machinery, which is the same regardless of f
 ### Configuring your app for server-rendering
 
 Now that you have a Node.js module capable of server-rendering your pages, youll need to tell the Inertia.js Phoenix library to perform SSR.
+
+The default SSR adapter uses the [`nodejs`](https://hex.pm/packages/nodejs) package, which is an optional dependency. Add it to your deps:
+
+```elixir
+def deps do
+  [
+    {:inertia, "~> 3.0"},
+    {:nodejs, "~> 3.0"}
+  ]
+end
+```
+
+(If you supply a custom `:ssr_adapter`, e.g. for Bun or a Vite dev server, you don't need `nodejs`.)
 
 First, add the `Inertia.SSR` module to your application's supervision tree.
 
@@ -1045,7 +1069,8 @@ If you haven't installed node into your runner image, add the following command 
 + ENV NODE_ENV="production"
 ```
 
-> [!IMPORTANT]
+> #### Important {: .warning}
+>
 > **Be sure to set `NODE_ENV=production`**, so that the SSR script is cached in memory. Otherwise, your page rendering times will be very slow!
 
 ---

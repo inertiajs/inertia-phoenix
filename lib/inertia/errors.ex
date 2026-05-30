@@ -13,6 +13,7 @@ defprotocol Inertia.Errors do
   This library includes default implementations for:
 
   * `Ecto.Changeset` - Converts changeset errors to Inertia-compatible format
+    (only available when the optional `:ecto` dependency is present)
   * `Map` - Validates and passes through properly formatted error maps
 
   ## Usage with Ecto.Changeset
@@ -79,53 +80,57 @@ defprotocol Inertia.Errors do
   def to_errors(value, msg_func)
 end
 
-defimpl Inertia.Errors, for: Ecto.Changeset do
-  def to_errors(%Ecto.Changeset{} = changeset) do
-    to_errors(changeset, &default_msg_func/1)
-  end
+# Ecto is an optional dependency; only define the Ecto.Changeset implementation
+# when Ecto is available.
+if match?({:module, _}, Code.ensure_compiled(Ecto.Changeset)) do
+  defimpl Inertia.Errors, for: Ecto.Changeset do
+    def to_errors(%Ecto.Changeset{} = changeset) do
+      to_errors(changeset, &default_msg_func/1)
+    end
 
-  def to_errors(%Ecto.Changeset{} = changeset, msg_func) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(msg_func)
-    |> process_changeset_errors()
-    |> Map.new()
-  end
+    def to_errors(%Ecto.Changeset{} = changeset, msg_func) do
+      changeset
+      |> Ecto.Changeset.traverse_errors(msg_func)
+      |> process_changeset_errors()
+      |> Map.new()
+    end
 
-  defp process_changeset_errors(value, path \\ nil)
+    defp process_changeset_errors(value, path \\ nil)
 
-  defp process_changeset_errors(%{} = map, path) do
-    map
-    |> Map.to_list()
-    |> Enum.map(fn {key, value} ->
-      path = if path, do: "#{path}.#{key}", else: key
-      process_changeset_errors(value, path)
-    end)
-    |> List.flatten()
-  end
+    defp process_changeset_errors(%{} = map, path) do
+      map
+      |> Map.to_list()
+      |> Enum.map(fn {key, value} ->
+        path = if path, do: "#{path}.#{key}", else: key
+        process_changeset_errors(value, path)
+      end)
+      |> List.flatten()
+    end
 
-  defp process_changeset_errors([%{} | _] = maps, path) do
-    maps
-    |> Enum.with_index()
-    |> Enum.map(fn {map, idx} ->
-      path = "#{path}[#{idx}]"
-      process_changeset_errors(map, path)
-    end)
-    |> List.flatten()
-  end
+    defp process_changeset_errors([%{} | _] = maps, path) do
+      maps
+      |> Enum.with_index()
+      |> Enum.map(fn {map, idx} ->
+        path = "#{path}[#{idx}]"
+        process_changeset_errors(map, path)
+      end)
+      |> List.flatten()
+    end
 
-  defp process_changeset_errors([message], path) when is_binary(message) do
-    {path, message}
-  end
+    defp process_changeset_errors([message], path) when is_binary(message) do
+      {path, message}
+    end
 
-  defp process_changeset_errors([first_message | _], path) when is_binary(first_message) do
-    {path, first_message}
-  end
+    defp process_changeset_errors([first_message | _], path) when is_binary(first_message) do
+      {path, first_message}
+    end
 
-  # The default message function to call when traversing Ecto errors
-  defp default_msg_func({msg, opts}) do
-    Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", fn _ -> to_string(value) end)
-    end)
+    # The default message function to call when traversing Ecto errors
+    defp default_msg_func({msg, opts}) do
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", fn _ -> to_string(value) end)
+      end)
+    end
   end
 end
 
