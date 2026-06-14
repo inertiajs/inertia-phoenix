@@ -89,7 +89,8 @@ defmodule Inertia.MixProject do
     [
       maintainers: ["Derrick Reimer"],
       licenses: ["MIT"],
-      links: links()
+      links: links(),
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md)
     ]
   end
 
