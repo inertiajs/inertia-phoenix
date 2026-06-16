@@ -95,36 +95,59 @@ Vite watcher is running. Omitting it gives a blank page and a
 
 ## Server-side rendering
 
-SSR reuses inertia-phoenix's existing **`Inertia.SSR.NodeJSAdapter`** — no custom
-adapter is needed, because Vite can emit exactly the kind of module the Node pool
-expects:
+This example uses **two different SSR runtimes**, selected by environment, both
+plugged in through inertia-phoenix's `Inertia.SSR.Adapter` behaviour (added in
+[#44](https://github.com/inertiajs/inertia-phoenix/pull/44)):
 
-- **[`assets/js/ssr.jsx`](assets/js/ssr.jsx)** — exports `render(page)` using
-  `ReactDOMServer.renderToString`.
+- **Development** renders through the **running Vite dev server**
+  (`ReactVite.SSR.ViteAdapter`) — no separate SSR build.
+- **Production** renders through the stock **`Inertia.SSR.NodeJSAdapter`** and a
+  pre-built bundle.
+
+Both reuse the same SSR entry, **[`assets/js/ssr.jsx`](assets/js/ssr.jsx)**, which
+exports `render(page)` using `ReactDOMServer.renderToString`.
+
+### Development: the Vite dev-server adapter
+
+In dev, the SSR entry is loaded straight from Vite's module graph — the same
+graph that powers HMR — so editing `ssr.jsx` or any page is reflected on the next
+request with no rebuild and no Phoenix restart.
+
+- **[`assets/vite-plugin-inertia-ssr.mjs`](assets/vite-plugin-inertia-ssr.mjs)** —
+  a dev-only Vite plugin that mounts a `/__inertia_ssr` endpoint on the dev
+  server. It loads the SSR entry via `server.ssrLoadModule(...)`, calls
+  `render(page)`, and returns `{ head, body }` as JSON. `apply: "serve"` makes it
+  a no-op for `vite build`.
+- **[`lib/react_vite/ssr/vite_adapter.ex`](lib/react_vite/ssr/vite_adapter.ex)** —
+  implements `Inertia.SSR.Adapter` by POSTing the page payload to that endpoint
+  (using the built-in `:httpc` client, so no extra dep). Its `children/1` is
+  empty — the dev server is already running as a Phoenix watcher.
+- **[`config/dev.exs`](config/dev.exs)** — sets
+  `config :react_vite, :ssr_adapter, ReactVite.SSR.ViteAdapter` and has **no
+  `ssr` watcher** (the old `vite build --ssr --watch` is gone). It also sets
+  `config :inertia, raise_on_ssr_failure: false`, so a request that beats the dev
+  server to startup falls back to CSR instead of raising.
+
+### Production: the Node.js bundle adapter
+
+In prod there is no dev server, so SSR uses the default Node pool and a
+self-contained bundle:
+
 - **[`vite.config.mjs`](assets/vite.config.mjs)** — the `isSsrBuild` branch builds
   `js/ssr.jsx` into a single **self-contained CommonJS** module at
   `priv/ssr/ssr.cjs` (`ssr.noExternal: true` bundles `react`/`@inertiajs/react`
-  in, so the file needs no `node_modules` at runtime).
-- **[`lib/react_vite/application.ex`](lib/react_vite/application.ex)** — starts
-  `{Inertia.SSR, path: ".../priv/ssr", module: "ssr.cjs"}`.
-- **[`config/dev.exs`](config/dev.exs)** — an `ssr` watcher runs
-  `vite build --ssr --watch`. Because the bundle is CommonJS, the Node pool
-  re-`require`s it on every render in development (`NODE_ENV !== "production"`),
-  so SSR picks up your edits without restarting Phoenix.
+  in, so the file needs no `node_modules` at runtime). `mix assets.build` runs
+  this `--ssr` step.
+- **[`lib/react_vite/application.ex`](lib/react_vite/application.ex)** — when
+  `:ssr_adapter` is unset (prod/test) it starts
+  `{Inertia.SSR, path: ".../priv/ssr", module: "ssr.cjs"}`; when set (dev) it
+  starts `{Inertia.SSR, ssr_adapter: ...}`.
 - **`config :inertia, ssr: true`** — `config/test.exs` turns it back off so the
-  test suite doesn't need the Node pool.
+  test suite doesn't need either runtime.
 
-Why CommonJS and not ESM? The Node pool busts its `require` cache between renders
-in development but **caches** dynamic `import()`s, so a CJS bundle is what gives
-live-reloading SSR. (The companion `.cjs` extension keeps Node happy even though
-`package.json` sets `"type": "module"`.)
-
-> **On a dedicated `Inertia.SSR.ViteAdapter`:** the pluggable adapter behaviour
-> added in [#44](https://github.com/inertiajs/inertia-phoenix/pull/44) makes the
-> SSR runtime swappable, but this example shows that React + Vite SSR already
-> works through the stock `NodeJSAdapter`. A purpose-built Vite adapter (e.g. one
-> that renders through Vite's dev-server `ssrLoadModule`, dropping the separate
-> `--ssr --watch` build in development) is a natural next step, not a requirement.
+Why CommonJS and not ESM for the prod bundle? The Node pool busts its `require`
+cache between renders but **caches** dynamic `import()`s. (The companion `.cjs`
+extension keeps Node happy even though `package.json` sets `"type": "module"`.)
 
 ## Notes / gotchas
 

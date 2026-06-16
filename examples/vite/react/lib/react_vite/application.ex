@@ -11,11 +11,7 @@ defmodule ReactVite.Application do
       ReactViteWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:react_vite, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: ReactVite.PubSub},
-      # Start the SSR Node.js pool. It loads the self-contained CommonJS bundle
-      # built by `vite build --ssr` (priv/ssr/ssr.cjs) and calls its `render`
-      # export to pre-render Inertia pages on the server.
-      {Inertia.SSR,
-       path: Path.join([Application.app_dir(:react_vite), "priv", "ssr"]), module: "ssr.cjs"},
+      ssr_spec(),
       # Start to serve requests, typically the last entry
       ReactViteWeb.Endpoint
     ]
@@ -32,5 +28,20 @@ defmodule ReactVite.Application do
   def config_change(changed, _new, removed) do
     ReactViteWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  # Selects the SSR runtime. In development (config/dev.exs sets `:ssr_adapter`)
+  # we render through the running Vite dev server, so no `--ssr` build or Node
+  # pool is needed; otherwise (production/test) we load the pre-built CommonJS
+  # bundle (priv/ssr/ssr.cjs) via the default Node.js pool.
+  defp ssr_spec do
+    case Application.get_env(:react_vite, :ssr_adapter) do
+      nil ->
+        {Inertia.SSR,
+         path: Path.join([Application.app_dir(:react_vite), "priv", "ssr"]), module: "ssr.cjs"}
+
+      adapter ->
+        {Inertia.SSR, ssr_adapter: adapter}
+    end
   end
 end

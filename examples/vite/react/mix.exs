@@ -21,7 +21,8 @@ defmodule ReactVite.MixProject do
   def application do
     [
       mod: {ReactVite.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      # :inets provides the :httpc client used by ReactVite.SSR.ViteAdapter in dev.
+      extra_applications: [:logger, :runtime_tools, :inets]
     ]
   end
 
