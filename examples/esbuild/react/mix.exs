@@ -53,6 +53,9 @@ defmodule React.MixProject do
       # Uses the local inertia-phoenix checkout (three directories up). In a real
       # app this would be `{:inertia, "~> 3.0"}` from Hex.
       {:inertia, path: "../../.."},
+      # inertia lists :nodejs as an optional dep, so apps that use the default
+      # Node.js SSR adapter (Inertia.SSR.NodeJSAdapter) must require it themselves.
+      {:nodejs, "~> 3.0"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
       {:heroicons,

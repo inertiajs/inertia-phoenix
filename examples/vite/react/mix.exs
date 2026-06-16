@@ -49,6 +49,9 @@ defmodule ReactVite.MixProject do
       # Uses the local inertia-phoenix checkout (three directories up). In a real
       # app this would be `{:inertia, "~> 3.0"}` from Hex.
       {:inertia, path: "../../.."},
+      # inertia lists :nodejs as an optional dep, so apps that use the default
+      # Node.js SSR adapter (Inertia.SSR.NodeJSAdapter) must require it themselves.
+      {:nodejs, "~> 3.0"},
       # phoenix_vite drives Vite as the asset build tool: it provides the HEEx
       # component that loads assets from the Vite dev server (dev) or the Vite
       # manifest (prod), plus the `mix phoenix_vite.npm` task used by the aliases
