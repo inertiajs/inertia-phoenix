@@ -11,7 +11,23 @@ defmodule Inertia.Controller do
   import Phoenix.Controller
   import Plug.Conn
 
-  @title_regex ~r/<title data-inertia>(.*?)<\/title>/
+  # Matches the <title> tag emitted by the client-side adapters during SSR.
+  # The attribute may be bare (`data-inertia`) or carry a value
+  # (`data-inertia=""` or a head-key, e.g. `data-inertia="title"`).
+  @title_regex ~r/<title data-inertia(?:="[^"]*")?>(.*?)<\/title>/
+
+  # The HTML entities that the client-side adapters escape when rendering
+  # the <title> contents during SSR.
+  @title_entities %{
+    "&amp;" => "&",
+    "&lt;" => "<",
+    "&gt;" => ">",
+    "&quot;" => "\"",
+    "&#39;" => "'",
+    "&#x27;" => "'"
+  }
+
+  @title_entity_regex ~r/&(?:amp|lt|gt|quot|#39|#x27);/
 
   defmodule Once do
     @moduledoc false
@@ -1502,10 +1518,20 @@ defmodule Inertia.Controller do
 
   defp update_page_title(conn, [title_tag | _]) do
     [_, page_title] = Regex.run(@title_regex, title_tag)
-    assign(conn, :page_title, page_title)
+    assign(conn, :page_title, unescape_title(page_title))
   end
 
   defp update_page_title(conn, _), do: conn
+
+  # The client-side adapters HTML-escape the title when rendering it during
+  # SSR. Since the extracted value is placed in the `page_title` assign (where
+  # HEEx will escape it again on render), unescape it here to avoid
+  # double-escaping.
+  defp unescape_title(title) do
+    Regex.replace(@title_entity_regex, title, fn entity ->
+      Map.fetch!(@title_entities, entity)
+    end)
+  end
 
   defp send_ssr_response(conn, head, body) do
     conn

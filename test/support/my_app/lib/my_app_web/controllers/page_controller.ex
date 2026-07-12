@@ -236,6 +236,13 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", ssr: true)
   end
 
+  def escaped_title(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:title, ~s(Fish & Chips <"Deluxe">))
+    |> render_inertia("Home")
+  end
+
   def update(conn, _params) do
     conn
     |> put_flash(:info, "Updated")

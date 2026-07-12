@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fixed duplicate `<title>` tags on server-rendered pages. The v3 JavaScript adapters emit the SSR title as `<title data-inertia="">`, but the pattern used to absorb it into the layout's `<.inertia_title>` only matched a bare `data-inertia` attribute — so the SSR title passed through `inertia_head` untouched and rendered as a second `<title>` tag. The pattern now accepts the attribute with or without a value (including head-key values).
+- The page title extracted from the SSR head is now HTML-unescaped before being placed in the `page_title` assign, since HEEx escapes it again when rendering `<.inertia_title>`. Previously (once extraction matched), a title like `Fish & Chips` would render as `Fish &amp; Chips`.
+
 ## 3.0.0-rc3 - 2026-05-30
 
 ### Added

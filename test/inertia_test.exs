@@ -126,6 +126,35 @@ defmodule InertiaTest do
     assert body =~ ~r/<title data-inertia>(\s*)New title(\s*)<\/title>/
     assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr"></div>)
+
+    # The SSR-rendered title must be absorbed into the layout's <title> tag,
+    # not injected as a second <title> via the head elements
+    assert length(Regex.scan(~r/<title/, body)) == 1
+  end
+
+  test "unescapes the SSR title before placing it in the page_title assign", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    conn =
+      conn
+      |> get(~p"/escaped_title")
+
+    body = html_response(conn, 200)
+
+    # The client-side adapter HTML-escapes the title during SSR, so the
+    # extracted value must be unescaped before it lands in the page_title
+    # assign (where HEEx escapes it again on render)
+    assert body =~
+             ~r/<title data-inertia>(\s*)Fish &amp; Chips &lt;&quot;Deluxe&quot;&gt;(\s*)<\/title>/
+
+    assert length(Regex.scan(~r/<title/, body)) == 1
   end
 
   test "renders ssr response for ESM module", %{conn: conn} do
