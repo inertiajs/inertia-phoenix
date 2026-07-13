@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Security
+
+- Raised the minimum `nodejs` version to 3.1.4, which fixes a worker protocol race condition that could leak data across concurrent requests ([CVE-2026-33872](https://osv.dev/vulnerability/GHSA-rwcr-rpcc-3g9m)) — directly relevant to SSR, where pages for different users are rendered through the same worker pool. If you use SSR with the default Node.js adapter, run `mix deps.update nodejs`.
+
 ### Fixed
 
 - Fixed duplicate `<title>` tags on server-rendered pages. The v3 JavaScript adapters emit the SSR title as `<title data-inertia="">`, but the pattern used to absorb it into the layout's `<.inertia_title>` only matched a bare `data-inertia` attribute — so the SSR title passed through `inertia_head` untouched and rendered as a second `<title>` tag. The pattern now accepts the attribute with or without a value (including head-key values).

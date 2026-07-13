@@ -51,7 +51,7 @@ defmodule ReactVite.MixProject do
       {:inertia, path: "../../.."},
       # inertia lists :nodejs as an optional dep, so apps that use the default
       # Node.js SSR adapter (Inertia.SSR.NodeJSAdapter) must require it themselves.
-      {:nodejs, "~> 3.0"},
+      {:nodejs, ">= 3.1.4 and < 4.0.0"},
       # phoenix_vite drives Vite as the asset build tool: it provides the HEEx
       # component that loads assets from the Vite dev server (dev) or the Vite
       # manifest (prod), plus the `mix phoenix_vite.npm` task used by the aliases

@@ -61,7 +61,7 @@ defmodule Inertia.SSR do
 
       Add it to your deps to use Node.js-based SSR:
 
-          {:nodejs, "~> 3.0"}
+          {:nodejs, ">= 3.1.4 and < 4.0.0"}
 
       Or pass a custom module via the :ssr_adapter option.
       """

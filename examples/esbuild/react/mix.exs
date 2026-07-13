@@ -55,7 +55,7 @@ defmodule React.MixProject do
       {:inertia, path: "../../.."},
       # inertia lists :nodejs as an optional dep, so apps that use the default
       # Node.js SSR adapter (Inertia.SSR.NodeJSAdapter) must require it themselves.
-      {:nodejs, "~> 3.0"},
+      {:nodejs, ">= 3.1.4 and < 4.0.0"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
       {:heroicons,

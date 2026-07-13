@@ -1,6 +1,6 @@
 # The default SSR adapter relies on the optional :nodejs dependency, so it is
 # only compiled when that package is available. Apps using Node.js-based SSR add
-# `{:nodejs, "~> 3.0"}` to their deps.
+# `{:nodejs, ">= 3.1.4 and < 4.0.0"}` to their deps.
 if match?({:module, _}, Code.ensure_compiled(NodeJS)) do
   defmodule Inertia.SSR.NodeJSAdapter do
     @moduledoc """

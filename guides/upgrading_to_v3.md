@@ -151,7 +151,7 @@ See the [Scroll props](readme.html#scroll-props) section of the README for the f
 To avoid imposing dependencies on apps that don't need them, `ecto` and `nodejs` are now optional. If you use the features that rely on them, add them to your own deps:
 
 - **`ecto`** — required only for passing an `Ecto.Changeset` to `assign_errors/2`. Most Phoenix apps already depend on Ecto, so no action is needed. If yours doesn't (and you rely on changeset errors), add `{:ecto, "~> 3.10"}`. Bare error maps work without Ecto.
-- **`nodejs`** — required only by the default Node.js SSR adapter. If you use server-side rendering with the default adapter, add `{:nodejs, "~> 3.0"}`. Apps that don't use SSR, or use a custom `:ssr_adapter` (Bun, Vite, etc.), don't need it.
+- **`nodejs`** — required only by the default Node.js SSR adapter. If you use server-side rendering with the default adapter, add `{:nodejs, ">= 3.1.4 and < 4.0.0"}`. Apps that don't use SSR, or use a custom `:ssr_adapter` (Bun, Vite, etc.), don't need it.
 
 ```elixir
 def deps do
@@ -159,7 +159,7 @@ def deps do
     {:inertia, "~> 3.0"},
     # add only what you use:
     {:ecto, "~> 3.10"},
-    {:nodejs, "~> 3.0"}
+    {:nodejs, ">= 3.1.4 and < 4.0.0"}
   ]
 end
 ```

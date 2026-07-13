@@ -916,7 +916,7 @@ The default SSR adapter uses the [`nodejs`](https://hex.pm/packages/nodejs) pack
 def deps do
   [
     {:inertia, "~> 3.0"},
-    {:nodejs, "~> 3.0"}
+    {:nodejs, ">= 3.1.4 and < 4.0.0"}
   ]
 end
 ```

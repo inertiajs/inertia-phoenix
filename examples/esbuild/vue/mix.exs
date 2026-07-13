@@ -57,7 +57,7 @@ defmodule Vue.MixProject do
       {:inertia, path: "../../.."},
       # inertia lists :nodejs as an optional dep, so apps that use the default
       # Node.js SSR adapter (Inertia.SSR.NodeJSAdapter) must require it themselves.
-      {:nodejs, "~> 3.0"},
+      {:nodejs, ">= 3.1.4 and < 4.0.0"},
       {:heroicons,
        github: "tailwindlabs/heroicons",
        tag: "v2.2.0",

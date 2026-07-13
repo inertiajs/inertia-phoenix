@@ -48,7 +48,7 @@ defmodule Inertia.MixProject do
       {:igniter, "~> 0.7", optional: true},
       {:flop, "~> 0.25", optional: true},
       {:scrivener, "~> 2.7", optional: true},
-      {:nodejs, "~> 3.0", optional: true},
+      {:nodejs, ">= 3.1.4 and < 4.0.0", optional: true},
       {:ecto, "~> 3.10", optional: true}
     ]
   end

@@ -57,8 +57,6 @@ if Code.ensure_loaded?(Igniter) do
     alias Igniter.Project.TaskAliases
     alias Sourceror.Zipper
 
-    require Common
-
     @impl Igniter.Mix.Task
     def info(_argv, _parent) do
       %Igniter.Mix.Task.Info{
