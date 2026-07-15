@@ -236,6 +236,13 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", ssr: true)
   end
 
+  def ssr_script_nonce(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:ssr_script_nonce, "upstream456")
+    |> render_inertia("Home", ssr: true)
+  end
+
   def escaped_title(conn, _params) do
     conn
     |> assign(:page_title, "Home")

@@ -127,9 +127,111 @@ defmodule InertiaTest do
     assert body =~ ~s(<meta name="description" content="Head stuff" />)
     assert body =~ ~s(<div id="ssr"></div>)
 
+    # No nonce is injected when no assign key is configured
+    refute body =~ "nonce="
+
     # The SSR-rendered title must be absorbed into the layout's <title> tag,
     # not injected as a second <title> via the head elements
     assert length(Regex.scan(~r/<title/, body)) == 1
+  end
+
+  test "injects the nonce into the SSR page script tag when configured", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, true)
+    Application.put_env(:inertia, :csp_nonce_assign_key, :csp_nonce)
+    on_exit(fn -> Application.delete_env(:inertia, :csp_nonce_assign_key) end)
+
+    conn =
+      conn
+      |> Plug.Conn.assign(:csp_nonce, "abc123")
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+
+    assert body =~ ~s(<script nonce="abc123" data-page="ssr" type="application/json">)
+
+    # The nonce is only injected into the page data script tag
+    assert length(Regex.scan(~r/nonce="/, body)) == 1
+  end
+
+  test "HTML-escapes the nonce injected into the SSR page script tag", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, true)
+    Application.put_env(:inertia, :csp_nonce_assign_key, :csp_nonce)
+    on_exit(fn -> Application.delete_env(:inertia, :csp_nonce_assign_key) end)
+
+    conn =
+      conn
+      |> Plug.Conn.assign(:csp_nonce, ~s(abc"><script>))
+      |> get(~p"/")
+
+    body = html_response(conn, 200)
+
+    assert body =~
+             ~s(<script nonce="abc&quot;&gt;&lt;script&gt;" data-page="ssr" type="application/json">)
+  end
+
+  test "leaves the SSR page script tag untouched when it already carries the configured nonce",
+       %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :csp_nonce_assign_key, :csp_nonce)
+    on_exit(fn -> Application.delete_env(:inertia, :csp_nonce_assign_key) end)
+
+    conn =
+      conn
+      |> Plug.Conn.assign(:csp_nonce, "upstream456")
+      |> get(~p"/ssr_script_nonce")
+
+    body = html_response(conn, 200)
+
+    # The tag emitted by the (simulated) client-side adapter is preserved
+    # as-is, including its original attribute order
+    assert body =~ ~s(<script data-page="ssr" type="application/json" nonce="upstream456">)
+    assert length(Regex.scan(~r/nonce="/, body)) == 1
+  end
+
+  test "replaces a mismatched nonce on the SSR page script tag with the configured one",
+       %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :csp_nonce_assign_key, :csp_nonce)
+    on_exit(fn -> Application.delete_env(:inertia, :csp_nonce_assign_key) end)
+
+    conn =
+      conn
+      |> Plug.Conn.assign(:csp_nonce, "abc123")
+      |> get(~p"/ssr_script_nonce")
+
+    body = html_response(conn, 200)
+
+    # The configured nonce is authoritative — it is the value the app's CSP
+    # header is built from, so a differing nonce would leave the script blocked
+    assert body =~ ~s(<script nonce="abc123" data-page="ssr" type="application/json">)
+    refute body =~ ~s(nonce="upstream456")
+    assert length(Regex.scan(~r/nonce="/, body)) == 1
   end
 
   test "unescapes the SSR title before placing it in the page_title assign", %{conn: conn} do

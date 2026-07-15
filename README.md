@@ -97,9 +97,10 @@ config :inertia,
 
   # The connection assign key to read a Content-Security-Policy nonce from. When
   # set, and the assign contains a value, the nonce will be applied to the
-  # `<script>` tag that the library injects to bootstrap the page data. Use this
-  # if you serve your app with a strict CSP that disallows inline scripts without
-  # a nonce. Defaults to `nil` (no nonce).
+  # `<script>` tag that carries the page data (for both client-side and
+  # server-side rendered responses). Use this if you serve your app with a
+  # strict CSP that disallows inline scripts without a nonce. Defaults to `nil`
+  # (no nonce).
   csp_nonce_assign_key: :csp_nonce
 ```
 

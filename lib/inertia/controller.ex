@@ -29,6 +29,14 @@ defmodule Inertia.Controller do
 
   @title_entity_regex ~r/&(?:amp|lt|gt|quot|#39|#x27);/
 
+  # Matches the opening page data <script> tag emitted by the client-side
+  # adapters' `buildSSRBody` helper during SSR.
+  @page_script_regex ~r/<script(\s[^>]*\bdata-page=[^>]*)>/
+
+  # Matches a nonce attribute (tolerating casing, spacing, and quoting
+  # variations) within the attributes of the page data <script> tag.
+  @nonce_attr_regex ~r/\snonce\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i
+
   defmodule Once do
     @moduledoc false
     @type t :: %__MODULE__{
@@ -1537,8 +1545,41 @@ defmodule Inertia.Controller do
     conn
     |> put_view(Inertia.HTML)
     |> compile_head(head)
-    |> assign(:body, body)
+    |> assign(:body, maybe_put_csp_nonce(body, csp_nonce(conn)))
     |> render(:inertia_ssr)
+  end
+
+  # Injects the configured CSP nonce into the page data <script> tag of an
+  # SSR-rendered body. The client-side `buildSSRBody` helper does not
+  # currently support nonces, so we set the attribute here.
+  #
+  # The configured nonce is authoritative: it is the same value the app uses
+  # to build its `Content-Security-Policy` header, so any other nonce on the
+  # tag would leave the script blocked under a strict CSP. If the tag already
+  # carries the configured nonce (e.g. the client-side libraries gain nonce
+  # support), the body passes through untouched; any other nonce is replaced.
+  #
+  # Only the first matching tag is considered: `buildSSRBody` places the page
+  # data script at the start of the body, so any later match would be inside
+  # the JSON payload (or user-rendered content) and must not be touched.
+  defp maybe_put_csp_nonce(body, nil), do: body
+
+  defp maybe_put_csp_nonce(body, nonce) do
+    escaped_nonce = Plug.HTML.html_escape(nonce)
+
+    Regex.replace(
+      @page_script_regex,
+      body,
+      fn match, attrs ->
+        if String.contains?(attrs, ~s( nonce="#{escaped_nonce}")) do
+          match
+        else
+          attrs = String.replace(attrs, @nonce_attr_regex, "")
+          ~s(<script nonce="#{escaped_nonce}"#{attrs}>)
+        end
+      end,
+      global: false
+    )
   end
 
   defp send_csr_response(conn) do
