@@ -18,13 +18,22 @@ config :react_vite, ReactViteWeb.Endpoint,
   # (used by the asset tags in root.html.heex) points at it instead of Phoenix.
   static_url: [host: "localhost", port: 5173],
   # Run the Vite dev server alongside Phoenix. PhoenixVite.Npm.run/2 shells out
-  # to `npm exec -- vite ...` (the `:vite` profile in config/config.exs). The
-  # `ssr` watcher rebuilds priv/ssr/ssr.cjs on change; because it's CommonJS the
-  # Inertia.SSR Node pool reloads it without a restart in development.
+  # to `npm exec -- vite ...` (the `:vite` profile in config/config.exs). There
+  # is no `ssr` watcher: SSR renders through this same dev server via the Vite
+  # adapter below (see config :react_vite, :ssr_adapter), so no separate
+  # `vite build --ssr` is needed in development.
   watchers: [
-    vite: {PhoenixVite.Npm, :run, [:vite, ~w(dev)]},
-    ssr: {PhoenixVite.Npm, :run, [:vite, ~w(build --ssr js/ssr.jsx --watch)]}
+    vite: {PhoenixVite.Npm, :run, [:vite, ~w(dev)]}
   ]
+
+# Render SSR through the running Vite dev server instead of the pre-built
+# Node.js bundle. ReactVite.Application reads this to pick the SSR adapter; the
+# dev server exposes the render endpoint via assets/vite-plugin-inertia-ssr.mjs.
+config :react_vite, :ssr_adapter, ReactVite.SSR.ViteAdapter
+
+# Fall back to client-side rendering (instead of raising) if an SSR request
+# can't reach the Vite dev server — e.g. during the brief window while it boots.
+config :inertia, raise_on_ssr_failure: false
 
 # ## SSL Support
 #
