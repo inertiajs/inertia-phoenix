@@ -1,0 +1,17 @@
+# CI runs on GitHub Actions (.github/workflows/ci.yml). This no-op config keeps
+# the lingering CircleCI integration from reporting failures until it can be
+# removed from the GitHub repository settings.
+version: 2.1
+
+jobs:
+  noop:
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    steps:
+      - run: echo "CI has moved to GitHub Actions"
+
+workflows:
+  noop:
+    jobs:
+      - noop
