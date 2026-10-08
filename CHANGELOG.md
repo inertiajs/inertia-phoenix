@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.0 - 2026-10-08
+
+First stable release with support for Inertia.js v3. There are no changes since 3.0.0-rc5. See the release candidate entries below for the full list of changes since 2.6.2, and the [upgrade guide](guides/upgrading_to_v3.md) for help migrating from v2.
+
 ## 3.0.0-rc5 - 2026-07-15
 
 ### Fixed
