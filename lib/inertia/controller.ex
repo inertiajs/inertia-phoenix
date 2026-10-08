@@ -96,7 +96,7 @@ defmodule Inertia.Controller do
   @opaque shared() :: {:shared, any()}
   @opaque preserved_prop_key :: {:preserve, raw_prop_key()}
 
-  @type render_opt() :: {:ssr, boolean()}
+  @type render_opt() :: {:ssr, boolean() | nil}
   @type render_opts() :: [render_opt()]
 
   @type prop_key() :: raw_prop_key() | preserved_prop_key()
@@ -669,7 +669,8 @@ defmodule Inertia.Controller do
     "Server-side rendering" in the README for more information on setting this
     up). Defaults to the globally-configured value, or `false` if no global
     config is specified. Pass `ssr: false` to disable SSR for a single response
-    when it is enabled globally.
+    when it is enabled globally. Passing `ssr: nil` is the same as omitting
+    the option.
 
   ## Examples
 
