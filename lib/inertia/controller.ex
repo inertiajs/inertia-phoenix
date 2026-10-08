@@ -33,6 +33,11 @@ defmodule Inertia.Controller do
   # adapters' `buildSSRBody` helper during SSR.
   @page_script_regex ~r/<script(\s[^>]*\bdata-page=[^>]*)>/
 
+  # Matches the page data <script> element (opening tag, JSON contents, and
+  # closing tag) emitted by `buildSSRBody`. `buildSSRBody` escapes `/` in the
+  # JSON, so the first literal `</script>` is the element's real closing tag.
+  @page_script_element_regex ~r/(<script\s[^>]*\bdata-page=[^>]*>)(.*?)(<\/script>)/s
+
   # Matches a nonce attribute (tolerating casing, spacing, and quoting
   # variations) within the attributes of the page data <script> tag.
   @nonce_attr_regex ~r/\snonce\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i
@@ -1546,8 +1551,28 @@ defmodule Inertia.Controller do
     conn
     |> put_view(Inertia.HTML)
     |> compile_head(head)
-    |> assign(:body, maybe_put_csp_nonce(body, csp_nonce(conn)))
+    |> assign(:body, body |> escape_ssr_page_data() |> maybe_put_csp_nonce(csp_nonce(conn)))
     |> render(:inertia_ssr)
+  end
+
+  # Escapes `<` in the page data JSON of an SSR-rendered body. `buildSSRBody`
+  # only escapes `/`, which stops a prop from closing the <script> tag but not
+  # from opening an HTML comment: a value like `<!--<script>` puts the browser
+  # in the "double escaped" script state, where the real `</script>` no longer
+  # ends the element and the rest of the body is swallowed into the script.
+  # `\u003c` is a valid JSON escape, so the page data parses to the same value.
+  #
+  # As with the nonce, only the first matching element is considered, since
+  # `buildSSRBody` places the page data script at the start of the body.
+  defp escape_ssr_page_data(body) do
+    Regex.replace(
+      @page_script_element_regex,
+      body,
+      fn _match, open_tag, json, close_tag ->
+        open_tag <> String.replace(json, "<", "\\u003c") <> close_tag
+      end,
+      global: false
+    )
   end
 
   # Injects the configured CSP nonce into the page data <script> tag of an

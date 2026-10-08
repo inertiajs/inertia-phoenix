@@ -386,6 +386,53 @@ defmodule InertiaTest do
     assert body =~ ~s(<script data-page="app" type="application/json">)
   end
 
+  test "escapes < in the ssr page data so props cannot open a comment", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    conn = get(conn, ~p"/ssr_script_breakout_props")
+    body = html_response(conn, 200)
+
+    refute body =~ "<!--"
+    assert body =~ ~S|"name":"\u003c!--\u003cscript>"|
+    assert body =~ ~s(<div id="ssr"></div>)
+
+    [json] =
+      Regex.run(~r/<script data-page="ssr"[^>]*>(.*?)<\/script>/s, body, capture: :all_but_first)
+
+    assert %{"props" => %{"name" => "<!--<script>"}} = Jason.decode!(json)
+  end
+
+  test "escapes the ssr page data and applies the nonce together", %{conn: conn} do
+    Application.put_env(:inertia, :csp_nonce_assign_key, :csp_nonce)
+    on_exit(fn -> Application.delete_env(:inertia, :csp_nonce_assign_key) end)
+
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    conn =
+      conn
+      |> Plug.Conn.assign(:csp_nonce, "abc123")
+      |> get(~p"/ssr_script_breakout_props")
+
+    body = html_response(conn, 200)
+
+    assert body =~ ~s(<script nonce="abc123" data-page="ssr" type="application/json">)
+    refute body =~ "<!--"
+  end
+
   test "falls back to the global ssr setting when the local option is nil", %{conn: conn} do
     path =
       __ENV__.file

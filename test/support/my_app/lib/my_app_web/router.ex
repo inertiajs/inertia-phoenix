@@ -49,6 +49,7 @@ defmodule MyAppWeb.Router do
     get "/local_ssr_disabled", PageController, :local_ssr_disabled
     get "/local_ssr_nil", PageController, :local_ssr_nil
     get "/script_breakout_props", PageController, :script_breakout_props
+    get "/ssr_script_breakout_props", PageController, :ssr_script_breakout_props
     get "/ssr_script_nonce", PageController, :ssr_script_nonce
     get "/escaped_title", PageController, :escaped_title
     get "/force_redirect", PageController, :force_redirect

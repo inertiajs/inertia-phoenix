@@ -5,6 +5,7 @@
 ### Security
 
 - Escape `<` in the page data JSON embedded in client-side rendered responses. Previously, a prop value containing `</script>` would end the page data `<script>` tag early, allowing user-controlled props to inject markup and scripts into the page. Every `<` is now encoded as `\u003c`, which is valid JSON and decodes to the same value.
+- Escape `<` in the page data JSON of server-rendered responses as well. The client-side `buildSSRBody` helper escapes `/` (so a prop can't close the `<script>` tag) but not `<`, so a prop value like `<!--<script>` could put the browser's HTML parser into a state where the real closing `</script>` is ignored and the rest of the page body is swallowed into the script.
 
 ### Fixed
 

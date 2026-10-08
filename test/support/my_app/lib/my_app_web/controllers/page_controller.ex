@@ -255,6 +255,13 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home")
   end
 
+  def ssr_script_breakout_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:name, "<!--<script>")
+    |> render_inertia("Home", ssr: true)
+  end
+
   def ssr_script_nonce(conn, _params) do
     conn
     |> assign(:page_title, "Home")
