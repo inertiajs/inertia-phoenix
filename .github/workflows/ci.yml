@@ -25,7 +25,7 @@ jobs:
           - elixir: "1.19.5"
             otp: "27.2.2"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: erlef/setup-beam@v1
         with:
@@ -35,7 +35,7 @@ jobs:
       # A single cache covers deps, the compiled build, and the dialyzer PLTs
       # (dialyxir writes them to _build by default). The restore-keys fallback
       # keeps PLTs warm across mix.lock changes.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             deps
