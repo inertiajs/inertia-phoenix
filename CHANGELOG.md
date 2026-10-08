@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- Escape `<` in the page data JSON embedded in client-side rendered responses. Previously, a prop value containing `</script>` would end the page data `<script>` tag early, allowing user-controlled props to inject markup and scripts into the page. Every `<` is now encoded as `\u003c`, which is valid JSON and decodes to the same value.
+
+### Fixed
+
+- Passing `ssr: false` to `render_inertia/3,4` now disables server-side rendering for that response when SSR is enabled globally. Previously the option was ignored and the global setting always won.
+- A non-string `:default_version` (e.g. `default_version: 1`) is now converted to a string. Previously it never matched the `X-Inertia-Version` request header, so every Inertia visit fell back to a full page reload.
+
+### Changed
+
+- The `409 Conflict` response sent on an asset version mismatch now includes the current asset version in the `X-Inertia-Version` header, matching the Laravel adapter.
+
 ## 3.0.0 - 2026-10-08
 
 First stable release with support for Inertia.js v3. There are no changes since 3.0.0-rc5. See the release candidate entries below for the full list of changes since 2.6.2, and the [upgrade guide](guides/upgrading_to_v3.md) for help migrating from v2.

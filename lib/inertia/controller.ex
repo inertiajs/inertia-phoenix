@@ -663,7 +663,8 @@ defmodule Inertia.Controller do
   - `ssr`: whether to server-side render the response (see the docs on
     "Server-side rendering" in the README for more information on setting this
     up). Defaults to the globally-configured value, or `false` if no global
-    config is specified.
+    config is specified. Pass `ssr: false` to disable SSR for a single response
+    when it is enabled globally.
 
   ## Examples
 
@@ -1744,7 +1745,12 @@ defmodule Inertia.Controller do
   end
 
   defp detect_ssr(conn, opts) do
-    enabled = opts[:ssr] || ssr_enabled_globally?()
+    enabled =
+      case Keyword.get(opts, :ssr) do
+        nil -> ssr_enabled_globally?()
+        enabled -> enabled
+      end
+
     put_private(conn, :inertia_ssr, enabled and not ssr_excluded_path?(conn.request_path))
   end
 

@@ -61,7 +61,7 @@ defmodule Inertia.HTML do
     ~H"""
     <div id="app"></div>
     <script data-page="app" type="application/json" nonce={@csp_nonce}>
-      <%= Phoenix.HTML.raw(json_library().encode!(@page)) %>
+      <%= Phoenix.HTML.raw(encode_page(@page)) %>
     </script>
     """
   end
@@ -71,6 +71,18 @@ defmodule Inertia.HTML do
     ~H"""
     {Phoenix.HTML.raw(@body)}
     """
+  end
+
+  # Escapes `<` so a prop value containing `</script>` (or `<!--`) cannot end
+  # the surrounding `<script>` tag early. `\u003c` is a valid JSON escape, so
+  # the page data parses to the same value. This is done on the encoded
+  # output (rather than via a Jason-specific option) so it holds for any
+  # configured JSON library.
+  defp encode_page(page) do
+    page
+    |> json_library().encode!()
+    |> IO.iodata_to_binary()
+    |> String.replace("<", "\\u003c")
   end
 
   defp json_library do

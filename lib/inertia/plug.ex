@@ -289,6 +289,7 @@ defmodule Inertia.Plug do
   defp force_refresh(conn) do
     conn
     |> put_resp_header("x-inertia-location", request_url(conn))
+    |> put_resp_header("x-inertia-version", conn.private.inertia_version)
     |> put_resp_content_type("text/html")
     |> forward_flash()
     |> send_resp(:conflict, "")
@@ -323,7 +324,9 @@ defmodule Inertia.Plug do
   end
 
   defp default_version do
-    Application.get_env(:inertia, :default_version, "1")
+    :inertia
+    |> Application.get_env(:default_version, "1")
+    |> to_string()
   end
 
   defp default_camelize_props do

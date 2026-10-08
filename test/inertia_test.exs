@@ -96,6 +96,21 @@ defmodule InertiaTest do
     assert body =~ ~s(<script data-page="app" type="application/json" nonce="abc123">)
   end
 
+  test "escapes < in the page data so props cannot end the script tag", %{conn: conn} do
+    conn = get(conn, ~p"/script_breakout_props")
+    body = html_response(conn, 200)
+
+    refute body =~ "</script><script>alert(1)"
+    refute body =~ "<!--"
+    assert body =~ ~S|"name":"\u003c/script>\u003cscript>alert(1)\u003c/script>\u003c!--"|
+
+    [json] =
+      Regex.run(~r/<script data-page="app"[^>]*>(.*?)<\/script>/s, body, capture: :all_but_first)
+
+    assert %{"props" => %{"name" => "</script><script>alert(1)</script><!--"}} =
+             Jason.decode!(json)
+  end
+
   test "omits the nonce when no assign key is configured", %{conn: conn} do
     conn =
       conn
@@ -351,6 +366,45 @@ defmodule InertiaTest do
     assert body =~ ~s(<div id="ssr"></div>)
   end
 
+  test "skips ssr when locally disabled and enabled globally", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    conn =
+      conn
+      |> get(~p"/local_ssr_disabled")
+
+    body = html_response(conn, 200)
+
+    refute body =~ ~s(<div id="ssr"></div>)
+    assert body =~ ~s(<script data-page="app" type="application/json">)
+  end
+
+  test "falls back to the global ssr setting when the local option is nil", %{conn: conn} do
+    path =
+      __ENV__.file
+      |> Path.dirname()
+      |> Path.join("js")
+
+    start_supervised({Inertia.SSR, path: path})
+
+    Application.put_env(:inertia, :ssr, true)
+
+    conn =
+      conn
+      |> get(~p"/local_ssr_nil")
+
+    body = html_response(conn, 200)
+
+    assert body =~ ~s(<div id="ssr"></div>)
+  end
+
   test "supports binary", %{conn: conn} do
     path =
       __ENV__.file
@@ -469,6 +523,37 @@ defmodule InertiaTest do
     assert html_response(conn, 409)
     refute get_resp_header(conn, "x-inertia") == ["true"]
     assert get_resp_header(conn, "x-inertia-location") == ["http://www.example.com/"]
+    assert get_resp_header(conn, "x-inertia-version") == [@current_version]
+  end
+
+  test "treats a non-string default version as a string", %{conn: conn} do
+    static_paths = Application.get_env(:inertia, :static_paths)
+    default_version = Application.get_env(:inertia, :default_version)
+
+    on_exit(fn ->
+      Application.put_env(:inertia, :static_paths, static_paths)
+      Application.put_env(:inertia, :default_version, default_version)
+    end)
+
+    Application.put_env(:inertia, :static_paths, [])
+    Application.put_env(:inertia, :default_version, 2)
+
+    matching_conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", "2")
+      |> get(~p"/")
+
+    assert %{"version" => "2"} = json_response(matching_conn, 200)
+
+    mismatched_conn =
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", "1")
+      |> get(~p"/")
+
+    assert html_response(mismatched_conn, 409)
+    assert get_resp_header(mismatched_conn, "x-inertia-version") == ["2"]
   end
 
   test "evaluates optional props", %{conn: conn} do

@@ -236,6 +236,25 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", ssr: true)
   end
 
+  def local_ssr_disabled(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render_inertia("Home", ssr: false)
+  end
+
+  def local_ssr_nil(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> render_inertia("Home", ssr: nil)
+  end
+
+  def script_breakout_props(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:name, "</script><script>alert(1)</script><!--")
+    |> render_inertia("Home")
+  end
+
   def ssr_script_nonce(conn, _params) do
     conn
     |> assign(:page_title, "Home")
