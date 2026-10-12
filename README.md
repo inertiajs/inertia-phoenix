@@ -83,6 +83,13 @@ config :inertia,
   # controller helper. Defaults to `false`.
   history: [encrypt: false],
 
+  # Preserve integers outside JavaScript's safe range (±2^53 - 1), so the client
+  # receives them as native BigInt values instead of losing precision. This can
+  # also be set per response with the `preserve_big_integers` option on
+  # `render_inertia`. Requires `@inertiajs/core` 3.8.0 or later. Defaults to
+  # `false`.
+  preserve_big_integers: false,
+
   # Enable server-side rendering for page responses (requires some additional setup,
   # see instructions below). Defaults to `false`.
   ssr: false,
@@ -205,6 +212,23 @@ defmodule MyAppWeb.ProfileController do
   end
 end
 ```
+
+### Big integers
+
+JavaScript numbers lose precision beyond ±2^53 - 1, so a large integer prop (such as a Snowflake-style ID) would arrive in the browser with a different value. To preserve these, enable `preserve_big_integers` globally or for a single response (requires `@inertiajs/core` 3.8.0 or later):
+
+```elixir
+config :inertia,
+  preserve_big_integers: true
+```
+
+```elixir
+conn
+|> assign_prop(:id, 1_234_567_890_123_456_789)
+|> render_inertia("ProfilePage", preserve_big_integers: true)
+```
+
+Integers outside the safe range (in props and flash data) are then sent as `{"$bigint": "1234567890123456789"}` and revived by the client as native `BigInt` values. Integers inside structs are not converted, since structs are encoded by their own JSON encoder implementation (e.g. `Jason.Encoder`), so convert them to maps first. The `Inertia.Testing` helpers return the original integers.
 
 ## Setting up the client-side
 

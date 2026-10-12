@@ -48,6 +48,7 @@ defmodule MyAppWeb.Router do
     get "/local_ssr", PageController, :local_ssr
     get "/local_ssr_disabled", PageController, :local_ssr_disabled
     get "/local_ssr_nil", PageController, :local_ssr_nil
+    get "/big_integer_props", PageController, :big_integer_props
     get "/script_breakout_props", PageController, :script_breakout_props
     get "/ssr_script_breakout_props", PageController, :ssr_script_breakout_props
     get "/ssr_script_nonce", PageController, :ssr_script_nonce

@@ -16,6 +16,11 @@ defmodule Inertia.Controller do
   # (`data-inertia=""` or a head-key, e.g. `data-inertia="title"`).
   @title_regex ~r/<title data-inertia(?:="[^"]*")?>(.*?)<\/title>/
 
+  # The largest integer JavaScript represents without losing precision
+  # (`Number.MAX_SAFE_INTEGER`). Integers beyond this range are sent under the
+  # `$bigint` key when big integer preservation is enabled.
+  @max_safe_integer 9_007_199_254_740_991
+
   # The HTML entities that the client-side adapters escape when rendering
   # the <title> contents during SSR.
   @title_entities %{
@@ -96,7 +101,7 @@ defmodule Inertia.Controller do
   @opaque shared() :: {:shared, any()}
   @opaque preserved_prop_key :: {:preserve, raw_prop_key()}
 
-  @type render_opt() :: {:ssr, boolean() | nil}
+  @type render_opt() :: {:ssr, boolean() | nil} | {:preserve_big_integers, boolean() | nil}
   @type render_opts() :: [render_opt()]
 
   @type prop_key() :: raw_prop_key() | preserved_prop_key()
@@ -671,6 +676,12 @@ defmodule Inertia.Controller do
     config is specified. Pass `ssr: false` to disable SSR for a single response
     when it is enabled globally. Passing `ssr: nil` is the same as omitting
     the option.
+  - `preserve_big_integers`: whether to send integers outside JavaScript's safe
+    range (±2^53 - 1) so the client can revive them as native `BigInt` values,
+    instead of losing precision. Requires `@inertiajs/core` 3.8.0 or later.
+    Defaults to the globally-configured value, or `false` if no global config
+    is specified. Passing `preserve_big_integers: nil` is the same as omitting
+    the option.
 
   ## Examples
 
@@ -775,7 +786,8 @@ defmodule Inertia.Controller do
       scroll_props: meta.scroll_props,
       rescued_props: meta.rescued_props,
       shared_props: shared_prop_keys,
-      is_partial: is_partial
+      is_partial: is_partial,
+      preserve_big_integers: option_or_config(opts, :preserve_big_integers)
     })
     |> detect_ssr(opts)
     |> put_csrf_cookie()
@@ -1503,8 +1515,10 @@ defmodule Inertia.Controller do
   end
 
   defp send_response(conn) do
+    page = inertia_assigns(conn)
+
     if conn.private[:inertia_ssr] do
-      case SSR.call(inertia_assigns(conn)) do
+      case SSR.call(page) do
         {:ok, %{"head" => head, "body" => body}} ->
           send_ssr_response(conn, head, body)
 
@@ -1515,11 +1529,11 @@ defmodule Inertia.Controller do
             raise RenderError, message: message
           else
             Logger.error("SSR failed, falling back to CSR\n\n#{message}")
-            send_csr_response(conn)
+            send_csr_response(conn, page)
           end
       end
     else
-      send_csr_response(conn)
+      send_csr_response(conn, page)
     end
   end
 
@@ -1609,10 +1623,10 @@ defmodule Inertia.Controller do
     )
   end
 
-  defp send_csr_response(conn) do
+  defp send_csr_response(conn, page) do
     conn
     |> put_view(Inertia.HTML)
-    |> render(:inertia_page, %{page: inertia_assigns(conn), csp_nonce: csp_nonce(conn)})
+    |> render(:inertia_page, %{page: page, csp_nonce: csp_nonce(conn)})
   end
 
   defp csp_nonce(conn) do
@@ -1642,7 +1656,40 @@ defmodule Inertia.Controller do
     |> maybe_put_rescued_props(conn)
     |> maybe_put_shared_props(conn)
     |> maybe_put_preserve_fragment(conn)
+    |> maybe_preserve_big_integers(conn)
   end
+
+  # Wraps integers outside JavaScript's safe range in the props and flash, so
+  # the client can revive them as native BigInt values. This happens only when
+  # building the page object, so `conn.private.inertia_page` (and the
+  # `Inertia.Testing` helpers) keep the original integers.
+  defp maybe_preserve_big_integers(assigns, conn) do
+    if conn.private.inertia_page.preserve_big_integers do
+      assigns
+      |> Map.update!(:props, &encode_big_integers/1)
+      |> Map.update!(:flash, &encode_big_integers/1)
+      |> Map.put(:preserveBigIntegers, true)
+    else
+      assigns
+    end
+  end
+
+  defp encode_big_integers(value)
+       when is_integer(value) and (value > @max_safe_integer or value < -@max_safe_integer) do
+    %{"$bigint" => Integer.to_string(value)}
+  end
+
+  defp encode_big_integers(list) when is_list(list) do
+    Enum.map(list, &encode_big_integers/1)
+  end
+
+  # Structs are left alone, since they serialize through their own JSON encoder
+  # implementation and walking their fields could change the encoded shape.
+  defp encode_big_integers(map) when is_map(map) and not is_struct(map) do
+    Map.new(map, fn {key, value} -> {key, encode_big_integers(value)} end)
+  end
+
+  defp encode_big_integers(value), do: value
 
   defp maybe_put_encrypt_history(assigns, conn) do
     if conn.private.inertia_encrypt_history do
@@ -1771,11 +1818,7 @@ defmodule Inertia.Controller do
   end
 
   defp detect_ssr(conn, opts) do
-    enabled =
-      case Keyword.get(opts, :ssr) do
-        nil -> ssr_enabled_globally?()
-        enabled -> enabled
-      end
+    enabled = option_or_config(opts, :ssr)
 
     put_private(conn, :inertia_ssr, enabled and not ssr_excluded_path?(conn.request_path))
   end
@@ -1790,8 +1833,13 @@ defmodule Inertia.Controller do
     end)
   end
 
-  defp ssr_enabled_globally? do
-    Application.get_env(:inertia, :ssr, false)
+  # Returns the given render option, falling back to the global config value of
+  # the same name (or `false`) when the option is omitted or `nil`.
+  defp option_or_config(opts, key) do
+    case Keyword.get(opts, key) do
+      nil -> Application.get_env(:inertia, key, false)
+      value -> value
+    end
   end
 
   defp raise_on_ssr_failure? do
