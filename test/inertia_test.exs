@@ -386,6 +386,72 @@ defmodule InertiaTest do
     assert body =~ ~s(<script data-page="app" type="application/json">)
   end
 
+  describe "big integers" do
+    setup do
+      on_exit(fn -> Application.delete_env(:inertia, :preserve_big_integers) end)
+    end
+
+    defp get_big_integer_page(conn, path) do
+      conn
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> get(path)
+      |> json_response(200)
+    end
+
+    test "wraps integers outside the safe range when enabled for the response", %{conn: conn} do
+      page = get_big_integer_page(conn, "/big_integer_props?preserve=true")
+
+      assert page["preserveBigIntegers"] == true
+
+      assert %{
+               "id" => %{"$bigint" => "1234567890123456789"},
+               "negative" => %{"$bigint" => "-9007199254740992"},
+               "max_safe" => 9_007_199_254_740_991,
+               "nested" => %{
+                 "ids" => [%{"$bigint" => "9007199254740992"}, 1],
+                 "date" => "2026-10-12"
+               }
+             } = page["props"]
+
+      assert page["flash"] == %{"info" => %{"$bigint" => "9007199254740992"}}
+    end
+
+    test "sends plain integers by default", %{conn: conn} do
+      page = get_big_integer_page(conn, "/big_integer_props")
+
+      refute Map.has_key?(page, "preserveBigIntegers")
+      assert page["props"]["id"] == 1_234_567_890_123_456_789
+      assert page["flash"] == %{"info" => 9_007_199_254_740_992}
+    end
+
+    test "honors the global config and lets a response opt out", %{conn: conn} do
+      Application.put_env(:inertia, :preserve_big_integers, true)
+
+      page = get_big_integer_page(conn, "/big_integer_props")
+      assert page["preserveBigIntegers"] == true
+      assert page["props"]["id"] == %{"$bigint" => "1234567890123456789"}
+
+      page = conn |> recycle() |> get_big_integer_page("/big_integer_props?preserve=false")
+      refute Map.has_key?(page, "preserveBigIntegers")
+      assert page["props"]["id"] == 1_234_567_890_123_456_789
+    end
+
+    test "wraps integers in the page data of html responses", %{conn: conn} do
+      body = conn |> get("/big_integer_props?preserve=true") |> html_response(200)
+
+      assert body =~ ~s("preserveBigIntegers":true)
+      assert body =~ ~s("id":{"$bigint":"1234567890123456789"})
+    end
+
+    test "testing helpers return the original integers", %{conn: conn} do
+      conn = get(conn, "/big_integer_props?preserve=true")
+
+      assert Inertia.Testing.inertia_props(conn).id == 1_234_567_890_123_456_789
+      assert Inertia.Testing.inertia_flash(conn) == %{"info" => 9_007_199_254_740_992}
+    end
+  end
+
   test "escapes < in the ssr page data so props cannot open a comment", %{conn: conn} do
     path =
       __ENV__.file

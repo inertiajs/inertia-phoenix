@@ -248,6 +248,24 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", ssr: nil)
   end
 
+  def big_integer_props(conn, params) do
+    preserve =
+      case params["preserve"] do
+        "true" -> true
+        "false" -> false
+        _ -> nil
+      end
+
+    conn
+    |> assign(:page_title, "Home")
+    |> put_flash(:info, 9_007_199_254_740_992)
+    |> assign_prop(:id, 1_234_567_890_123_456_789)
+    |> assign_prop(:negative, -9_007_199_254_740_992)
+    |> assign_prop(:max_safe, 9_007_199_254_740_991)
+    |> assign_prop(:nested, %{ids: [9_007_199_254_740_992, 1], date: ~D[2026-10-12]})
+    |> render_inertia("Home", preserve_big_integers: preserve)
+  end
+
   def script_breakout_props(conn, _params) do
     conn
     |> assign(:page_title, "Home")

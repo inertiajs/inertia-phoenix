@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add a `:preserve_big_integers` config option and a matching `render_inertia` option. When enabled, integers outside JavaScript's safe range (±2^53 - 1) in props and flash data are sent as `{"$bigint": "..."}` and the page object includes `preserveBigIntegers: true`, so the client revives them as native `BigInt` values instead of losing precision. Requires `@inertiajs/core` 3.8.0 or later. Integers inside structs are not converted. Matches the Laravel adapter ([inertiajs/inertia-laravel#904](https://github.com/inertiajs/inertia-laravel/pull/904)).
+
 ## 3.0.1 - 2026-10-08
 
 ### Security
