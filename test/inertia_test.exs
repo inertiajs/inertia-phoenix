@@ -769,6 +769,116 @@ defmodule InertiaTest do
            }
   end
 
+  # A closure prop is computed only when the response includes it. The fixture's
+  # closures message the test process when they are called.
+  describe "lazy closures in partial reloads" do
+    test "partial reload never calls a closure prop it skips", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "regular")
+        |> get(~p"/lazy_closures")
+
+      body = json_response(conn, 200)
+
+      assert body["props"] == %{"regular" => "value", "errors" => %{}}
+      refute_received {:resolved, :expensive}
+      refute_received {:resolved, :auth}
+    end
+
+    test "partial reload never calls a closure prop it excepts", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-except", "expensive")
+        |> get(~p"/lazy_closures")
+
+      body = json_response(conn, 200)
+
+      refute Map.has_key?(body["props"], "expensive")
+      refute_received {:resolved, :expensive}
+      assert_received {:resolved, :auth}
+    end
+
+    test "partial reload calls only the closure props it requests", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "expensive")
+        |> get(~p"/lazy_closures")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["expensive"] == "computed"
+      assert_received {:resolved, :expensive}
+      refute_received {:resolved, :auth}
+    end
+
+    test "full load calls every closure prop and reports the once props inside them", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> get(~p"/lazy_closures")
+
+      body = json_response(conn, 200)
+
+      assert body["props"]["auth"] == %{"user" => "Alice", "plans" => ["basic", "pro"]}
+      assert_received {:resolved, :expensive}
+      assert_received {:resolved, :auth}
+
+      assert body["onceProps"] == %{
+               "auth.plans" => %{"prop" => "auth.plans", "expiresAt" => nil},
+               "settings.plans" => %{"prop" => "settings.plans", "expiresAt" => nil}
+             }
+    end
+
+    # Metadata that can be read without running anything is still reported
+    # for a skipped prop: a once prop in a plain map, or at the top level.
+    test "partial reload still reports once props it can see without calling anything", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "regular")
+        |> get(~p"/lazy_closures")
+
+      body = json_response(conn, 200)
+
+      refute Map.has_key?(body["props"], "settings")
+
+      assert body["onceProps"] == %{
+               "settings.plans" => %{"prop" => "settings.plans", "expiresAt" => nil}
+             }
+    end
+
+    test "partial reload still reports a skipped top-level once prop", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-inertia", "true")
+        |> put_req_header("x-inertia-version", @current_version)
+        |> put_req_header("x-inertia-partial-component", "Home")
+        |> put_req_header("x-inertia-partial-data", "regular")
+        |> get(~p"/once_props")
+
+      body = json_response(conn, 200)
+
+      refute Map.has_key?(body["props"], "plans")
+      assert body["onceProps"] == %{"plans" => %{"prop" => "plans", "expiresAt" => nil}}
+    end
+  end
+
   test "ignores tagged lazy props on initial page loads", %{conn: conn} do
     conn =
       conn
@@ -2333,7 +2443,13 @@ defmodule InertiaTest do
              }
     end
 
-    test "partial reload excluding nested once parent preserves once metadata", %{conn: conn} do
+    # The closure is not called to look for once props inside it: that would
+    # run whatever the reload skipped it to avoid. The client keeps the
+    # once metadata the full response gave it, merging a partial response's
+    # `onceProps` into its own.
+    test "partial reload excluding nested once parent does not resolve the parent", %{
+      conn: conn
+    } do
       conn =
         conn
         |> put_req_header("x-inertia", "true")
@@ -2346,10 +2462,7 @@ defmodule InertiaTest do
 
       assert body["props"]["regular"] == "value"
       refute Map.has_key?(body["props"], "auth")
-
-      assert body["onceProps"] == %{
-               "auth.plans" => %{"prop" => "auth.plans", "expiresAt" => nil}
-             }
+      refute body["onceProps"]
     end
 
     test "except-once-props bypassed when parent path is in partial data", %{conn: conn} do

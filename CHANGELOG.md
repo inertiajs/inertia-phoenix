@@ -6,6 +6,10 @@
 
 - Add a `:preserve_big_integers` config option and a matching `render_inertia` option. When enabled, integers outside JavaScript's safe range (±2^53 - 1) in props and flash data are sent as `{"$bigint": "..."}` and the page object includes `preserveBigIntegers: true`, so the client revives them as native `BigInt` values instead of losing precision. Requires `@inertiajs/core` 3.8.0 or later. Integers inside structs are not converted. Matches the Laravel adapter ([inertiajs/inertia-laravel#904](https://github.com/inertiajs/inertia-laravel/pull/904)).
 
+### Fixed
+
+- A partial reload no longer calls the closure props it skips. Since nested prop support (3.0.0), every skipped closure was resolved to look for once props inside it, so a closure used to keep a prop lazy (`assign_prop(:items, fn -> ... end)`) ran its work on every partial reload, and the reload computed the whole page only to drop most of it. Once props the server can see without calling anything (at the top level, or inside a plain map) are still reported for a skipped prop; those inside a skipped closure are not, as the client keeps the once props of the full response that resolved it, merging a partial response's `onceProps` into its own.
+
 ## 3.0.1 - 2026-10-08
 
 ### Security
