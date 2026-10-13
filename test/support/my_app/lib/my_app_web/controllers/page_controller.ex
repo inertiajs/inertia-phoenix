@@ -29,6 +29,24 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", %{lazy_3: &lazy_3/0})
   end
 
+  # Each closure tells the test process when it is called. Phoenix.ConnTest
+  # runs the request in the test's own process, so `self()` is the test.
+  def lazy_closures(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:expensive, fn ->
+      send(self(), {:resolved, :expensive})
+      "computed"
+    end)
+    |> assign_prop(:auth, fn ->
+      send(self(), {:resolved, :auth})
+      %{user: "Alice", plans: inertia_once(fn -> ["basic", "pro"] end)}
+    end)
+    |> assign_prop(:settings, %{theme: "dark", plans: inertia_once(fn -> ["basic"] end)})
+    |> assign_prop(:regular, "value")
+    |> render_inertia("Home")
+  end
+
   def nested(conn, _params) do
     conn
     |> assign(:page_title, "Home")

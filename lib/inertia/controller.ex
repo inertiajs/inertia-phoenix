@@ -924,15 +924,18 @@ defmodule Inertia.Controller do
     end)
   end
 
-  # Collects once metadata for props that were filtered out by partial filtering
+  # Collects once metadata for props that were filtered out by partial filtering,
+  # from what can be read without resolving anything
   defp collect_once_meta_if_skipped(%Once{} = once, path, _ctx, meta) do
     once_key = once.key || path
     %{meta | once_props: Map.put(meta.once_props, once_key, build_once_meta(once, path))}
   end
 
-  defp collect_once_meta_if_skipped(fun, path, ctx, meta) when is_function(fun, 0) do
-    collect_once_meta_if_skipped(fun.(), path, ctx, meta)
-  end
+  # A closure the partial reload skipped is not called, even to look for once
+  # props inside it: skipping it is how a partial reload avoids its work. The
+  # full response that resolved it reported those once props, and the client
+  # keeps them, merging a partial response's `onceProps` into its own.
+  defp collect_once_meta_if_skipped(fun, _path, _ctx, meta) when is_function(fun, 0), do: meta
 
   defp collect_once_meta_if_skipped(map, path, ctx, meta)
        when is_map(map) and not is_struct(map) do

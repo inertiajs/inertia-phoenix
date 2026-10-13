@@ -18,6 +18,7 @@ defmodule MyAppWeb.Router do
     get "/non_inertia", PageController, :non_inertia
     get "/shared", PageController, :shared
     get "/lazy", PageController, :lazy
+    get "/lazy_closures", PageController, :lazy_closures
     get "/nested", PageController, :nested
     get "/always", PageController, :always
     get "/tagged_lazy", PageController, :tagged_lazy
