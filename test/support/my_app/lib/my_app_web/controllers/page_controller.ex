@@ -7,6 +7,30 @@ defmodule MyAppWeb.PageController do
     |> render_inertia("Home", %{text: "Hello World"})
   end
 
+  def devtools(conn, _params) do
+    conn
+    |> assign(:page_title, "Home")
+    |> assign_prop(:assigned, "assigned")
+    |> assign_prop(:important, inertia_always("stuff"))
+    |> render_inertia("Home", %{
+      inline: "inline",
+      password: "hunter2"
+    })
+  end
+
+  def devtools_secrets(conn, _params) do
+    conn
+    |> camelize_props()
+    |> assign_prop(:api_key, "key")
+    |> assign_prop(:new_password, "hunter2")
+    |> assign_prop(:auth, %{user: "Alice", token: inertia_always("secret")})
+    |> render_inertia("Home")
+  end
+
+  def devtools_large(conn, _params) do
+    text(conn, String.duplicate("a", 300_000))
+  end
+
   def non_inertia(conn, _params) do
     conn
     |> assign(:page_title, "Home")

@@ -18,6 +18,7 @@ The official Elixir/Phoenix adapter for [Inertia.js](https://inertiajs.com/).
 - [Flash messages](#flash-messages)
 - [CSRF protection](#csrf-protection)
 - [History](#history)
+- [DevTools](#devtools)
 - [Testing](#testing)
 - [Server-side rendering](#server-side-rendering)
 
@@ -851,6 +852,57 @@ To instruct the client to clear this history (for example, when a user logs out)
 conn
 |> clear_history()
 ```
+
+## DevTools
+
+[Inertia DevTools](https://inertiajs.com/docs/devtools) is a browser extension for inspecting Inertia requests, props, and page state. This library records the server side of each request for it to display, including where each prop and render call is written, so the panel can link to them in your editor.
+
+Enable recording in development:
+
+```elixir
+# config/dev.exs
+config :inertia, :devtools,
+  enabled: true,
+  # Optional: links page components to their source files
+  component_path: "assets/js/pages/{component}.tsx"
+```
+
+Add `Inertia.DevTools` to your supervision tree. It holds the recorded entries, and does not start when DevTools is disabled:
+
+```diff
+  children = [
+    # ...
++   Inertia.DevTools,
+    MyAppWeb.Endpoint
+  ]
+```
+
+Then mount the endpoint the extension reads entries from, outside of your `:browser` pipeline:
+
+```diff
+  if Application.compile_env(:my_app, :dev_routes) do
++   import Inertia.DevTools.Router
++
++   scope "/" do
++     inertia_devtools()
++   end
+    # ...
+  end
+```
+
+The extension relies on the client's development integrations, which require `@inertiajs/*` 3.6 or later. They are enabled when `import.meta.env.DEV` is true, which Vite sets in development. If you bundle with esbuild, define it in your development watcher:
+
+```elixir
+# config/dev.exs
+config :my_app, MyAppWeb.Endpoint,
+  watchers: [
+    esbuild:
+      {Esbuild, :install_and_run,
+       [:my_app, ~w(--sourcemap=inline --watch --define:import.meta.env.DEV=true)]}
+  ]
+```
+
+See the `Inertia.DevTools` docs for every configuration option, including how sensitive values are redacted.
 
 ## Testing
 

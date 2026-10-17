@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add support for [Inertia DevTools](https://inertiajs.com/docs/devtools). When enabled with `config :inertia, :devtools, enabled: true`, `Inertia.Plug` records each request for the DevTools browser extension: the request and response, the props with their types (deferred, merge, once, and so on) and whether they are shared, the matched route, and the locations of the render call, each prop, and the controller action for opening them in an editor. Entries are held in memory by `Inertia.DevTools` (added to your supervision tree) and served by the routes `Inertia.DevTools.Router.inertia_devtools/0` defines. Sensitive headers, params, and props are redacted, including the keys in Phoenix's `:filter_parameters`. Requires `@inertiajs/*` 3.6 or later on the client.
+
 ## 3.1.0 - 2026-10-17
 
 ### Added

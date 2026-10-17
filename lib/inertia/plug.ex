@@ -12,6 +12,9 @@ defmodule Inertia.Plug do
 
   def call(conn, _opts) do
     conn
+    # Started first so its before-send callback runs last, after the ones
+    # registered below have settled the response.
+    |> Inertia.DevTools.Recorder.start()
     |> assign(:inertia_head, [])
     |> put_resp_header("vary", "X-Inertia")
     |> put_private(:inertia_version, compute_version())

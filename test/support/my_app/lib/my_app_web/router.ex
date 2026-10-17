@@ -11,6 +11,25 @@ defmodule MyAppWeb.Router do
     plug Inertia.Plug
   end
 
+  pipeline :share_user do
+    plug MyAppWeb.Plugs.ShareUser
+  end
+
+  import Inertia.DevTools.Router
+
+  scope "/" do
+    inertia_devtools()
+  end
+
+  scope "/", MyAppWeb do
+    pipe_through [:browser, :share_user]
+
+    get "/devtools", PageController, :devtools
+    get "/devtools_secrets", PageController, :devtools_secrets
+    get "/devtools_large", PageController, :devtools_large
+    put "/devtools", PageController, :update
+  end
+
   scope "/", MyAppWeb do
     pipe_through(:browser)
 
