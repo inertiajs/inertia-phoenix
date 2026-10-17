@@ -4,6 +4,8 @@ defmodule Inertia.Controller do
   """
   require Logger
 
+  alias Inertia.DevTools.Recorder
+  alias Inertia.DevTools.Source
   alias Inertia.Errors
   alias Inertia.SSR
   alias Inertia.SSR.RenderError
@@ -80,7 +82,9 @@ defmodule Inertia.Controller do
               deferred_props: %{},
               once_props: %{},
               scroll_props: %{},
-              rescued_props: []
+              rescued_props: [],
+              # The prop type tags seen at each path, reported by DevTools
+              prop_types: %{}
   end
 
   defmodule ResolveContext do
@@ -494,7 +498,10 @@ defmodule Inertia.Controller do
   @spec assign_prop(Plug.Conn.t(), prop_key(), any()) :: Plug.Conn.t()
   def assign_prop(conn, key, value) do
     shared = conn.private[:inertia_shared] || %{}
-    put_private(conn, :inertia_shared, Map.put(shared, key, value))
+
+    conn
+    |> put_private(:inertia_shared, Map.put(shared, key, value))
+    |> Recorder.track_prop(key)
   end
 
   @doc """
@@ -789,6 +796,7 @@ defmodule Inertia.Controller do
       is_partial: is_partial,
       preserve_big_integers: option_or_config(opts, :preserve_big_integers)
     })
+    |> put_devtools_render(component, inline_props, shared_prop_keys, meta.prop_types, opts)
     |> detect_ssr(opts)
     |> put_csrf_cookie()
     |> send_response()
@@ -801,6 +809,77 @@ defmodule Inertia.Controller do
       {f, p} -> {f, p}
     end
   end
+
+  # Captures what DevTools reports about a render: which props are shared, and
+  # where the render call and each prop are written. A prop counts as shared
+  # when it is tagged with `inertia_share/1`, or assigned anywhere other than
+  # the controller itself (e.g. by a plug in the pipeline).
+  defp put_devtools_render(
+         %{private: %{inertia_devtools: devtools}} = conn,
+         component,
+         inline_props,
+         shared_prop_keys,
+         prop_types,
+         opts
+       ) do
+    controller = conn.private[:phoenix_controller]
+    action = conn.private[:phoenix_action]
+    key = &(&1 |> transform_key(opts) |> to_string())
+
+    {shared_keys, share_sources, render_sources} =
+      (conn.private[:inertia_shared] || %{})
+      |> Map.keys()
+      |> Enum.reject(&Map.has_key?(inline_props, &1))
+      |> Enum.reduce({shared_prop_keys, %{}, %{}}, fn raw,
+                                                      {shared, share_sources, render_sources} ->
+        prop = key.(raw)
+
+        case devtools.sources[raw] do
+          {^controller, location} when not is_nil(controller) ->
+            if prop in shared_prop_keys,
+              do: {shared, Map.put(share_sources, prop, location), render_sources},
+              else: {shared, share_sources, Map.put(render_sources, prop, location)}
+
+          {_module, location} ->
+            {[prop | shared], Map.put(share_sources, prop, location), render_sources}
+
+          nil ->
+            {[prop | shared], share_sources, render_sources}
+        end
+      end)
+
+    # A render in tail position (as in `conn |> ... |> render_inertia(...)`)
+    # leaves no stack frame for the action, so the call is located by scanning
+    # the action's source instead.
+    action_source = Source.action(controller, action)
+
+    render_source =
+      case Source.caller() do
+        {^controller, ^action, location} -> location
+        _ -> Source.render_call(action_source)
+      end
+
+    Recorder.put_render(conn, %{
+      component: component,
+      action_source: action_source,
+      render_source: render_source,
+      shared_keys: Enum.uniq(shared_keys),
+      share_sources: share_sources,
+      render_sources: render_sources,
+      inline_keys: Map.new(Map.keys(inline_props), &{key.(&1), raw_key_name(&1)}),
+      prop_types: prop_types,
+      reset: opts[:reset] || []
+    })
+  rescue
+    exception ->
+      Recorder.warn(conn, exception, __STACKTRACE__)
+      conn
+  end
+
+  defp put_devtools_render(conn, _component, _inline, _shared, _prop_types, _opts), do: conn
+
+  defp raw_key_name({:preserve, key}), do: to_string(key)
+  defp raw_key_name(key), do: to_string(key)
 
   @doc """
   Determines if a response has been rendered with Inertia.
@@ -949,6 +1028,8 @@ defmodule Inertia.Controller do
   defp collect_once_meta_if_skipped(_, _, _, meta), do: meta
 
   defp resolve_prop(key, value, path, transformed_key, props_acc, meta, ctx, parent_was_resolved) do
+    meta = record_prop_type(meta, path, value)
+
     # Step 1: Unwrap %Once{} structs
     {value, meta, skip_once} = unwrap_once(value, path, ctx, meta)
 
@@ -960,6 +1041,7 @@ defmodule Inertia.Controller do
 
       # Step 3: Resolve functions
       {value, was_resolved} = resolve_value(value)
+      meta = if was_resolved, do: record_prop_type(meta, path, value), else: meta
 
       # Step 4: Two-level unwrapping — if a function returned a prop type, detect and process
       {value, meta, was_resolved} =
@@ -1068,6 +1150,24 @@ defmodule Inertia.Controller do
       {value, meta}
     end
   end
+
+  # Records a prop's type tag for DevTools. Called with the prop as written and
+  # again once it is resolved, which catches tags returned by functions.
+  defp record_prop_type(meta, path, value) do
+    case prop_type(value) do
+      nil -> meta
+      type -> %{meta | prop_types: Map.update(meta.prop_types, path, [type], &[type | &1])}
+    end
+  end
+
+  defp prop_type({:keep, _}), do: :keep
+  defp prop_type({:optional, _}), do: :optional
+  defp prop_type({:defer, _}), do: :defer
+  defp prop_type({tag, _}) when tag in [:merge, :prepend, :deep_merge], do: :merge
+  defp prop_type({tag, _, _}) when tag in [:merge, :prepend, :deep_merge], do: :merge
+  defp prop_type(%Scroll{}), do: :scroll
+  defp prop_type(%Once{}), do: :once
+  defp prop_type(_), do: nil
 
   defp unwrap_once(%Once{} = once, path, ctx, meta) do
     once_key = once.key || path
@@ -1511,14 +1611,18 @@ defmodule Inertia.Controller do
   end
 
   defp send_response(%{private: %{inertia_request: true}} = conn) do
+    page = inertia_assigns(conn)
+
     conn
+    |> Recorder.put_page(page)
     |> put_status(200)
     |> put_resp_header("x-inertia", "true")
-    |> json(inertia_assigns(conn))
+    |> json(page)
   end
 
   defp send_response(conn) do
     page = inertia_assigns(conn)
+    conn = Recorder.put_page(conn, page)
 
     if conn.private[:inertia_ssr] do
       case SSR.call(page) do
@@ -1570,7 +1674,7 @@ defmodule Inertia.Controller do
     |> put_view(Inertia.HTML)
     |> compile_head(head)
     |> assign(:body, body |> escape_ssr_page_data() |> maybe_put_csp_nonce(csp_nonce(conn)))
-    |> render(:inertia_ssr)
+    |> render(:inertia_ssr, inertia_devtools: Recorder.tag(conn))
   end
 
   # Escapes `<` in the page data JSON of an SSR-rendered body. `buildSSRBody`
@@ -1629,7 +1733,11 @@ defmodule Inertia.Controller do
   defp send_csr_response(conn, page) do
     conn
     |> put_view(Inertia.HTML)
-    |> render(:inertia_page, %{page: page, csp_nonce: csp_nonce(conn)})
+    |> render(:inertia_page, %{
+      page: page,
+      csp_nonce: csp_nonce(conn),
+      inertia_devtools: Recorder.tag(conn)
+    })
   end
 
   defp csp_nonce(conn) do

@@ -63,6 +63,7 @@ defmodule Inertia.HTML do
     <script data-page="app" type="application/json" nonce={@csp_nonce}>
       <%= Phoenix.HTML.raw(encode_page(@page)) %>
     </script>
+    <.devtools_id devtools={@inertia_devtools} />
     """
   end
 
@@ -70,6 +71,22 @@ defmodule Inertia.HTML do
   def inertia_ssr(assigns) do
     ~H"""
     {Phoenix.HTML.raw(@body)}
+    <.devtools_id devtools={@inertia_devtools} />
+    """
+  end
+
+  # The DevTools extension cannot see the response headers of the initial page
+  # load, so the id of its recorded entry is rendered into the page instead.
+  defp devtools_id(assigns) do
+    ~H"""
+    <script
+      :if={@devtools}
+      data-inertia-devtools-id
+      data-inertia-devtools-base-path={@devtools.base_path}
+      type="application/json"
+    >
+      <%= Phoenix.HTML.raw(json_library().encode!(@devtools.id)) %>
+    </script>
     """
   end
 
