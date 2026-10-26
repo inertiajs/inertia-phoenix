@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Prefetch requests no longer turn a redirect to a URL with a `#fragment` into a `409` with `X-Inertia-Redirect`. The check read an `X-Inertia-Purpose` header that the client never sends; it now reads the `Purpose: prefetch` header the client sets on prefetch visits, matching the Laravel adapter. A prefetch now follows the redirect and caches the page it lands on.
+
 ## 3.1.0 - 2026-10-17
 
 ### Added

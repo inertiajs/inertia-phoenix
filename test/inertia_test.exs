@@ -2618,11 +2618,12 @@ defmodule InertiaTest do
       conn
       |> put_req_header("x-inertia", "true")
       |> put_req_header("x-inertia-version", @current_version)
-      |> put_req_header("x-inertia-purpose", "prefetch")
+      |> put_req_header("purpose", "prefetch")
       |> get(~p"/redirect_with_fragment")
 
-    # Should be a normal 303 redirect (PUT/PATCH/DELETE) or 302 (GET)
     assert response(conn, 302)
+    assert get_resp_header(conn, "location") == ["/page#section"]
+    assert get_resp_header(conn, "x-inertia-redirect") == []
   end
 
   # Empty response handling tests

@@ -253,8 +253,7 @@ defmodule Inertia.Plug do
   defp fragment_redirect?(%{status: status} = conn) when status in 300..308 do
     case get_resp_header(conn, "location") do
       [location] ->
-        String.contains?(location, "#") and
-          get_req_header(conn, "x-inertia-purpose") != ["prefetch"]
+        String.contains?(location, "#") and get_req_header(conn, "purpose") != ["prefetch"]
 
       _ ->
         false
