@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Runs each time an orb wakes. Nothing here needs reconnecting: the repo has no
+# databases or authenticated services, so just confirm the toolchain is present.
+set -euo pipefail
+
+command -v mix >/dev/null || {
+  echo "mix is missing; rerun .agents/setup" >&2
+  exit 1
+}

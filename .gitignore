@@ -33,3 +33,6 @@ inertia-*.tar
 
 # Local dependency management
 mise.toml
+
+# Amp orb portal metadata
+.amp/portals/*

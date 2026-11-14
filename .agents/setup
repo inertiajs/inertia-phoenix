@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb: installs Erlang/OTP and Elixir, fetches and
+# compiles deps, and builds the dialyzer PLTs so the checks in AGENTS.md run
+# without a cold start. Idempotent; a warm rerun only re-checks each step.
+set -euo pipefail
+
+# Keep in sync with the newest entry in the CI matrix (.github/workflows/ci.yml).
+OTP_VERSION="27.2.2"
+ELIXIR_VERSION="1.19.5"
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+step() {
+  local label="$1"
+  shift
+  local start=$SECONDS
+  echo "==> $label"
+  "$@"
+  echo "<== $label ($((SECONDS - start))s)"
+}
+
+beam_root="/opt/beam"
+otp_dir="$beam_root/otp-$OTP_VERSION"
+elixir_dir="$beam_root/elixir-$ELIXIR_VERSION-otp-${OTP_VERSION%%.*}"
+
+install_otp() {
+  if [[ -x "$otp_dir/bin/erl" ]]; then
+    echo "OTP $OTP_VERSION already installed"
+    return
+  fi
+  # Prebuilt OTP from builds.hex.pm, the same source erlef/setup-beam uses in CI.
+  local tmp
+  tmp="$(mktemp -d)"
+  curl -fsSL "https://builds.hex.pm/builds/otp/ubuntu-24.04/OTP-$OTP_VERSION.tar.gz" \
+    -o "$tmp/otp.tar.gz"
+  sudo rm -rf "$otp_dir"
+  sudo mkdir -p "$otp_dir"
+  sudo tar -xzf "$tmp/otp.tar.gz" -C "$otp_dir" --strip-components=1
+  # Install writes bin/erl with this directory baked in, so it marks completion.
+  sudo "$otp_dir/Install" -minimal "$otp_dir" >/dev/null
+  rm -rf "$tmp"
+}
+
+install_elixir() {
+  if [[ -x "$elixir_dir/bin/elixir" ]]; then
+    echo "Elixir $ELIXIR_VERSION already installed"
+    return
+  fi
+  local tmp
+  tmp="$(mktemp -d)"
+  curl -fsSL "https://builds.hex.pm/builds/elixir/v$ELIXIR_VERSION-otp-${OTP_VERSION%%.*}.zip" \
+    -o "$tmp/elixir.zip"
+  sudo rm -rf "$elixir_dir"
+  sudo mkdir -p "$elixir_dir"
+  sudo unzip -q "$tmp/elixir.zip" -d "$elixir_dir"
+  rm -rf "$tmp"
+}
+
+link_binaries() {
+  # /usr/local/bin is on PATH for Amp, login shells, and supervised services alike.
+  local bin
+  for bin in erl erlc escript epmd; do
+    sudo ln -sfn "$otp_dir/bin/$bin" "/usr/local/bin/$bin"
+  done
+  for bin in elixir elixirc iex mix; do
+    sudo ln -sfn "$elixir_dir/bin/$bin" "/usr/local/bin/$bin"
+  done
+}
+
+install_hex_rebar() {
+  # --if-missing keeps the warm path offline.
+  mix local.hex --force --if-missing
+  mix local.rebar --force --if-missing
+}
+
+step "Install Erlang/OTP $OTP_VERSION" install_otp
+step "Install Elixir $ELIXIR_VERSION" install_elixir
+step "Link BEAM binaries" link_binaries
+step "Install Hex and rebar" install_hex_rebar
+step "Fetch deps" mix deps.get
+# CI and the dialyzer check run in test; mix credo and mix format run in dev.
+step "Compile (test)" env MIX_ENV=test mix compile
+step "Compile (dev)" mix compile
+step "Build dialyzer PLTs (test)" env MIX_ENV=test mix dialyzer --plt
