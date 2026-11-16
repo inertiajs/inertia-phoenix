@@ -23,6 +23,14 @@ defmodule InertiaTest do
     refute Inertia.Controller.inertia_response?(conn)
   end
 
+  test "reading the rendered component", %{conn: conn} do
+    conn = get(conn, "/")
+    assert Inertia.Controller.inertia_component(conn) == "Home"
+
+    conn = conn |> recycle() |> get("/non_inertia")
+    assert Inertia.Controller.inertia_component(conn) == nil
+  end
+
   test "renders JSON response with x-inertia header", %{conn: conn} do
     conn =
       conn

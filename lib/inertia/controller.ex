@@ -810,6 +810,22 @@ defmodule Inertia.Controller do
   def inertia_response?(_), do: false
 
   @doc """
+  Returns the page component the response renders, or `nil` for a response not
+  rendered with Inertia.
+
+  ## Example
+
+      inertia_component(conn)
+      #=> "Users/Index"
+  """
+  @doc since: "3.2.0"
+  @spec inertia_component(Plug.Conn.t()) :: String.t() | nil
+  def inertia_component(%Plug.Conn{private: %{inertia_page: %{component: component}}}),
+    do: component
+
+  def inertia_component(_conn), do: nil
+
+  @doc """
   Forces the Inertia.js client side to perform a redirect. This can be used as a
   plug or inline when building a response.
 

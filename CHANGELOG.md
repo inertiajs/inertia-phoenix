@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add `Inertia.Controller.inertia_component/1`, which returns the page component a response renders, or `nil` for a response not rendered with Inertia.
+
 ## 3.1.1 - 2026-10-28
 
 ### Fixed
