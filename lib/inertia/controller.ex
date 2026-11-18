@@ -826,6 +826,55 @@ defmodule Inertia.Controller do
   def inertia_component(_conn), do: nil
 
   @doc """
+  Determines if the request is a partial reload, which asks for only some of a
+  page's props, such as a `router.reload({ only: [...] })` or the client
+  loading deferred props.
+
+  Most actions don't need to know: props built with a function are only
+  called when the response includes them. Check this when a prop's shape
+  depends on the request, such as one that is deferred on a full visit, or for
+  work that only belongs to a full visit.
+
+  Pass `component` to check that the reload is of that page. The response
+  only skips props when the reloaded component matches the one it renders.
+
+  ## Example
+
+      if inertia_partial_reload?(conn, "Users/Index") do
+        # ...
+      end
+  """
+  @doc since: "3.3.0"
+  @spec inertia_partial_reload?(Plug.Conn.t()) :: boolean()
+  def inertia_partial_reload?(%Plug.Conn{private: %{inertia_partial_component: _}}), do: true
+  def inertia_partial_reload?(_conn), do: false
+
+  @doc since: "3.3.0"
+  @spec inertia_partial_reload?(Plug.Conn.t(), String.t()) :: boolean()
+  def inertia_partial_reload?(
+        %Plug.Conn{private: %{inertia_partial_component: component}},
+        component
+      ),
+      do: true
+
+  def inertia_partial_reload?(_conn, _component), do: false
+
+  @doc """
+  Determines if the request is a prefetch, made by `router.prefetch` or a
+  `<Link prefetch>`, which the client caches for a later visit. Prefetch
+  requests carry a `Purpose: prefetch` header.
+
+  ## Example
+
+      if inertia_prefetch?(conn) do
+        # Warm a cache the visit will read from
+      end
+  """
+  @doc since: "3.3.0"
+  @spec inertia_prefetch?(Plug.Conn.t()) :: boolean()
+  def inertia_prefetch?(conn), do: Plug.Conn.get_req_header(conn, "purpose") == ["prefetch"]
+
+  @doc """
   Forces the Inertia.js client side to perform a redirect. This can be used as a
   plug or inline when building a response.
 

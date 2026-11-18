@@ -31,6 +31,40 @@ defmodule InertiaTest do
     assert Inertia.Controller.inertia_component(conn) == nil
   end
 
+  test "checking if a request is a partial reload", %{conn: conn} do
+    conn = get(conn, "/")
+    refute Inertia.Controller.inertia_partial_reload?(conn)
+    refute Inertia.Controller.inertia_partial_reload?(conn, "Home")
+
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("x-inertia-partial-component", "Home")
+      |> put_req_header("x-inertia-partial-data", "b")
+      |> get(~p"/always")
+
+    assert Inertia.Controller.inertia_partial_reload?(conn)
+    assert Inertia.Controller.inertia_partial_reload?(conn, "Home")
+    refute Inertia.Controller.inertia_partial_reload?(conn, "Users/Index")
+  end
+
+  test "checking if a request is a prefetch", %{conn: conn} do
+    conn = get(conn, "/")
+    refute Inertia.Controller.inertia_prefetch?(conn)
+
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-inertia", "true")
+      |> put_req_header("x-inertia-version", @current_version)
+      |> put_req_header("purpose", "prefetch")
+      |> get(~p"/")
+
+    assert Inertia.Controller.inertia_prefetch?(conn)
+  end
+
   test "renders JSON response with x-inertia header", %{conn: conn} do
     conn =
       conn
