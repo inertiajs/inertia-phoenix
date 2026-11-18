@@ -3,7 +3,7 @@ defmodule Inertia.Plug do
   The plug module for detecting Inertia.js requests.
   """
 
-  import Inertia.Controller, only: [assign_errors: 2]
+  import Inertia.Controller, only: [assign_errors: 2, inertia_prefetch?: 1]
   import Plug.Conn
 
   def init(opts) do
@@ -253,7 +253,7 @@ defmodule Inertia.Plug do
   defp fragment_redirect?(%{status: status} = conn) when status in 300..308 do
     case get_resp_header(conn, "location") do
       [location] ->
-        String.contains?(location, "#") and get_req_header(conn, "purpose") != ["prefetch"]
+        String.contains?(location, "#") and not inertia_prefetch?(conn)
 
       _ ->
         false

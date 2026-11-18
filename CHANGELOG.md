@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add `Inertia.Controller.inertia_partial_reload?/1,2`, which tells an action whether the request is a partial reload, optionally of a given page component. Use it when a prop's shape depends on the request, such as a prop that is deferred on a full visit but resolved when a partial reload asks for it.
+- Add `Inertia.Controller.inertia_prefetch?/1`, which tells an action whether the request is a prefetch (`Purpose: prefetch`), such as to warm a cache the later visit reads from.
+
 ## 3.2.0 - 2026-11-16
 
 ### Added
